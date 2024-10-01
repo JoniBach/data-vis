@@ -38,7 +38,6 @@ export interface CreateParams {
     chartWidth: number;
 }
 
-// Centralized Event System with types
 interface ListenerMap {
     [eventType: string]: (...args: any[]) => void;
 }
@@ -55,11 +54,10 @@ const eventSystem = {
     }
 };
 
-// Tooltip Creation
 function createTooltip(container: HTMLElement | null, showTooltip: boolean): d3.Selection<HTMLDivElement, unknown, null, undefined> {
     try {
         if (!showTooltip) {
-            return d3.select(document.createElement('div')); // Return a dummy element
+            return d3.select(document.createElement('div'));
         }
         return d3.select(container as HTMLElement)
             .append("div")
@@ -71,11 +69,10 @@ function createTooltip(container: HTMLElement | null, showTooltip: boolean): d3.
             .style("padding", "5px");
     } catch (error) {
         console.error("Error creating tooltip: ", error);
-        return d3.select(document.createElement('div')); // Return a dummy element on error
+        return d3.select(document.createElement('div'));
     }
 }
 
-// Tooltip Handler (Centralized)
 eventSystem.on('tooltip', (chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>, event: MouseEvent, d: DataPoint) => {
     try {
         chartTooltip.style("visibility", "visible")
@@ -102,7 +99,6 @@ eventSystem.on('tooltip-hide', (chartTooltip: d3.Selection<HTMLDivElement, unkno
     }
 });
 
-// Create Grid
 function createGrid({ chartGroup, dateScale, valueScale, chartHeight, chartWidth }: CreateParams) {
     try {
         chartGroup.append('g')
@@ -122,7 +118,6 @@ function createGrid({ chartGroup, dateScale, valueScale, chartHeight, chartWidth
     }
 }
 
-// Create Axis
 function createAxis({ chartGroup, dateScale, valueScale, chartHeight }: CreateParams) {
     try {
         chartGroup.append('g')
@@ -134,7 +129,6 @@ function createAxis({ chartGroup, dateScale, valueScale, chartHeight }: CreatePa
     }
 }
 
-// Create Line
 function createLine({ seriesData, chartGroup, colorScale, line }: CreateParams) {
     try {
         const linesGroup = chartGroup.append('g').attr('class', 'lines-group');
@@ -151,7 +145,6 @@ function createLine({ seriesData, chartGroup, colorScale, line }: CreateParams) 
     }
 }
 
-// Create Area
 function createArea({ seriesData, chartGroup, colorScale, area }: CreateParams) {
     try {
         const areasGroup = chartGroup.append('g').attr('class', 'areas-group');
@@ -167,7 +160,6 @@ function createArea({ seriesData, chartGroup, colorScale, area }: CreateParams) 
     }
 }
 
-// Create Bars
 function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight }: CreateParams) {
     try {
         const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
@@ -195,7 +187,6 @@ function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale,
     }
 }
 
-// Create Points
 function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScale }: CreateParams) {
     try {
         const pointsGroup = chartGroup.append('g').attr('class', 'points-group');
@@ -215,7 +206,6 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScal
     }
 }
 
-// Feature Registry
 const featureRegistry: Record<FeatureType, Function> = {
     [FeatureType.GRID]: createGrid,
     [FeatureType.AXIS]: createAxis,
@@ -226,7 +216,6 @@ const featureRegistry: Record<FeatureType, Function> = {
     [FeatureType.TOOLTIP]: () => { }
 };
 
-// Render Features
 function createFeatures(createParameters: CreateParams, features: Feature[]) {
     try {
         features.forEach(({ feature, hide }) => {
@@ -239,7 +228,6 @@ function createFeatures(createParameters: CreateParams, features: Feature[]) {
     }
 }
 
-// Function to create initial SVG container
 function createInitialSVG({ container, width, height }: { container: HTMLElement, width: number, height: number }) {
     try {
         return d3.select(container)
@@ -252,7 +240,6 @@ function createInitialSVG({ container, width, height }: { container: HTMLElement
     }
 }
 
-// Function to create initial chart group
 function createInitialChartGroup({ svg, margin }: { svg: d3.Selection<SVGSVGElement, unknown, null, undefined>, margin: { top: number, right: number, bottom: number, left: number } }) {
     try {
         return svg.append('g')
@@ -263,7 +250,6 @@ function createInitialChartGroup({ svg, margin }: { svg: d3.Selection<SVGSVGElem
     }
 }
 
-// Function to create the date scale (x-axis)
 function createInitialDateScale({ seriesData, chartWidth }: { seriesData: SeriesData[], chartWidth: number }) {
     try {
         return d3.scaleBand<Date>()
@@ -276,7 +262,6 @@ function createInitialDateScale({ seriesData, chartWidth }: { seriesData: Series
     }
 }
 
-// Function to create the value scale (y-axis)
 function createInitialValueScale({ seriesData, chartHeight }: { seriesData: SeriesData[], chartHeight: number }) {
     try {
         return d3.scaleLinear()
@@ -288,7 +273,6 @@ function createInitialValueScale({ seriesData, chartHeight }: { seriesData: Seri
     }
 }
 
-// Function to create the color scale for the series
 function createInitialColorScale({ seriesData }: { seriesData: SeriesData[] }) {
     try {
         return d3.scaleOrdinal(d3.schemeCategory10)
@@ -299,7 +283,6 @@ function createInitialColorScale({ seriesData }: { seriesData: SeriesData[] }) {
     }
 }
 
-// Function to create the area (for area chart)
 function createInitialArea({ dateScale, valueScale, chartHeight }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number>, chartHeight: number }) {
     try {
         return d3.area<DataPoint>()
@@ -312,7 +295,6 @@ function createInitialArea({ dateScale, valueScale, chartHeight }: { dateScale: 
     }
 }
 
-// Function to create the line chart
 function createInitialLine({ dateScale, valueScale }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number> }) {
     try {
         return d3.line<DataPoint>()
@@ -324,7 +306,6 @@ function createInitialLine({ dateScale, valueScale }: { dateScale: d3.ScaleBand<
     }
 }
 
-// Main chart function
 export function createLineChart(
     container: HTMLElement,
     seriesData: SeriesData[],
