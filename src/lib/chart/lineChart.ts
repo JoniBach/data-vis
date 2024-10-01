@@ -72,6 +72,16 @@ function createGrid({ chartGroup, dateScale, valueScale, chartHeight, chartWidth
         .attr('stroke', 'none');  // Remove the solid line
 }
 
+// Function to create the axis
+function createAxis({ chartGroup, dateScale, valueScale, chartHeight }: CreateParams) {
+    // X-axis
+    chartGroup.append('g')
+        .attr('transform', `translate(0,${chartHeight})`)
+        .call(d3.axisBottom(dateScale).tickFormat(d3.timeFormat("%b %Y")));
+
+    // Y-axis
+    chartGroup.append('g').call(d3.axisLeft(valueScale));
+}
 
 // Function to create lines
 function createLine({ seriesData, chartGroup, colorScale, dateScale, valueScale, line }: CreateParams) {
@@ -199,13 +209,6 @@ export function createLineChart(
         .domain([0, d3.max(seriesData.flatMap(series => series.data), d => d.value) as number])
         .range([chartHeight, 0]);
 
-
-    chartGroup.append('g')
-        .attr('transform', `translate(0,${chartHeight})`)
-        .call(d3.axisBottom(dateScale).tickFormat(d3.timeFormat("%b %Y")));
-
-    chartGroup.append('g').call(d3.axisLeft(valueScale));
-
     const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
         .domain(seriesData.map(d => d.name));
 
@@ -238,6 +241,11 @@ export function createLineChart(
     if (features.some(feature => feature.feature === 'grid')) {
         createGrid(createParameters);
     }
+
+    if (features.some(feature => feature.feature === 'axis')) {
+        createAxis(createParameters);
+    }
+
     if (features.some(feature => feature.feature === 'area')) {
         createArea(createParameters);
     }

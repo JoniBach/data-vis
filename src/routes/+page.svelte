@@ -59,6 +59,9 @@
     },
     {
       feature: 'grid'
+    },
+    {
+      feature: 'axis'
     }
   ]
   
