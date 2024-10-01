@@ -82,7 +82,7 @@
 			]
 		}
 	];
-	const dataKeys = {
+	const vetDataKeys = {
 		name: 'animal',
 		data: 'results',
 		date: 'treatedOn',
@@ -145,5 +145,5 @@
 
 <main>
 	<h1>XY Chart</h1>
-	<LineChart data={mockData} dataKeys={mockDataKeys} width={600} height={400} {features} />
+	<LineChart data={vetAppointments} dataKeys={vetDataKeys} width={600} height={400} {features} />
 </main>
