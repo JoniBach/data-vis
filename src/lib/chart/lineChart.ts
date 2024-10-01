@@ -17,6 +17,18 @@ export interface Feature {
     config?: any; // Flexible config type
 }
 
+export interface TooltipConfig {
+    border?: string;
+    padding?: string;
+    background?: string;
+}
+
+export interface LabelConfig {
+    title?: string;
+    xAxis?: string;
+    yAxis?: string;
+}
+
 // Updated FeatureFunction type
 type FeatureFunction = (params: CreateParams, config?: any) => void;
 
@@ -60,7 +72,7 @@ const eventSystem = {
 };
 
 // Create Label
-function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, config?: any) {
+function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, config?: LabelConfig) {
     try {
         if (config?.title) {
             chartGroup.append('text')
@@ -93,7 +105,7 @@ function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, conf
 }
 
 // Tooltip Creation
-function createTooltip(container: HTMLElement | null, showTooltip: boolean): d3.Selection<HTMLDivElement, unknown, null, undefined> {
+function createTooltip(container: HTMLElement | null, showTooltip: boolean, config: TooltipConfig): d3.Selection<HTMLDivElement, unknown, null, undefined> {
     try {
         if (!showTooltip) {
             return d3.select(document.createElement('div'));
@@ -103,24 +115,40 @@ function createTooltip(container: HTMLElement | null, showTooltip: boolean): d3.
             .attr("class", "tooltip")
             .style("position", "absolute")
             .style("visibility", "hidden")
-            .style("background", "#f9f9f9")
-            .style("border", "1px solid #d3d3d3")
-            .style("padding", "5px");
+            .style("background", config?.background || "#f9f9f9")
+            .style("border", config?.border || "1px solid #d3d3d3")
+            .style("padding", config?.padding || "5px");
+
     } catch (error) {
         console.error("Error creating tooltip: ", error);
         return d3.select(document.createElement('div'));
     }
 }
 
+function escapeHTML(str: number | string) {
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 // Tooltip Handlers
 eventSystem.on('tooltip', (chartTooltip, event, d) => {
     try {
+        // Escape the date and value before inserting into the HTML
+        const dateStr = escapeHTML(d3.timeFormat("%b %Y")(d.date));
+        const valueStr = escapeHTML(d.value);
+
+        // Set the tooltip content with line breaks
         chartTooltip.style("visibility", "visible")
-            .html(`Date: ${d3.timeFormat("%b %Y")(d.date)}<br>Value: ${d.value}`);
+            .html(`Date: ${dateStr}<br>Value: ${valueStr}`);
     } catch (error) {
         console.error("Error in tooltip handler: ", error);
     }
 });
+
 
 eventSystem.on('tooltipMove', (chartTooltip, event) => {
     try {
@@ -419,7 +447,7 @@ export function createLineChart(
         const area = createInitialArea({ dateScale, valueScale, chartHeight });
         const line = createInitialLine({ dateScale, valueScale });
         const showTooltip = features.some(feature => feature.feature === 'tooltip' && !feature.hide);
-        const chartTooltip = createTooltip(container, showTooltip);
+        const chartTooltip = createTooltip(container, showTooltip, features.find(feature => feature.feature === 'tooltip')?.config);
         const createParameters: CreateParams = {
             seriesData,
             chartGroup,

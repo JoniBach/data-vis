@@ -62,7 +62,12 @@
 		},
 		{
 			feature: 'tooltip',
-			hide: false
+			hide: false,
+			config: {
+				border: '1px solid #d3d3d3',
+				padding: '5px',
+				background: '#f9f9f9'
+			}
 		},
 		{
 			feature: 'label',
