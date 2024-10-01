@@ -49,11 +49,14 @@ const eventSystem = {
     on<T extends keyof ListenerMap>(eventType: T, callback: ListenerMap[T]) {
         this.listeners[eventType] = callback;
     },
-    trigger<T extends keyof ListenerMap>(eventType: T, ...args: Parameters<ListenerMap[T]>) {
-        if (this.listeners[eventType]) {
-            this.listeners[eventType](...args);
+    trigger(eventType: keyof ListenerMap, ...args: any[]) {
+        const listener = this.listeners[eventType];
+        if (listener) {
+            // Call the listener with the provided arguments
+            (listener as (...args: any[]) => void)(...args);
         }
     }
+
 };
 
 // Create Label
@@ -135,6 +138,8 @@ eventSystem.on('tooltipHide', (chartTooltip) => {
         console.error("Error in tooltip hide handler: ", error);
     }
 });
+
+
 
 // Create Grid
 function createGrid({ chartGroup, dateScale, valueScale, chartHeight, chartWidth }: CreateParams) {
