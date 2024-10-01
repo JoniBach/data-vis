@@ -226,6 +226,56 @@ function createFeatures(createParameters: CreateParams, features: Feature[]) {
     });
 }
 
+function createInitialSVG({ container, width, height }: { container: HTMLElement, width: number, height: number }) {
+    return d3.select(container)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+}
+
+function createInitialChartGroup({ svg, margin }: { svg: d3.Selection<SVGSVGElement, unknown, null, undefined>, margin: { top: number, right: number, bottom: number, left: number } }) {
+    return svg.append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+}
+
+function createInitialDateScale({ seriesData, chartWidth }: { seriesData: SeriesData[], chartWidth: number }) {
+    return d3.scaleBand<Date>()
+        .domain(seriesData[0].data.map(d => d.date))
+        .range([0, chartWidth])
+        .padding(0.1);
+}
+
+function createInitialValueScale({ seriesData, chartHeight }: { seriesData: SeriesData[], chartHeight: number }) {
+    return d3.scaleLinear()
+        .domain([0, d3.max(seriesData.flatMap(series => series.data), d => d.value) as number])
+        .range([chartHeight, 0]);
+}
+
+function createInitialScale({ seriesData, chartWidth, chartHeight }: { seriesData: SeriesData[], chartWidth: number, chartHeight: number }) {
+    return {
+        dateScale: createInitialDateScale({ seriesData, chartWidth }),
+        valueScale: createInitialValueScale({ seriesData, chartHeight })
+    };
+}
+
+function createInitialColorScale({ seriesData }: { seriesData: SeriesData[] }) {
+    return d3.scaleOrdinal(d3.schemeCategory10)
+        .domain(seriesData.map(d => d.name));
+}
+
+function createInitialArea({ dateScale, valueScale, chartHeight }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number>, chartHeight: number }) {
+    return d3.area<DataPoint>()
+        .x(d => (dateScale(d.date) || 0) + dateScale.bandwidth() / 2)
+        .y0(chartHeight)  // Baseline at the bottom of the chart
+        .y1(d => valueScale(d.value));  // Upper part based on the value
+}
+
+function createInitialLine({ dateScale, valueScale }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number> }) {
+    return d3.line<DataPoint>()
+        .x(d => (dateScale(d.date) || 0) + dateScale.bandwidth() / 2)
+        .y(d => valueScale(d.value));
+}
+
 
 // Main chart function
 export function createLineChart(
@@ -246,37 +296,16 @@ export function createLineChart(
         return;
     }
 
-    const svg = d3.select(container)
-        .append('svg')
-        .attr('width', width)
-        .attr('height', height);
-
-    const chartGroup = svg.append('g')
-        .attr('transform', `translate(${margin.left},${margin.top})`);
-
-    const dateScale = d3.scaleBand<Date>()
-        .domain(seriesData[0].data.map(d => d.date))
-        .range([0, chartWidth])
-        .padding(0.1);
-
-    const valueScale = d3.scaleLinear()
-        .domain([0, d3.max(seriesData.flatMap(series => series.data), d => d.value) as number])
-        .range([chartHeight, 0]);
-
-    const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
-        .domain(seriesData.map(d => d.name));
-
-    const area = d3.area<DataPoint>()
-        .x(d => (dateScale(d.date) || 0) + dateScale.bandwidth() / 2)
-        .y0(chartHeight)
-        .y1(d => valueScale(d.value));
-
-    const line = d3.line<DataPoint>()
-        .x(d => (dateScale(d.date) || 0) + dateScale.bandwidth() / 2)
-        .y(d => valueScale(d.value));
+    const svg = createInitialSVG({ container, width, height });
+    const chartGroup = createInitialChartGroup({ svg, margin });
+    const dateScale = createInitialDateScale({ seriesData, chartWidth });
+    const valueScale = createInitialValueScale({ seriesData, chartHeight });
+    const colorScale = createInitialColorScale({ seriesData });
+    const area = createInitialArea({ dateScale, valueScale, chartHeight });  // Fix here
+    const line = createInitialLine({ dateScale, valueScale });
 
     // Explicitly create the tooltip div and cast it as HTMLDivElement
-    const showTooltip = features.some(feature => feature.feature === 'tooltip')
+    const showTooltip = features.some(feature => feature.feature === 'tooltip');
     const chartTooltip = createTooltip(container, showTooltip);
 
     const createParameters: CreateParams = {
@@ -292,5 +321,6 @@ export function createLineChart(
         chartWidth
     };
 
-    createFeatures(createParameters, features)
+    createFeatures(createParameters, features);
 }
+
