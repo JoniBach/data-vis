@@ -17,12 +17,20 @@ export enum FeatureType {
     BAR = 'bar',
     LINE = 'line',
     POINT = 'point',
-    TOOLTIP = 'tooltip'
+    TOOLTIP = 'tooltip',
+    LABEL = 'label'
+}
+
+export interface LabelConfig {
+    title?: string; // Optional chart title
+    xAxis?: string; // Label for the x-axis
+    yAxis?: string; // Label for the y-axis
 }
 
 export interface Feature {
     feature: FeatureType;
     hide: boolean;
+    config?: LabelConfig | any; // Specific config types for each feature
 }
 
 export interface CreateParams {
@@ -38,6 +46,7 @@ export interface CreateParams {
     chartWidth: number;
 }
 
+// Centralized Event System with types
 interface ListenerMap {
     [eventType: string]: (...args: any[]) => void;
 }
@@ -54,6 +63,45 @@ const eventSystem = {
     }
 };
 
+// Create Label
+function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, config: LabelConfig) {
+    try {
+        // Chart title
+        if (config.title) {
+            chartGroup.append('text')
+                .attr('x', chartWidth / 2)
+                .attr('y', -10) // Position above the chart
+                .attr('text-anchor', 'middle')
+                .attr('font-size', '16px')
+                .text(config.title);
+        }
+
+        // X-axis label
+        if (config.xAxis) {
+            chartGroup.append('text')
+                .attr('x', chartWidth / 2)
+                .attr('y', chartHeight + 30) // Position below the x-axis
+                .attr('text-anchor', 'middle')
+                .attr('font-size', '12px')
+                .text(config.xAxis);
+        }
+
+        // Y-axis label (rotated)
+        if (config.yAxis) {
+            chartGroup.append('text')
+                .attr('transform', `rotate(-90)`) // Rotate text 90 degrees
+                .attr('x', -chartHeight / 2) // Centering the y-axis label vertically
+                .attr('y', -40) // Position on the left of the y-axis
+                .attr('text-anchor', 'middle')
+                .attr('font-size', '12px')
+                .text(config.yAxis);
+        }
+    } catch (error) {
+        console.error("Error creating label: ", error);
+    }
+}
+
+// Tooltip Creation
 function createTooltip(container: HTMLElement | null, showTooltip: boolean): d3.Selection<HTMLDivElement, unknown, null, undefined> {
     try {
         if (!showTooltip) {
@@ -73,6 +121,7 @@ function createTooltip(container: HTMLElement | null, showTooltip: boolean): d3.
     }
 }
 
+// Tooltip Handlers
 eventSystem.on('tooltip', (chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>, event: MouseEvent, d: DataPoint) => {
     try {
         chartTooltip.style("visibility", "visible")
@@ -99,6 +148,7 @@ eventSystem.on('tooltip-hide', (chartTooltip: d3.Selection<HTMLDivElement, unkno
     }
 });
 
+// Create Grid
 function createGrid({ chartGroup, dateScale, valueScale, chartHeight, chartWidth }: CreateParams) {
     try {
         chartGroup.append('g')
@@ -118,6 +168,7 @@ function createGrid({ chartGroup, dateScale, valueScale, chartHeight, chartWidth
     }
 }
 
+// Create Axis
 function createAxis({ chartGroup, dateScale, valueScale, chartHeight }: CreateParams) {
     try {
         chartGroup.append('g')
@@ -129,6 +180,7 @@ function createAxis({ chartGroup, dateScale, valueScale, chartHeight }: CreatePa
     }
 }
 
+// Create Line
 function createLine({ seriesData, chartGroup, colorScale, line }: CreateParams) {
     try {
         const linesGroup = chartGroup.append('g').attr('class', 'lines-group');
@@ -145,6 +197,7 @@ function createLine({ seriesData, chartGroup, colorScale, line }: CreateParams) 
     }
 }
 
+// Create Area
 function createArea({ seriesData, chartGroup, colorScale, area }: CreateParams) {
     try {
         const areasGroup = chartGroup.append('g').attr('class', 'areas-group');
@@ -160,6 +213,7 @@ function createArea({ seriesData, chartGroup, colorScale, area }: CreateParams) 
     }
 }
 
+// Create Bars
 function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight }: CreateParams) {
     try {
         const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
@@ -187,6 +241,7 @@ function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale,
     }
 }
 
+// Create Points
 function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScale }: CreateParams) {
     try {
         const pointsGroup = chartGroup.append('g').attr('class', 'points-group');
@@ -206,6 +261,7 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScal
     }
 }
 
+// Feature Registry
 const featureRegistry: Record<FeatureType, Function> = {
     [FeatureType.GRID]: createGrid,
     [FeatureType.AXIS]: createAxis,
@@ -213,14 +269,16 @@ const featureRegistry: Record<FeatureType, Function> = {
     [FeatureType.BAR]: createBars,
     [FeatureType.LINE]: createLine,
     [FeatureType.POINT]: createPoints,
-    [FeatureType.TOOLTIP]: () => { }
+    [FeatureType.LABEL]: createLabel,
+    [FeatureType.TOOLTIP]: () => { },
 };
 
+// Render Features
 function createFeatures(createParameters: CreateParams, features: Feature[]) {
     try {
-        features.forEach(({ feature, hide }) => {
+        features.forEach(({ feature, hide, config }) => {
             if (!hide && featureRegistry[feature]) {
-                featureRegistry[feature](createParameters);
+                featureRegistry[feature](createParameters, config); // Pass config to each feature
             }
         });
     } catch (error) {
@@ -228,6 +286,7 @@ function createFeatures(createParameters: CreateParams, features: Feature[]) {
     }
 }
 
+// Function to create initial SVG container
 function createInitialSVG({ container, width, height }: { container: HTMLElement, width: number, height: number }) {
     try {
         return d3.select(container)
@@ -240,6 +299,7 @@ function createInitialSVG({ container, width, height }: { container: HTMLElement
     }
 }
 
+// Function to create initial chart group
 function createInitialChartGroup({ svg, margin }: { svg: d3.Selection<SVGSVGElement, unknown, null, undefined>, margin: { top: number, right: number, bottom: number, left: number } }) {
     try {
         return svg.append('g')
@@ -250,6 +310,7 @@ function createInitialChartGroup({ svg, margin }: { svg: d3.Selection<SVGSVGElem
     }
 }
 
+// Function to create the date scale (x-axis)
 function createInitialDateScale({ seriesData, chartWidth }: { seriesData: SeriesData[], chartWidth: number }) {
     try {
         return d3.scaleBand<Date>()
@@ -262,6 +323,7 @@ function createInitialDateScale({ seriesData, chartWidth }: { seriesData: Series
     }
 }
 
+// Function to create the value scale (y-axis)
 function createInitialValueScale({ seriesData, chartHeight }: { seriesData: SeriesData[], chartHeight: number }) {
     try {
         return d3.scaleLinear()
@@ -273,6 +335,7 @@ function createInitialValueScale({ seriesData, chartHeight }: { seriesData: Seri
     }
 }
 
+// Function to create the color scale for the series
 function createInitialColorScale({ seriesData }: { seriesData: SeriesData[] }) {
     try {
         return d3.scaleOrdinal(d3.schemeCategory10)
@@ -283,6 +346,7 @@ function createInitialColorScale({ seriesData }: { seriesData: SeriesData[] }) {
     }
 }
 
+// Function to create the area (for area chart)
 function createInitialArea({ dateScale, valueScale, chartHeight }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number>, chartHeight: number }) {
     try {
         return d3.area<DataPoint>()
@@ -295,6 +359,7 @@ function createInitialArea({ dateScale, valueScale, chartHeight }: { dateScale: 
     }
 }
 
+// Function to create the line chart
 function createInitialLine({ dateScale, valueScale }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number> }) {
     try {
         return d3.line<DataPoint>()
@@ -306,6 +371,7 @@ function createInitialLine({ dateScale, valueScale }: { dateScale: d3.ScaleBand<
     }
 }
 
+// Main chart function
 export function createLineChart(
     container: HTMLElement,
     seriesData: SeriesData[],
@@ -314,7 +380,7 @@ export function createLineChart(
     features: Feature[]
 ) {
     try {
-        const margin = { top: 20, right: 30, bottom: 30, left: 40 };
+        const margin = { top: 20, right: 30, bottom: 30, left: 50 }; // Adjusted left margin
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
 

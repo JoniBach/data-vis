@@ -72,7 +72,16 @@
     {
       feature: 'tooltip',
       hide: false,
-    }
+    },
+    {feature: 'label',
+      hide: false,
+      config: {
+        title: 'Dummy Multi Series XY Chart Showing Mock Data',
+        xAxis: 'Date',
+        yAxis: 'Value',
+      }
+    },
+
   ]
   
 </script>
