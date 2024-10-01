@@ -29,6 +29,13 @@ export interface LabelConfig {
     yAxis?: string;
 }
 
+export interface DataKeys {
+    name: string,
+    data: string,
+    date: string,
+    value: string
+}
+
 // Updated FeatureFunction type
 type FeatureFunction = (params: CreateParams, config?: any) => void;
 
@@ -135,7 +142,7 @@ function escapeHTML(str: number | string) {
 }
 
 // Tooltip Handlers
-eventSystem.on('tooltip', (chartTooltip, event, d) => {
+eventSystem.on('tooltip', (chartTooltip, event, d, dataKeys) => {
     try {
         // Escape the date and value before inserting into the HTML
         const dateStr = escapeHTML(d3.timeFormat("%b %Y")(d.date));
@@ -202,7 +209,7 @@ function createAxis({ chartGroup, dateScale, valueScale, chartHeight }: CreatePa
 }
 
 // Create Line
-function createLine({ seriesData, chartGroup, colorScale, line }: CreateParams) {
+function createLine({ seriesData, chartGroup, colorScale, line, dataKeys }: CreateParams) {
     try {
         const linesGroup = chartGroup.append('g').attr('class', 'lines-group');
         seriesData.forEach(series => {
@@ -219,7 +226,7 @@ function createLine({ seriesData, chartGroup, colorScale, line }: CreateParams) 
 }
 
 // Create Area
-function createArea({ seriesData, chartGroup, colorScale, area, chartTooltip }: CreateParams) {
+function createArea({ seriesData, chartGroup, colorScale, area, chartTooltip, dataKeys }: CreateParams) {
     try {
         const areasGroup = chartGroup.append('g').attr('class', 'areas-group');
         seriesData.forEach(series => {
@@ -244,7 +251,7 @@ function createArea({ seriesData, chartGroup, colorScale, area, chartTooltip }: 
 }
 
 // Create Bars
-function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, chartTooltip }: CreateParams) {
+function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, chartTooltip, dataKeys }: CreateParams) {
     try {
         const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
 
@@ -281,7 +288,7 @@ function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale,
 }
 
 // Create Points
-function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartTooltip }: CreateParams) {
+function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartTooltip, dataKeys }: CreateParams) {
     try {
         const pointsGroup = chartGroup.append('g').attr('class', 'points-group');
         seriesData.forEach(series => {
@@ -359,7 +366,7 @@ function createInitialChartGroup({ svg, margin }: { svg: d3.Selection<SVGSVGElem
 }
 
 // Function to create the date scale (x-axis)
-function createInitialDateScale({ seriesData, chartWidth }: { seriesData: SeriesData[], chartWidth: number }) {
+function createInitialDateScale({ seriesData, chartWidth, dataKeys }: { seriesData: SeriesData[], chartWidth: number }) {
     try {
         return d3.scaleBand<Date>()
             .domain(seriesData[0].data.map(d => d.date))
@@ -372,7 +379,7 @@ function createInitialDateScale({ seriesData, chartWidth }: { seriesData: Series
 }
 
 // Function to create the value scale (y-axis)
-function createInitialValueScale({ seriesData, chartHeight }: { seriesData: SeriesData[], chartHeight: number }) {
+function createInitialValueScale({ seriesData, chartHeight, dataKeys }: { seriesData: SeriesData[], chartHeight: number }) {
     try {
         return d3.scaleLinear()
             .domain([0, d3.max(seriesData.flatMap(series => series.data), d => d.value) as number])
@@ -384,7 +391,7 @@ function createInitialValueScale({ seriesData, chartHeight }: { seriesData: Seri
 }
 
 // Function to create the color scale for the series
-function createInitialColorScale({ seriesData }: { seriesData: SeriesData[] }) {
+function createInitialColorScale({ seriesData, dataKeys }: { seriesData: SeriesData[] }) {
     try {
         return d3.scaleOrdinal(d3.schemeCategory10)
             .domain(seriesData.map(d => d.name));
@@ -395,7 +402,7 @@ function createInitialColorScale({ seriesData }: { seriesData: SeriesData[] }) {
 }
 
 // Function to create the area (for area chart)
-function createInitialArea({ dateScale, valueScale, chartHeight }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number>, chartHeight: number }) {
+function createInitialArea({ dateScale, valueScale, chartHeight, dataKeys }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number>, chartHeight: number }) {
     try {
         return d3.area<DataPoint>()
             .x(d => (dateScale(d.date) || 0) + dateScale.bandwidth() / 2)
@@ -408,7 +415,7 @@ function createInitialArea({ dateScale, valueScale, chartHeight }: { dateScale: 
 }
 
 // Function to create the line chart
-function createInitialLine({ dateScale, valueScale }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number> }) {
+function createInitialLine({ dateScale, valueScale, dataKeys }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number> }) {
     try {
         return d3.line<DataPoint>()
             .x(d => (dateScale(d.date) || 0) + dateScale.bandwidth() / 2)
@@ -425,7 +432,8 @@ export function createLineChart(
     seriesData: SeriesData[],
     width: number = 500,
     height: number = 300,
-    features: Feature[]
+    features: Feature[],
+    dataKeys: DataKeys
 ) {
     try {
         const margin = { top: 25, right: 30, bottom: 30, left: 50 }; // Adjusted left margin
@@ -441,11 +449,11 @@ export function createLineChart(
 
         const svg = createInitialSVG({ container, width, height });
         const chartGroup = createInitialChartGroup({ svg, margin });
-        const dateScale = createInitialDateScale({ seriesData, chartWidth });
-        const valueScale = createInitialValueScale({ seriesData, chartHeight });
-        const colorScale = createInitialColorScale({ seriesData });
-        const area = createInitialArea({ dateScale, valueScale, chartHeight });
-        const line = createInitialLine({ dateScale, valueScale });
+        const dateScale = createInitialDateScale({ dataKeys, seriesData, chartWidth });
+        const valueScale = createInitialValueScale({ dataKeys, seriesData, chartHeight });
+        const colorScale = createInitialColorScale({ dataKeys, seriesData });
+        const area = createInitialArea({ dataKeys, dateScale, valueScale, chartHeight });
+        const line = createInitialLine({ dataKeys, dateScale, valueScale });
         const showTooltip = features.some(feature => feature.feature === 'tooltip' && !feature.hide);
         const chartTooltip = createTooltip(container, showTooltip, features.find(feature => feature.feature === 'tooltip')?.config);
         const createParameters: CreateParams = {
