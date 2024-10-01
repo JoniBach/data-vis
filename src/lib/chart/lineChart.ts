@@ -1,14 +1,17 @@
-import * as d3 from 'd3';
 
-// Define the structure of the data points
-interface DataPoint {
+export interface DataPoint {
     date: Date;
     value: number;
 }
 
+export interface SeriesData {
+    name: string;      // Name of the series
+    data: DataPoint[]; // Data points for the series
+}
+import * as d3 from 'd3';
 export function createLineChart(
     container: HTMLElement,
-    data: DataPoint[],
+    data: SeriesData[],
     width: number = 500,
     height: number = 300
 ) {
@@ -20,6 +23,12 @@ export function createLineChart(
     // Clear the container before drawing a new chart
     d3.select(container).selectAll("*").remove();
 
+    // Ensure data is available and valid
+    if (data.length === 0 || data[0].data.length === 0) {
+        console.warn("No data available for the chart.");
+        return;
+    }
+
     // Create an SVG container
     const svg = d3.select(container)
         .append('svg')
@@ -30,71 +39,117 @@ export function createLineChart(
     const g = svg.append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
 
-    // Define the x and y scales
-    const x = d3.scaleBand<DataPoint['date']>()
-        .domain(data.map(d => d.date))
+    // Define the x scale (band scale for dates)
+    const x0 = d3.scaleBand<Date>()
+        .domain(data[0].data.map(d => d.date))
         .range([0, innerWidth])
-        .padding(0.2);  // Add some padding between the bars
+        .padding(0.1);
 
+    // Define the x1 scale (band scale for the different series within each date)
+    const x1 = d3.scaleBand<string>()
+        .domain(data.map(d => d.name))
+        .range([0, x0.bandwidth()])
+        .padding(0.05);
+
+    // Define the y scale (linear scale for the values)
     const y = d3.scaleLinear()
-        .domain([0, d3.max(data, d => d.value) as number])
+        .domain([0, d3.max(data.flatMap(series => series.data), d => d.value) as number])
         .range([innerHeight, 0]);
 
     // Create the axes
     g.append('g')
         .attr('transform', `translate(0,${innerHeight})`)
-        .call(d3.axisBottom(x).tickFormat(d3.timeFormat("%b %Y")));  // Format the date labels
+        .call(d3.axisBottom(x0).tickFormat(d3.timeFormat("%b %Y")));  // Format the date labels
 
     g.append('g')
         .call(d3.axisLeft(y));
 
+    // Define colors for the series
+    const color = d3.scaleOrdinal(d3.schemeCategory10)
+        .domain(data.map(d => d.name));
 
-    // Create the area generator
+    // Create the area and line generators for each series
     const area = d3.area<DataPoint>()
-        .x(d => (x(d.date) || 0) + x.bandwidth() / 2)  // Use the middle of the bar for x
-        .y0(innerHeight)  // Bottom of the area (x-axis)
-        .y1(d => y(d.value));  // Top of the area (line)
+        .x(d => (x0(d.date) || 0) + x0.bandwidth() / 2)
+        .y0(innerHeight)
+        .y1(d => y(d.value));
 
-    // Append the shaded area
-    g.append('path')
-        .datum(data)
-        .attr('fill', 'lightsteelblue')
-        .attr('d', area);
-
-    // Create the line generator
     const line = d3.line<DataPoint>()
-        .x(d => (x(d.date) || 0) + x.bandwidth() / 2)  // Use the middle of the bar for x
+        .x(d => (x0(d.date) || 0) + x0.bandwidth() / 2)
         .y(d => y(d.value));
 
-    // Append the path (the line itself)
-    g.append('path')
-        .datum(data)
-        .attr('fill', 'none')
-        .attr('stroke', 'steelblue')
-        .attr('stroke-width', 2)
-        .attr('d', line);
+    // Tooltip for interaction
+    const tooltip = d3.select(container)
+        .append("div")
+        .style("position", "absolute")
+        .style("visibility", "hidden")
+        .style("background", "#f9f9f9")
+        .style("border", "1px solid #d3d3d3")
+        .style("padding", "5px");
 
-    // Add points (circles) at each data point
-    g.selectAll('.point')
-        .data(data)
-        .enter()
-        .append('circle')
-        .attr('class', 'point')
-        .attr('cx', d => (x(d.date) || 0) + x.bandwidth() / 2)  // Center the point on the bar
-        .attr('cy', d => y(d.value))  // y position
-        .attr('r', 4)  // radius of the circle
-        .attr('fill', 'steelblue');  // color of the circle
+    // Append bars for each series first to render them behind the lines and areas
+    data.forEach(series => {
+        const sanitizedSeriesName = series.name.replace(/\s+/g, '-'); // Replace spaces with hyphens
 
-    // Add bars to the chart (bars behind the line and area)
-    g.selectAll('.bar')
-        .data(data)
-        .enter()
-        .append('rect')
-        .attr('class', 'bar')
-        .attr('x', d => x(d.date)!)  // x position of the bar
-        .attr('y', d => y(d.value))  // y position (top of the bar)
-        .attr('width', x.bandwidth())  // width of the bar
-        .attr('height', d => innerHeight - y(d.value))  // height of the bar
-        .attr('fill', 'lightgray');  // bar color
+        g.selectAll(`.bar-${sanitizedSeriesName}`)
+            .data(series.data)
+            .enter()
+            .append('rect')
+            .attr('class', `bar-${sanitizedSeriesName}`)
+            .attr('x', d => (x0(d.date) || 0) + x1(series.name)!)  // Position based on series
+            .attr('y', d => y(d.value))
+            .attr('width', x1.bandwidth())  // Narrower width for side-by-side bars
+            .attr('height', d => innerHeight - y(d.value))
+            .attr('fill', color(series.name))
+            .attr('fill-opacity', 0.5)  // Transparent bars
+            .on('mouseover', (event, d) => {
+                tooltip.style("visibility", "visible")
+                    .html(`Date: ${d3.timeFormat("%b %Y")(d.date)}<br>Value: ${d.value}`);
+            })
+            .on('mousemove', (event) => {
+                tooltip.style("top", `${event.pageY - 10}px`)
+                    .style("left", `${event.pageX + 10}px`);
+            })
+            .on('mouseout', () => tooltip.style("visibility", "hidden"));
+    });
 
+    // Append the series (lines, areas, and points)
+    data.forEach(series => {
+        const sanitizedSeriesName = series.name.replace(/\s+/g, '-'); // Sanitize class name
+
+        // Append the shaded area
+        g.append('path')
+            .datum(series.data)
+            .attr('fill', color(series.name))
+            .attr('fill-opacity', 0.2)  // Apply transparency
+            .attr('d', area);
+
+        // Append the line
+        g.append('path')
+            .datum(series.data)
+            .attr('fill', 'none')
+            .attr('stroke', color(series.name))
+            .attr('stroke-width', 2)
+            .attr('d', line);
+
+        // Append points at each data point
+        g.selectAll(`.point-${sanitizedSeriesName}`)
+            .data(series.data)
+            .enter()
+            .append('circle')
+            .attr('class', `point-${sanitizedSeriesName}`)
+            .attr('cx', d => (x0(d.date) || 0) + x0.bandwidth() / 2)
+            .attr('cy', d => y(d.value))
+            .attr('r', 4)
+            .attr('fill', color(series.name))
+            .on('mouseover', (event, d) => {
+                tooltip.style("visibility", "visible")
+                    .html(`Date: ${d3.timeFormat("%b %Y")(d.date)}<br>Value: ${d.value}`);
+            })
+            .on('mousemove', (event) => {
+                tooltip.style("top", `${event.pageY - 10}px`)
+                    .style("left", `${event.pageX + 10}px`);
+            })
+            .on('mouseout', () => tooltip.style("visibility", "hidden"));
+    });
 }
