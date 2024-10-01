@@ -59,7 +59,7 @@
     },
     {
       feature: 'area',
-      hide: false,
+      hide: true,
     },
     {
       feature: 'grid',
