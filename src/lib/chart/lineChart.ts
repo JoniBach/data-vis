@@ -391,10 +391,8 @@ export function createLineChart(
         const colorScale = createInitialColorScale({ seriesData });
         const area = createInitialArea({ dateScale, valueScale, chartHeight });
         const line = createInitialLine({ dateScale, valueScale });
-
         const showTooltip = features.some(feature => feature.feature === 'tooltip' && !feature.hide);
         const chartTooltip = createTooltip(container, showTooltip);
-
         const createParameters: CreateParams = {
             seriesData,
             chartGroup,
@@ -407,7 +405,6 @@ export function createLineChart(
             chartHeight,
             chartWidth
         };
-
         createFeatures(createParameters, features);
     } catch (error) {
         console.error("Error creating line chart: ", error);
