@@ -24,6 +24,10 @@ export interface CreateParams {
     chartWidth: number;
 }
 
+export interface Feature {
+    feature: string;
+}
+
 // Function to create the tooltip div
 function createTooltip(container: HTMLElement, showTooltip: boolean): d3.Selection<HTMLDivElement, unknown, HTMLElement, any> | null {
     if (!showTooltip) return null;
@@ -183,6 +187,33 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScal
     });
 }
 
+function createFeatures(createParameters: CreateParams, features: Feature[]) {
+    if (features.some(feature => feature.feature === 'grid')) {
+        createGrid(createParameters);
+    }
+
+    if (features.some(feature => feature.feature === 'axis')) {
+        createAxis(createParameters);
+    }
+
+    if (features.some(feature => feature.feature === 'area')) {
+        createArea(createParameters);
+    }
+
+    if (features.some(feature => feature.feature === 'bar')) {
+        createBars(createParameters);
+    }
+
+    if (features.some(feature => feature.feature === 'line')) {
+        createLine(createParameters);
+    }
+
+    if (features.some(feature => feature.feature === 'point')) {
+        createPoints(createParameters);
+    }
+}
+
+
 // Main chart function
 export function createLineChart(
     container: HTMLElement,
@@ -248,30 +279,5 @@ export function createLineChart(
         chartWidth
     };
 
-    // Conditionally call the functions based on the features array
-    if (features.some(feature => feature.feature === 'grid')) {
-        createGrid(createParameters);
-    }
-
-    if (features.some(feature => feature.feature === 'axis')) {
-        createAxis(createParameters);
-    }
-
-    if (features.some(feature => feature.feature === 'area')) {
-        createArea(createParameters);
-    }
-
-    if (features.some(feature => feature.feature === 'bar')) {
-        createBars(createParameters);
-    }
-
-    if (features.some(feature => feature.feature === 'line')) {
-        createLine(createParameters);
-    }
-
-    if (features.some(feature => feature.feature === 'point')) {
-        createPoints(createParameters);
-    }
-
-
+    createFeatures(createParameters, features)
 }
