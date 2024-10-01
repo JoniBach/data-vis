@@ -1,39 +1,23 @@
 <script lang="ts">
-	import { LineChart } from '$lib/index.js'; // $lib is the alias for 'src/lib'
-	import type { Feature, SeriesData } from '$lib/index.js';
+	import { generateXyData, LineChart } from '$lib/index.js'; // $lib is the alias for 'src/lib'
+	import type { DataGenerationConfig, Feature, SeriesData } from '$lib/index.js';
 
-	const data: SeriesData[] = [
-		{
-			name: 'Series 1',
-			data: [
-				{ date: new Date(2023, 0, 1), value: 10 },
-				{ date: new Date(2023, 1, 1), value: 20 },
-				{ date: new Date(2023, 2, 1), value: 30 },
-				{ date: new Date(2023, 3, 1), value: 25 },
-				{ date: new Date(2023, 4, 1), value: 35 }
-			]
-		},
-		{
-			name: 'Series 2',
-			data: [
-				{ date: new Date(2023, 0, 1), value: 15 },
-				{ date: new Date(2023, 1, 1), value: 25 },
-				{ date: new Date(2023, 2, 1), value: 20 },
-				{ date: new Date(2023, 3, 1), value: 30 },
-				{ date: new Date(2023, 4, 1), value: 40 }
-			]
-		},
-		{
-			name: 'Series 3', // New Series 3
-			data: [
-				{ date: new Date(2023, 0, 1), value: 12 },
-				{ date: new Date(2023, 1, 1), value: 22 },
-				{ date: new Date(2023, 2, 1), value: 28 },
-				{ date: new Date(2023, 3, 1), value: 26 },
-				{ date: new Date(2023, 4, 1), value: 38 }
-			]
+	// Example usage with trendVariance configuration:
+	const config: DataGenerationConfig = {
+		seriesRange: { min: 4, max: 8 },
+		monthsRange: { min: 4, max: 8 },
+		valueRange: { min: 20, max: 90 },
+		trendDirection: 'random', // Completely random trend
+		trendVariance: 5, // Larger value for more random variation in trend
+		softCap: {
+			enable: true,
+			upperLimit: 95,
+			lowerLimit: 25,
+			adjustmentRange: 5
 		}
-	];
+	};
+
+	const generatedData = generateXyData(config);
 
 	const features: Feature[] = [
 		{
@@ -83,5 +67,5 @@
 
 <main>
 	<h1>XY Chart</h1>
-	<LineChart {data} width={600} height={400} {features} />
+	<LineChart data={generatedData} width={600} height={400} {features} />
 </main>
