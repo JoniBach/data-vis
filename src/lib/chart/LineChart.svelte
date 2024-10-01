@@ -11,11 +11,22 @@
 
 	let chartContainer: HTMLElement;
 
-	onMount(() => {
+	// Function to render the chart
+	function renderChart() {
 		if (data && chartContainer) {
+			chartContainer.innerHTML = ''; // Clear previous chart
 			createLineChart(chartContainer, data, width, height, features, dataKeys);
 		}
+	}
+
+	// Initialize chart when component is mounted
+	onMount(() => {
+		renderChart();
 	});
+
+	// Reactive statement: re-render the chart when data, width, height, features, or dataKeys change
+
+	$: data, renderChart(); // This will trigger the chart update when any dependency changes
 </script>
 
 <div bind:this={chartContainer} class="chart-container"></div>
