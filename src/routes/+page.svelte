@@ -15,7 +15,7 @@
     {
       name: 'Series 1',
       data: [
-        { date: new Date(2023, 0, 1), value: 10 },
+        { datae: new Date(2023, 0, 1), value: 10 },
         { date: new Date(2023, 1, 1), value: 20 },
         { date: new Date(2023, 2, 1), value: 30 },
         { date: new Date(2023, 3, 1), value: 25 },
@@ -78,6 +78,6 @@
 </script>
 
 <main>
-  <h1>Stacked Area Chart on Page.svelte</h1>
+  <h1>XY Chart</h1>
   <LineChart {data} width={600} height={400} {features} />
 </main>
