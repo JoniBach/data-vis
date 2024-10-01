@@ -191,7 +191,7 @@ function createLine({ seriesData, chartGroup, colorScale, line }: CreateParams) 
 }
 
 // Create Area
-function createArea({ seriesData, chartGroup, colorScale, area }: CreateParams) {
+function createArea({ seriesData, chartGroup, colorScale, area, chartTooltip }: CreateParams) {
     try {
         const areasGroup = chartGroup.append('g').attr('class', 'areas-group');
         seriesData.forEach(series => {
@@ -199,7 +199,16 @@ function createArea({ seriesData, chartGroup, colorScale, area }: CreateParams) 
                 .datum(series.data)
                 .attr('fill', colorScale(series.name))
                 .attr('fill-opacity', 0.2)
-                .attr('d', area);
+                .attr('d', area)
+                .on('mouseover', (event, d) => {
+                    eventSystem.trigger('tooltip', chartTooltip, event, d); // Show tooltip
+                })
+                .on('mousemove', (event) => {
+                    eventSystem.trigger('tooltipMove', chartTooltip, event); // Move tooltip
+                })
+                .on('mouseout', () => {
+                    eventSystem.trigger('tooltipHide', chartTooltip); // Hide tooltip
+                });
         });
     } catch (error) {
         console.error("Error creating area chart: ", error);
@@ -207,7 +216,7 @@ function createArea({ seriesData, chartGroup, colorScale, area }: CreateParams) 
 }
 
 // Create Bars
-function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight }: CreateParams) {
+function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, chartTooltip }: CreateParams) {
     try {
         const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
 
@@ -227,7 +236,16 @@ function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale,
                 .attr('width', seriesScale.bandwidth())
                 .attr('height', d => chartHeight - valueScale(d.value))
                 .attr('fill', colorScale(series.name))
-                .attr('fill-opacity', 0.5);
+                .attr('fill-opacity', 0.5)
+                .on('mouseover', (event, d) => {
+                    eventSystem.trigger('tooltip', chartTooltip, event, d); // Show tooltip
+                })
+                .on('mousemove', (event) => {
+                    eventSystem.trigger('tooltipMove', chartTooltip, event); // Move tooltip
+                })
+                .on('mouseout', () => {
+                    eventSystem.trigger('tooltipHide', chartTooltip); // Hide tooltip
+                });
         });
     } catch (error) {
         console.error("Error creating bar chart: ", error);
@@ -235,7 +253,7 @@ function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale,
 }
 
 // Create Points
-function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScale }: CreateParams) {
+function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartTooltip }: CreateParams) {
     try {
         const pointsGroup = chartGroup.append('g').attr('class', 'points-group');
         seriesData.forEach(series => {
@@ -247,7 +265,16 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScal
                 .attr('cx', d => (dateScale(d.date) || 0) + dateScale.bandwidth() / 2)
                 .attr('cy', d => valueScale(d.value))
                 .attr('r', 4)
-                .attr('fill', colorScale(series.name));
+                .attr('fill', colorScale(series.name))
+                .on('mouseover', (event, d) => {
+                    eventSystem.trigger('tooltip', chartTooltip, event, d); // Show tooltip
+                })
+                .on('mousemove', (event) => {
+                    eventSystem.trigger('tooltipMove', chartTooltip, event); // Move tooltip
+                })
+                .on('mouseout', () => {
+                    eventSystem.trigger('tooltipHide', chartTooltip); // Hide tooltip
+                });
         });
     } catch (error) {
         console.error("Error creating points: ", error);
@@ -373,7 +400,7 @@ export function createLineChart(
     features: Feature[]
 ) {
     try {
-        const margin = { top: 20, right: 30, bottom: 30, left: 50 }; // Adjusted left margin
+        const margin = { top: 25, right: 30, bottom: 30, left: 50 }; // Adjusted left margin
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
 
@@ -405,6 +432,7 @@ export function createLineChart(
             chartHeight,
             chartWidth
         };
+
         createFeatures(createParameters, features);
     } catch (error) {
         console.error("Error creating line chart: ", error);
