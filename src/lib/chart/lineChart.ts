@@ -191,22 +191,37 @@ function checkIfFeatureExists(features: Feature[], feature: string) {
     return features.some(f => f.feature === feature);
 }
 
-function conditionallyRenderFeature(feature: string, fn: Function, features: Feature[], createParameters: CreateParams) {
-    checkIfFeatureExists(features, feature) && fn(createParameters);
+function conditionallyRenderFeature(
+    feature: keyof typeof featuresMap,  // Explicitly type the feature as one of the keys of featuresMap
+    fn: Function,
+    features: Feature[],
+    createParameters: CreateParams
+) {
+    if (checkIfFeatureExists(features, feature)) {
+        fn(createParameters);
+    }
 }
 
-const featuresMap = {
-    'grid': createGrid,
-    'axis': createAxis,
-    'area': createArea,
-    'bar': createBars,
-    'line': createLine,
-    'point': createPoints
+const featuresMap: {
+    grid: ({ chartGroup, dateScale, valueScale, chartHeight, chartWidth }: CreateParams) => void;
+    axis: ({ chartGroup, dateScale, valueScale, chartHeight }: CreateParams) => void;
+    area: ({ seriesData, chartGroup, colorScale, dateScale, valueScale, area }: CreateParams) => void;
+    bar: ({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, chartTooltip }: CreateParams) => void;
+    line: ({ seriesData, chartGroup, colorScale, dateScale, valueScale, line }: CreateParams) => void;
+    point: ({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartTooltip }: CreateParams) => void;
+} = {
+    grid: createGrid,
+    axis: createAxis,
+    area: createArea,
+    bar: createBars,
+    line: createLine,
+    point: createPoints
 }
 
 function createFeatures(createParameters: CreateParams, features: Feature[]) {
-    Object.keys(featuresMap).forEach(feature => {
-        conditionallyRenderFeature(feature, featuresMap[feature], features, createParameters);
+    Object.keys(featuresMap).forEach((feature) => {
+        // Ensure TypeScript knows feature is a key in featuresMap
+        conditionallyRenderFeature(feature as keyof typeof featuresMap, featuresMap[feature as keyof typeof featuresMap], features, createParameters);
     });
 }
 
