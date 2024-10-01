@@ -12,12 +12,13 @@
     export let data: DataPoint[];
     export let width: number = 500;
     export let height: number = 300;
+    export let features: any[] = [];
   
     let chartContainer: HTMLElement;
   
     onMount(() => {
       if (data && chartContainer) {
-        createLineChart(chartContainer, data, width, height);
+        createLineChart(chartContainer, data, width, height, features);
       }
     });
   </script>

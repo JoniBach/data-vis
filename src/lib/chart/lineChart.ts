@@ -24,17 +24,17 @@ export interface CreateParams {
     chartWidth: number;
 }
 
+// Function to create the tooltip
 function createTooltip(container: HTMLElement): d3.Selection<HTMLDivElement, unknown, HTMLElement, any> {
     return d3.select(container)
         .append("div")
-        .attr("class", "tooltip")  // You can add a class for CSS styling if needed
+        .attr("class", "tooltip")
         .style("position", "absolute")
         .style("visibility", "hidden")
         .style("background", "#f9f9f9")
         .style("border", "1px solid #d3d3d3")
         .style("padding", "5px");
 }
-
 
 // Function to create lines
 function createLine({ seriesData, chartGroup, colorScale, dateScale, valueScale, line }: CreateParams) {
@@ -131,7 +131,8 @@ export function createLineChart(
     container: HTMLElement,
     seriesData: SeriesData[],
     width: number = 500,
-    height: number = 300
+    height: number = 300,
+    features: { feature: string }[]  // Add the features array to control what is shown
 ) {
     const margin = { top: 20, right: 30, bottom: 30, left: 40 };
     const chartWidth = width - margin.left - margin.right;
@@ -182,7 +183,6 @@ export function createLineChart(
     // Explicitly create the tooltip div and cast it as HTMLDivElement
     const chartTooltip = createTooltip(container);
 
-
     const createParameters: CreateParams = {
         seriesData,
         chartGroup,
@@ -196,9 +196,20 @@ export function createLineChart(
         chartWidth
     };
 
-    // Call the functions with the createParameters object
-    createArea(createParameters);
-    createBars(createParameters);
-    createLine(createParameters);
-    createPoints(createParameters);
+    // Conditionally call the functions based on the features array
+    if (features.some(feature => feature.feature === 'area')) {
+        createArea(createParameters);
+    }
+
+    if (features.some(feature => feature.feature === 'bar')) {
+        createBars(createParameters);
+    }
+
+    if (features.some(feature => feature.feature === 'line')) {
+        createLine(createParameters);
+    }
+
+    if (features.some(feature => feature.feature === 'point')) {
+        createPoints(createParameters);
+    }
 }

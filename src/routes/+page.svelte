@@ -11,7 +11,7 @@
     data: DataPoint[]; // Data points for the series
   }
 
-  const multiSeriesData: SeriesData[] = [
+  const data: SeriesData[] = [
     {
       name: 'Series 1',
       data: [
@@ -58,9 +58,10 @@
       feature: 'area',
     }
   ]
+  
 </script>
 
 <main>
   <h1>Stacked Area Chart on Page.svelte</h1>
-  <LineChart data={multiSeriesData} width={600} height={400} stacked={true} />
+  <LineChart {data} width={600} height={400} {features} />
 </main>
