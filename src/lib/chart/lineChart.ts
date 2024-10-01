@@ -10,28 +10,15 @@ export interface SeriesData {
     data: DataPoint[];
 }
 
-export enum FeatureType {
-    GRID = 'grid',
-    AXIS = 'axis',
-    AREA = 'area',
-    BAR = 'bar',
-    LINE = 'line',
-    POINT = 'point',
-    TOOLTIP = 'tooltip',
-    LABEL = 'label'
-}
-
-export interface LabelConfig {
-    title?: string; // Optional chart title
-    xAxis?: string; // Label for the x-axis
-    yAxis?: string; // Label for the y-axis
-}
-
+// Feature interface with string type for feature property
 export interface Feature {
-    feature: FeatureType;
+    feature: string;  // Feature type is now a string
     hide: boolean;
-    config?: LabelConfig | any; // Specific config types for each feature
+    config?: any; // Flexible config type
 }
+
+// Updated FeatureFunction type
+type FeatureFunction = (params: CreateParams, config?: any) => void;
 
 export interface CreateParams {
     seriesData: SeriesData[];
@@ -47,16 +34,22 @@ export interface CreateParams {
 }
 
 // Centralized Event System with types
+interface TooltipListener {
+    (chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>, event: MouseEvent, d: DataPoint): void;
+}
+
 interface ListenerMap {
-    [eventType: string]: (...args: any[]) => void;
+    tooltip: TooltipListener;
+    tooltipMove: TooltipListener;
+    tooltipHide: (chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>) => void;
 }
 
 const eventSystem = {
     listeners: {} as ListenerMap,
-    on(eventType: string, callback: (...args: any[]) => void) {
+    on<T extends keyof ListenerMap>(eventType: T, callback: ListenerMap[T]) {
         this.listeners[eventType] = callback;
     },
-    trigger(eventType: string, ...args: any[]) {
+    trigger<T extends keyof ListenerMap>(eventType: T, ...args: Parameters<ListenerMap[T]>) {
         if (this.listeners[eventType]) {
             this.listeners[eventType](...args);
         }
@@ -64,34 +57,29 @@ const eventSystem = {
 };
 
 // Create Label
-function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, config: LabelConfig) {
+function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, config?: any) {
     try {
-        // Chart title
-        if (config.title) {
+        if (config?.title) {
             chartGroup.append('text')
                 .attr('x', chartWidth / 2)
-                .attr('y', -10) // Position above the chart
+                .attr('y', -10)
                 .attr('text-anchor', 'middle')
                 .attr('font-size', '16px')
                 .text(config.title);
         }
-
-        // X-axis label
-        if (config.xAxis) {
+        if (config?.xAxis) {
             chartGroup.append('text')
                 .attr('x', chartWidth / 2)
-                .attr('y', chartHeight + 30) // Position below the x-axis
+                .attr('y', chartHeight + 30)
                 .attr('text-anchor', 'middle')
                 .attr('font-size', '12px')
                 .text(config.xAxis);
         }
-
-        // Y-axis label (rotated)
-        if (config.yAxis) {
+        if (config?.yAxis) {
             chartGroup.append('text')
-                .attr('transform', `rotate(-90)`) // Rotate text 90 degrees
-                .attr('x', -chartHeight / 2) // Centering the y-axis label vertically
-                .attr('y', -40) // Position on the left of the y-axis
+                .attr('transform', `rotate(-90)`)
+                .attr('x', -chartHeight / 2)
+                .attr('y', -40)
                 .attr('text-anchor', 'middle')
                 .attr('font-size', '12px')
                 .text(config.yAxis);
@@ -122,7 +110,7 @@ function createTooltip(container: HTMLElement | null, showTooltip: boolean): d3.
 }
 
 // Tooltip Handlers
-eventSystem.on('tooltip', (chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>, event: MouseEvent, d: DataPoint) => {
+eventSystem.on('tooltip', (chartTooltip, event, d) => {
     try {
         chartTooltip.style("visibility", "visible")
             .html(`Date: ${d3.timeFormat("%b %Y")(d.date)}<br>Value: ${d.value}`);
@@ -131,7 +119,7 @@ eventSystem.on('tooltip', (chartTooltip: d3.Selection<HTMLDivElement, unknown, n
     }
 });
 
-eventSystem.on('tooltip-move', (chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>, event: MouseEvent) => {
+eventSystem.on('tooltipMove', (chartTooltip, event) => {
     try {
         chartTooltip.style("top", `${event.pageY - 10}px`)
             .style("left", `${event.pageX + 10}px`);
@@ -140,7 +128,7 @@ eventSystem.on('tooltip-move', (chartTooltip: d3.Selection<HTMLDivElement, unkno
     }
 });
 
-eventSystem.on('tooltip-hide', (chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>) => {
+eventSystem.on('tooltipHide', (chartTooltip) => {
     try {
         chartTooltip.style("visibility", "hidden");
     } catch (error) {
@@ -262,15 +250,15 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScal
 }
 
 // Feature Registry
-const featureRegistry: Record<FeatureType, Function> = {
-    [FeatureType.GRID]: createGrid,
-    [FeatureType.AXIS]: createAxis,
-    [FeatureType.AREA]: createArea,
-    [FeatureType.BAR]: createBars,
-    [FeatureType.LINE]: createLine,
-    [FeatureType.POINT]: createPoints,
-    [FeatureType.LABEL]: createLabel,
-    [FeatureType.TOOLTIP]: () => { },
+const featureRegistry: Record<string, FeatureFunction> = {
+    grid: createGrid,
+    axis: createAxis,
+    area: createArea,
+    bar: createBars,
+    line: createLine,
+    point: createPoints,
+    label: createLabel,
+    tooltip: () => { }, // No config needed for tooltip
 };
 
 // Render Features
@@ -399,7 +387,7 @@ export function createLineChart(
         const area = createInitialArea({ dateScale, valueScale, chartHeight });
         const line = createInitialLine({ dateScale, valueScale });
 
-        const showTooltip = features.some(feature => feature.feature === FeatureType.TOOLTIP && !feature.hide);
+        const showTooltip = features.some(feature => feature.feature === 'tooltip' && !feature.hide);
         const chartTooltip = createTooltip(container, showTooltip);
 
         const createParameters: CreateParams = {
