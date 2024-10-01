@@ -36,6 +36,43 @@ function createTooltip(container: HTMLElement): d3.Selection<HTMLDivElement, unk
         .style("padding", "5px");
 }
 
+// Function to create the grid
+function createGrid({ chartGroup, dateScale, valueScale, chartHeight, chartWidth }: CreateParams) {
+    // Create horizontal grid lines (based on valueScale)
+    chartGroup.append('g')
+        .attr('class', 'grid')
+        .call(
+            d3.axisLeft(valueScale)
+                .tickSize(-chartWidth)  // Extend the ticks across the chart width
+                .tickFormat(() => "")    // Don't show labels, just the grid lines
+        )
+        .selectAll('line')
+        .attr('stroke', '#ccc')
+        .attr('stroke-dasharray', '2,2'); // Dotted line
+
+    // Hide the solid axis line for the y-axis
+    chartGroup.selectAll('.grid path')
+        .attr('stroke', 'none');  // Remove the solid line
+
+    // Create vertical grid lines (based on dateScale)
+    chartGroup.append('g')
+        .attr('class', 'grid')
+        .attr('transform', `translate(0,${chartHeight})`)
+        .call(
+            d3.axisBottom(dateScale)
+                .tickSize(-chartHeight)  // Extend the ticks across the chart height
+                .tickFormat(() => "")    // Don't show labels, just the grid lines
+        )
+        .selectAll('line')
+        .attr('stroke', '#ccc')
+        .attr('stroke-dasharray', '2,2'); // Dotted line
+
+    // Hide the solid axis line for the x-axis
+    chartGroup.selectAll('.grid path')
+        .attr('stroke', 'none');  // Remove the solid line
+}
+
+
 // Function to create lines
 function createLine({ seriesData, chartGroup, colorScale, dateScale, valueScale, line }: CreateParams) {
     const linesGroup = chartGroup.append('g').attr('class', 'lines-group');
@@ -162,6 +199,7 @@ export function createLineChart(
         .domain([0, d3.max(seriesData.flatMap(series => series.data), d => d.value) as number])
         .range([chartHeight, 0]);
 
+
     chartGroup.append('g')
         .attr('transform', `translate(0,${chartHeight})`)
         .call(d3.axisBottom(dateScale).tickFormat(d3.timeFormat("%b %Y")));
@@ -197,6 +235,9 @@ export function createLineChart(
     };
 
     // Conditionally call the functions based on the features array
+    if (features.some(feature => feature.feature === 'grid')) {
+        createGrid(createParameters);
+    }
     if (features.some(feature => feature.feature === 'area')) {
         createArea(createParameters);
     }

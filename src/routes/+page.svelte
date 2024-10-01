@@ -56,6 +56,9 @@
     },
     {
       feature: 'area',
+    },
+    {
+      feature: 'grid'
     }
   ]
   
