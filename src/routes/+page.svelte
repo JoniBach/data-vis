@@ -15,7 +15,7 @@
     {
       name: 'Series 1',
       data: [
-        { datae: new Date(2023, 0, 1), value: 10 },
+        { date: new Date(2023, 0, 1), value: 10 },
         { date: new Date(2023, 1, 1), value: 20 },
         { date: new Date(2023, 2, 1), value: 30 },
         { date: new Date(2023, 3, 1), value: 25 },
