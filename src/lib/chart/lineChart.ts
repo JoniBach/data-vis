@@ -19,7 +19,7 @@ export interface CreateParams {
     valueScale: d3.ScaleLinear<number, number>;
     area: d3.Area<DataPoint>;
     line: d3.Line<DataPoint>;
-    chartTooltip: d3.Selection<HTMLDivElement, unknown, HTMLElement, any> | null;
+    chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined> | null;
     chartHeight: number;
     chartWidth: number;
 }
@@ -29,9 +29,9 @@ export interface Feature {
 }
 
 // Function to create the tooltip div
-function createTooltip(container: HTMLElement, showTooltip: boolean): d3.Selection<HTMLDivElement, unknown, HTMLElement, any> | null {
+function createTooltip(container: HTMLElement | null, showTooltip: boolean): d3.Selection<HTMLDivElement, unknown, null, undefined> | null {
     if (!showTooltip) return null;
-    return d3.select(container)
+    return d3.select(container as HTMLElement)
         .append("div")
         .attr("class", "tooltip")
         .style("position", "absolute")
@@ -43,24 +43,25 @@ function createTooltip(container: HTMLElement, showTooltip: boolean): d3.Selecti
 
 // Function to add event handlers for showing/hiding the tooltip
 function createTooltipHandler(
-    chartTooltip: d3.Selection<HTMLDivElement, unknown, HTMLElement, any>,
+    chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined> | null,
     elements: d3.Selection<any, DataPoint, SVGGElement, unknown>,
 ) {
-    if (chartTooltip) {
-        elements
-            .on("mouseover", (event, d) => {
-                chartTooltip.style("visibility", "visible")
-                    .html(`Date: ${d3.timeFormat("%b %Y")(d.date)}<br>Value: ${d.value}`);
-            })
-            .on("mousemove", (event) => {
-                chartTooltip.style("top", `${event.pageY - 10}px`)
-                    .style("left", `${event.pageX + 10}px`);
-            })
-            .on("mouseout", () => {
-                chartTooltip.style("visibility", "hidden");
-            });
-    }
+    if (!chartTooltip) return;  // If chartTooltip is null, exit early
+
+    elements
+        .on("mouseover", (event, d) => {
+            chartTooltip.style("visibility", "visible")
+                .html(`Date: ${d3.timeFormat("%b %Y")(d.date)}<br>Value: ${d.value}`);
+        })
+        .on("mousemove", (event) => {
+            chartTooltip.style("top", `${event.pageY - 10}px`)
+                .style("left", `${event.pageX + 10}px`);
+        })
+        .on("mouseout", () => {
+            chartTooltip.style("visibility", "hidden");
+        });
 }
+
 
 // Function to create grid lines
 function createGrid({ chartGroup, dateScale, valueScale, chartHeight, chartWidth }: CreateParams) {
