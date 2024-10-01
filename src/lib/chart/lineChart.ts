@@ -10,7 +10,11 @@ export interface SeriesData {
     data: DataPoint[];
 }
 
-// Define the CreateParams interface
+export interface Feature {
+    feature: 'grid' | 'axis' | 'area' | 'bar' | 'line' | 'point' | 'tooltip';
+    hide: boolean;
+}
+
 export interface CreateParams {
     seriesData: SeriesData[];
     chartGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
@@ -24,11 +28,6 @@ export interface CreateParams {
     chartWidth: number;
 }
 
-export interface Feature {
-    feature: string;
-}
-
-// Function to create the tooltip div
 function createTooltip(container: HTMLElement | null, showTooltip: boolean): d3.Selection<HTMLDivElement, unknown, null, undefined> | null {
     if (!showTooltip) return null;
     return d3.select(container as HTMLElement)
@@ -41,12 +40,11 @@ function createTooltip(container: HTMLElement | null, showTooltip: boolean): d3.
         .style("padding", "5px");
 }
 
-// Function to add event handlers for showing/hiding the tooltip
 function createTooltipHandler(
     chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined> | null,
     elements: d3.Selection<any, DataPoint, SVGGElement, unknown>,
 ) {
-    if (!chartTooltip) return;  // If chartTooltip is null, exit early
+    if (!chartTooltip) return;
 
     elements
         .on("mouseover", (event, d) => {
@@ -62,55 +60,59 @@ function createTooltipHandler(
         });
 }
 
+function checkIfFeatureExists(features: Feature[], feature: keyof typeof featuresMap) {
+    return features.some(f => f.feature === feature && !f.hide);
+}
 
-// Function to create grid lines
+function conditionallyRenderFeature(
+    feature: keyof typeof featuresMap,
+    fn: Function,
+    features: Feature[],
+    createParameters: CreateParams
+) {
+    if (checkIfFeatureExists(features, feature)) {
+        fn(createParameters);
+    }
+}
+
 function createGrid({ chartGroup, dateScale, valueScale, chartHeight, chartWidth }: CreateParams) {
-    // Create horizontal grid lines (based on valueScale)
     chartGroup.append('g')
         .attr('class', 'grid')
         .call(
             d3.axisLeft(valueScale)
-                .tickSize(-chartWidth)  // Extend the ticks across the chart width
-                .tickFormat(() => "")    // Don't show labels, just the grid lines
+                .tickSize(-chartWidth)
+                .tickFormat(() => "")
         )
         .selectAll('line')
         .attr('stroke', '#ccc')
-        .attr('stroke-dasharray', '2,2'); // Dotted line
+        .attr('stroke-dasharray', '2,2');
 
-    // Hide the solid axis line for the y-axis
     chartGroup.selectAll('.grid path')
-        .attr('stroke', 'none');  // Remove the solid line
-
-    // Create vertical grid lines (based on dateScale)
+        .attr('stroke', 'none');
     chartGroup.append('g')
         .attr('class', 'grid')
         .attr('transform', `translate(0,${chartHeight})`)
         .call(
             d3.axisBottom(dateScale)
-                .tickSize(-chartHeight)  // Extend the ticks across the chart height
-                .tickFormat(() => "")    // Don't show labels, just the grid lines
+                .tickSize(-chartHeight)
+                .tickFormat(() => "")
         )
         .selectAll('line')
         .attr('stroke', '#ccc')
-        .attr('stroke-dasharray', '2,2'); // Dotted line
+        .attr('stroke-dasharray', '2,2');
 
-    // Hide the solid axis line for the x-axis
     chartGroup.selectAll('.grid path')
-        .attr('stroke', 'none');  // Remove the solid line
+        .attr('stroke', 'none');
 }
 
-// Function to create the axis
 function createAxis({ chartGroup, dateScale, valueScale, chartHeight }: CreateParams) {
-    // X-axis
     chartGroup.append('g')
         .attr('transform', `translate(0,${chartHeight})`)
         .call(d3.axisBottom(dateScale).tickFormat(d3.timeFormat("%b %Y")));
 
-    // Y-axis
     chartGroup.append('g').call(d3.axisLeft(valueScale));
 }
 
-// Function to create lines
 function createLine({ seriesData, chartGroup, colorScale, dateScale, valueScale, line }: CreateParams) {
     const linesGroup = chartGroup.append('g').attr('class', 'lines-group');
 
@@ -124,7 +126,6 @@ function createLine({ seriesData, chartGroup, colorScale, dateScale, valueScale,
     });
 }
 
-// Function to create areas
 function createArea({ seriesData, chartGroup, colorScale, dateScale, valueScale, area }: CreateParams) {
     const areasGroup = chartGroup.append('g').attr('class', 'areas-group');
 
@@ -137,7 +138,6 @@ function createArea({ seriesData, chartGroup, colorScale, dateScale, valueScale,
     });
 }
 
-// Function to create bars
 function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, chartTooltip }: CreateParams) {
     const seriesScale = d3.scaleBand<string>()
         .domain(seriesData.map(d => d.name))
@@ -161,12 +161,10 @@ function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale,
             .attr('fill', colorScale(series.name))
             .attr('fill-opacity', 0.5);
 
-        // Apply tooltip handler to bars
         createTooltipHandler(chartTooltip, bars);
     });
 }
 
-// Function to create points
 function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartTooltip }: CreateParams) {
     const pointsGroup = chartGroup.append('g').attr('class', 'points-group');
 
@@ -183,24 +181,8 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScal
             .attr('r', 4)
             .attr('fill', colorScale(series.name));
 
-        // Apply tooltip handler to points
         createTooltipHandler(chartTooltip, points);
     });
-}
-
-function checkIfFeatureExists(features: Feature[], feature: string) {
-    return features.some(f => f.feature === feature);
-}
-
-function conditionallyRenderFeature(
-    feature: keyof typeof featuresMap,  // Explicitly type the feature as one of the keys of featuresMap
-    fn: Function,
-    features: Feature[],
-    createParameters: CreateParams
-) {
-    if (checkIfFeatureExists(features, feature)) {
-        fn(createParameters);
-    }
 }
 
 const featuresMap: {
@@ -217,11 +199,10 @@ const featuresMap: {
     bar: createBars,
     line: createLine,
     point: createPoints
-}
+};
 
 function createFeatures(createParameters: CreateParams, features: Feature[]) {
     Object.keys(featuresMap).forEach((feature) => {
-        // Ensure TypeScript knows feature is a key in featuresMap
         conditionallyRenderFeature(feature as keyof typeof featuresMap, featuresMap[feature as keyof typeof featuresMap], features, createParameters);
     });
 }
@@ -251,13 +232,6 @@ function createInitialValueScale({ seriesData, chartHeight }: { seriesData: Seri
         .range([chartHeight, 0]);
 }
 
-function createInitialScale({ seriesData, chartWidth, chartHeight }: { seriesData: SeriesData[], chartWidth: number, chartHeight: number }) {
-    return {
-        dateScale: createInitialDateScale({ seriesData, chartWidth }),
-        valueScale: createInitialValueScale({ seriesData, chartHeight })
-    };
-}
-
 function createInitialColorScale({ seriesData }: { seriesData: SeriesData[] }) {
     return d3.scaleOrdinal(d3.schemeCategory10)
         .domain(seriesData.map(d => d.name));
@@ -266,8 +240,8 @@ function createInitialColorScale({ seriesData }: { seriesData: SeriesData[] }) {
 function createInitialArea({ dateScale, valueScale, chartHeight }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number>, chartHeight: number }) {
     return d3.area<DataPoint>()
         .x(d => (dateScale(d.date) || 0) + dateScale.bandwidth() / 2)
-        .y0(chartHeight)  // Baseline at the bottom of the chart
-        .y1(d => valueScale(d.value));  // Upper part based on the value
+        .y0(chartHeight)
+        .y1(d => valueScale(d.value));
 }
 
 function createInitialLine({ dateScale, valueScale }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number> }) {
@@ -276,14 +250,12 @@ function createInitialLine({ dateScale, valueScale }: { dateScale: d3.ScaleBand<
         .y(d => valueScale(d.value));
 }
 
-
-// Main chart function
 export function createLineChart(
     container: HTMLElement,
     seriesData: SeriesData[],
     width: number = 500,
     height: number = 300,
-    features: { feature: string }[]  // Add the features array to control what is shown
+    features: Feature[]
 ) {
     const margin = { top: 20, right: 30, bottom: 30, left: 40 };
     const chartWidth = width - margin.left - margin.right;
@@ -301,11 +273,10 @@ export function createLineChart(
     const dateScale = createInitialDateScale({ seriesData, chartWidth });
     const valueScale = createInitialValueScale({ seriesData, chartHeight });
     const colorScale = createInitialColorScale({ seriesData });
-    const area = createInitialArea({ dateScale, valueScale, chartHeight });  // Fix here
+    const area = createInitialArea({ dateScale, valueScale, chartHeight });
     const line = createInitialLine({ dateScale, valueScale });
 
-    // Explicitly create the tooltip div and cast it as HTMLDivElement
-    const showTooltip = features.some(feature => feature.feature === 'tooltip');
+    const showTooltip = features.some(feature => feature.feature === 'tooltip' && !feature.hide);
     const chartTooltip = createTooltip(container, showTooltip);
 
     const createParameters: CreateParams = {
@@ -323,4 +294,3 @@ export function createLineChart(
 
     createFeatures(createParameters, features);
 }
-

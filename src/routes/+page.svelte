@@ -47,24 +47,31 @@
   const features = [
     {
       feature: 'line',
+      hide: false,
     },
     {
       feature: 'bar',
+      hide: false,
     },
     {
       feature: 'point',
+      hide: false,
     },
     {
       feature: 'area',
+      hide: true,
     },
     {
-      feature: 'grid'
+      feature: 'grid',
+      hide: false,
     },
     {
-      feature: 'axis'
+      feature: 'axis',
+      hide: false,
     },
     {
-      feature: 'tooltip'
+      feature: 'tooltip',
+      hide: false,
     }
   ]
   
