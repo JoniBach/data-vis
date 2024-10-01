@@ -19,13 +19,14 @@ export interface CreateParams {
     valueScale: d3.ScaleLinear<number, number>;
     area: d3.Area<DataPoint>;
     line: d3.Line<DataPoint>;
-    chartTooltip: d3.Selection<HTMLDivElement, unknown, HTMLElement, any>;
+    chartTooltip: d3.Selection<HTMLDivElement, unknown, HTMLElement, any> | null;
     chartHeight: number;
     chartWidth: number;
 }
 
-// Function to create the tooltip
-function createTooltip(container: HTMLElement): d3.Selection<HTMLDivElement, unknown, HTMLElement, any> {
+// Function to create the tooltip div
+function createTooltip(container: HTMLElement, showTooltip: boolean): d3.Selection<HTMLDivElement, unknown, HTMLElement, any> | null {
+    if (!showTooltip) return null;
     return d3.select(container)
         .append("div")
         .attr("class", "tooltip")
@@ -36,7 +37,28 @@ function createTooltip(container: HTMLElement): d3.Selection<HTMLDivElement, unk
         .style("padding", "5px");
 }
 
-// Function to create the grid
+// Function to add event handlers for showing/hiding the tooltip
+function createTooltipHandler(
+    chartTooltip: d3.Selection<HTMLDivElement, unknown, HTMLElement, any>,
+    elements: d3.Selection<any, DataPoint, SVGGElement, unknown>,
+) {
+    if (chartTooltip) {
+        elements
+            .on("mouseover", (event, d) => {
+                chartTooltip.style("visibility", "visible")
+                    .html(`Date: ${d3.timeFormat("%b %Y")(d.date)}<br>Value: ${d.value}`);
+            })
+            .on("mousemove", (event) => {
+                chartTooltip.style("top", `${event.pageY - 10}px`)
+                    .style("left", `${event.pageX + 10}px`);
+            })
+            .on("mouseout", () => {
+                chartTooltip.style("visibility", "hidden");
+            });
+    }
+}
+
+// Function to create grid lines
 function createGrid({ chartGroup, dateScale, valueScale, chartHeight, chartWidth }: CreateParams) {
     // Create horizontal grid lines (based on valueScale)
     chartGroup.append('g')
@@ -88,7 +110,7 @@ function createLine({ seriesData, chartGroup, colorScale, dateScale, valueScale,
     const linesGroup = chartGroup.append('g').attr('class', 'lines-group');
 
     seriesData.forEach(series => {
-        linesGroup.append('path')
+        const path = linesGroup.append('path')
             .datum(series.data)
             .attr('fill', 'none')
             .attr('stroke', colorScale(series.name))
@@ -122,7 +144,7 @@ function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale,
     seriesData.forEach(series => {
         const sanitizedSeriesName = series.name.replace(/\s+/g, '-');
 
-        barsGroup.selectAll(`.bar-${sanitizedSeriesName}`)
+        const bars = barsGroup.selectAll(`.bar-${sanitizedSeriesName}`)
             .data(series.data)
             .enter()
             .append('rect')
@@ -132,16 +154,10 @@ function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale,
             .attr('width', seriesScale.bandwidth())
             .attr('height', d => chartHeight - valueScale(d.value))
             .attr('fill', colorScale(series.name))
-            .attr('fill-opacity', 0.5)
-            .on('mouseover', (event, d) => {
-                chartTooltip.style("visibility", "visible")
-                    .html(`Date: ${d3.timeFormat("%b %Y")(d.date)}<br>Value: ${d.value}`);
-            })
-            .on('mousemove', (event) => {
-                chartTooltip.style("top", `${event.pageY - 10}px`)
-                    .style("left", `${event.pageX + 10}px`);
-            })
-            .on('mouseout', () => chartTooltip.style("visibility", "hidden"));
+            .attr('fill-opacity', 0.5);
+
+        // Apply tooltip handler to bars
+        createTooltipHandler(chartTooltip, bars);
     });
 }
 
@@ -152,7 +168,7 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScal
     seriesData.forEach(series => {
         const sanitizedSeriesName = series.name.replace(/\s+/g, '-');
 
-        pointsGroup.selectAll(`.point-${sanitizedSeriesName}`)
+        const points = pointsGroup.selectAll(`.point-${sanitizedSeriesName}`)
             .data(series.data)
             .enter()
             .append('circle')
@@ -160,16 +176,10 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScal
             .attr('cx', d => (dateScale(d.date) || 0) + dateScale.bandwidth() / 2)
             .attr('cy', d => valueScale(d.value))
             .attr('r', 4)
-            .attr('fill', colorScale(series.name))
-            .on('mouseover', (event, d) => {
-                chartTooltip.style("visibility", "visible")
-                    .html(`Date: ${d3.timeFormat("%b %Y")(d.date)}<br>Value: ${d.value}`);
-            })
-            .on('mousemove', (event) => {
-                chartTooltip.style("top", `${event.pageY - 10}px`)
-                    .style("left", `${event.pageX + 10}px`);
-            })
-            .on('mouseout', () => chartTooltip.style("visibility", "hidden"));
+            .attr('fill', colorScale(series.name));
+
+        // Apply tooltip handler to points
+        createTooltipHandler(chartTooltip, points);
     });
 }
 
@@ -222,7 +232,8 @@ export function createLineChart(
         .y(d => valueScale(d.value));
 
     // Explicitly create the tooltip div and cast it as HTMLDivElement
-    const chartTooltip = createTooltip(container);
+    const showTooltip = features.some(feature => feature.feature === 'tooltip')
+    const chartTooltip = createTooltip(container, showTooltip);
 
     const createParameters: CreateParams = {
         seriesData,
@@ -261,4 +272,6 @@ export function createLineChart(
     if (features.some(feature => feature.feature === 'point')) {
         createPoints(createParameters);
     }
+
+
 }

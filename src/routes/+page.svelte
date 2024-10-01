@@ -62,6 +62,9 @@
     },
     {
       feature: 'axis'
+    },
+    {
+      feature: 'tooltip'
     }
   ]
   
