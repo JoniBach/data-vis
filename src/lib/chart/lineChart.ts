@@ -101,17 +101,19 @@ function escapeHTML(str: number | string) {
 }
 
 // Tooltip Handlers
-eventSystem.on('tooltip', (chartTooltip, event, d, dataKeys) => {
+eventSystem.on('tooltip', (chartTooltip, event, d, dataKeys: DataKeys) => {
     try {
+        // Use dataKeys to access dynamic fields in the data point
         const dateStr = escapeHTML(d3.timeFormat("%b %Y")(d[dataKeys.date]));
         const valueStr = escapeHTML(d[dataKeys.value]);
 
         chartTooltip.style("visibility", "visible")
             .html(`Date: ${dateStr}<br>Value: ${valueStr}`);
     } catch (error) {
-        console.error("Error in tooltip handler: ", error);
+        console.error("Error in tooltip handler:", error);
     }
 });
+
 
 eventSystem.on('tooltipMove', (chartTooltip, event) => {
     chartTooltip.style("top", `${event.pageY - 10}px`)
@@ -221,19 +223,20 @@ function createArea({ seriesData, chartGroup, colorScale, area, chartTooltip, da
                 .attr('fill-opacity', 0.2)
                 .attr('d', area)
                 .on('mouseover', (event, d) => {
-                    eventSystem.trigger('tooltip', chartTooltip, event, d); // Show tooltip
+                    eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys); // Pass dataKeys here
                 })
                 .on('mousemove', (event) => {
-                    eventSystem.trigger('tooltipMove', chartTooltip, event); // Move tooltip
+                    eventSystem.trigger('tooltipMove', chartTooltip, event);
                 })
                 .on('mouseout', () => {
-                    eventSystem.trigger('tooltipHide', chartTooltip); // Hide tooltip
+                    eventSystem.trigger('tooltipHide', chartTooltip);
                 });
         });
     } catch (error) {
         console.error("Error creating area chart:", error);
     }
 }
+
 
 
 // Create Line Chart
@@ -250,7 +253,7 @@ function createLine({ seriesData, chartGroup, colorScale, line, dataKeys }: Crea
 }
 
 // Create Bars
-function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys }: CreateParams) {
+function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, chartTooltip }: CreateParams) {
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
 
     const seriesScale = d3.scaleBand()
@@ -269,9 +272,19 @@ function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale,
             .attr('width', seriesScale.bandwidth())
             .attr('height', d => chartHeight - valueScale(d[dataKeys.value]))
             .attr('fill', colorScale(series[dataKeys.name]))
-            .attr('fill-opacity', 0.5);
+            .attr('fill-opacity', 0.5)
+            .on('mouseover', (event, d) => {
+                eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys); // Pass dataKeys here
+            })
+            .on('mousemove', (event) => {
+                eventSystem.trigger('tooltipMove', chartTooltip, event);
+            })
+            .on('mouseout', () => {
+                eventSystem.trigger('tooltipHide', chartTooltip);
+            });
     });
 }
+
 
 // Create Points
 function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartTooltip, dataKeys }: CreateParams) {
@@ -285,7 +298,16 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScal
             .attr('cx', d => (dateScale(d[dataKeys.date]) || 0) + dateScale.bandwidth() / 2)
             .attr('cy', d => valueScale(d[dataKeys.value]))
             .attr('r', 4)
-            .attr('fill', colorScale(series[dataKeys.name]));
+            .attr('fill', colorScale(series[dataKeys.name]))
+            .on('mouseover', (event, d) => {
+                eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys); // Pass dataKeys here
+            })
+            .on('mousemove', (event) => {
+                eventSystem.trigger('tooltipMove', chartTooltip, event);
+            })
+            .on('mouseout', () => {
+                eventSystem.trigger('tooltipHide', chartTooltip);
+            });;
     });
 }
 
