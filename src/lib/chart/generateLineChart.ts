@@ -18,7 +18,6 @@ export interface DataKeys {
     date: string;
     value: string;
 }
-
 const defaultDataKeys = [
     {
         dataKeys: {
@@ -46,7 +45,6 @@ const defaultDataKeys = [
             yAxis: 'Results'
         }
     },
-
     {
         dataKeys: {
             name: 'region',
@@ -140,18 +138,52 @@ const defaultDataKeys = [
     }
 ];
 
+class SeededRandom {
+    private seed: number;
 
-const randomDataConfig = defaultDataKeys[Math.floor(Math.random() * defaultDataKeys.length)];
+    constructor(seed: number) {
+        this.seed = seed % 2147483647;
+        if (this.seed <= 0) this.seed += 2147483646;
+    }
 
+    // Linear congruential generator (LCG) for pseudo-random number generation
+    next(): number {
+        return this.seed = this.seed * 16807 % 2147483647;
+    }
 
-export function generateXyData(config: DataGenerationConfig, userDataKeys: DataKeys | null = null): { labels?: DataKeys, data: any[], dataKeys: DataKeys } {
+    nextFloat(): number {
+        return (this.next() - 1) / 2147483646;
+    }
+
+    nextInt(min: number, max: number): number {
+        return Math.floor(this.nextFloat() * (max - min + 1)) + min;
+    }
+}
+
+export function generateXyData(
+    config: DataGenerationConfig,
+    userDataKeys: DataKeys | null = null,
+    seed: number | null = null
+): { labels?: DataKeys, data: any[], dataKeys: DataKeys, seed: number } {
+    // Use seeded random if a seed is provided, otherwise generate a new seed
+    const generatedSeed = seed !== null ? seed : Math.floor(Math.random() * 2147483647);
+    const randomGenerator = new SeededRandom(generatedSeed);
+
+    // Function to get the next random float, either from seeded generator or Math.random()
+    const getRandomFloat = () => randomGenerator ? randomGenerator.nextFloat() : Math.random();
+    const getRandomInt = (min: number, max: number) => randomGenerator ? randomGenerator.nextInt(min, max) : Math.floor(Math.random() * (max - min + 1)) + min;
+
+    // Select randomDataConfig based on the seed or Math.random()
+    const randomConfigIndex = getRandomInt(0, defaultDataKeys.length - 1);
+    const randomDataConfig = defaultDataKeys[randomConfigIndex];
+
     const dataKeys = userDataKeys ?? randomDataConfig.dataKeys;
 
     const numSeries =
-        Math.floor(Math.random() * (config.seriesRange.max - config.seriesRange.min + 1)) +
+        Math.floor(getRandomFloat() * (config.seriesRange.max - config.seriesRange.min + 1)) +
         config.seriesRange.min;
     const numMonths =
-        Math.floor(Math.random() * (config.monthsRange.max - config.monthsRange.min + 1)) +
+        Math.floor(getRandomFloat() * (config.monthsRange.max - config.monthsRange.min + 1)) +
         config.monthsRange.min;
 
     const seriesData: any[] = [];
@@ -164,7 +196,7 @@ export function generateXyData(config: DataGenerationConfig, userDataKeys: DataK
 
         // Set an initial value within the configurable value range
         let initialValue =
-            Math.floor(Math.random() * (config.valueRange.max - config.valueRange.min + 1)) +
+            Math.floor(getRandomFloat() * (config.valueRange.max - config.valueRange.min + 1)) +
             config.valueRange.min;
 
         // Determine the trend direction
@@ -174,7 +206,7 @@ export function generateXyData(config: DataGenerationConfig, userDataKeys: DataK
         } else if (config.trendDirection === 'down') {
             trendDirection = -1;
         } else if (config.trendDirection === 'random') {
-            trendDirection = Math.random() < 0.5 ? -1 : 1; // Random direction per series
+            trendDirection = getRandomFloat() < 0.5 ? -1 : 1; // Random direction per series
         } else if (config.trendDirection === null) {
             trendDirection = 0; // No consistent trend, each step random
         }
@@ -185,19 +217,19 @@ export function generateXyData(config: DataGenerationConfig, userDataKeys: DataK
 
             // If trendDirection is null, make the change totally random for each step
             if (config.trendDirection === null) {
-                randomChange = Math.random() * variance * (Math.random() < 0.5 ? -1 : 1); // Completely random up or down
+                randomChange = getRandomFloat() * variance * (getRandomFloat() < 0.5 ? -1 : 1); // Completely random up or down
             } else {
-                randomChange = (Math.random() * variance + 1) * trendDirection;
+                randomChange = (getRandomFloat() * variance + 1) * trendDirection;
             }
             initialValue += randomChange;
 
             // If soft cap is enabled, apply soft cap logic
             if (config.softCap?.enable) {
                 if (config.softCap.upperLimit && initialValue > config.softCap.upperLimit) {
-                    initialValue -= Math.random() * (config.softCap.adjustmentRange || 5);
+                    initialValue -= getRandomFloat() * (config.softCap.adjustmentRange || 5);
                 }
                 if (config.softCap.lowerLimit && initialValue < config.softCap.lowerLimit) {
-                    initialValue += Math.random() * (config.softCap.adjustmentRange || 5);
+                    initialValue += getRandomFloat() * (config.softCap.adjustmentRange || 5);
                 }
             }
 
@@ -224,8 +256,8 @@ export function generateXyData(config: DataGenerationConfig, userDataKeys: DataK
         });
     }
 
-
-    const results = { data: seriesData, dataKeys, ...(!userDataKeys ? { labels: randomDataConfig.labels } : {}) }
+    // Return the seed as well as the generated data and configuration
+    const results = { data: seriesData, dataKeys, seed: generatedSeed, ...(!userDataKeys ? { labels: randomDataConfig.labels } : {}) };
 
     console.log('Generating mock XY data with the following data:', results);
 

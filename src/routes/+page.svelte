@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { generateXyData, LineChart } from '$lib/index.js'; // $lib is the alias for 'src/lib'
-	import type { DataGenerationConfig, Feature, SeriesData } from '$lib/index.js';
+	import type { DataGenerationConfig, Feature, SeriesData, DataKeys } from '$lib/index.js';
 
 	// Example usage with trendVariance configuration:
 	const config: DataGenerationConfig = {
@@ -16,7 +16,9 @@
 			adjustmentRange: 5
 		}
 	};
-	const { data, dataKeys, labels } = generateXyData(config);
+
+	// Generate data with seed
+	const { data, dataKeys, labels, seed } = generateXyData(config, null, 1912888540);
 
 	const features: Feature[] = [
 		{
@@ -56,15 +58,29 @@
 			feature: 'label',
 			hide: false,
 			config: labels
-			// config: {
-			// 	 title: 'Dummy Multi Series XY Chart Showing Mock Data',
-			// 	 xAxis: 'Date',
-			// 	 yAxis: 'Value'
-			// }
 		}
 	];
+
+	// Function to copy specific data to clipboard
+	function copyToClipboard(item: any, label: string) {
+		navigator.clipboard
+			.writeText(JSON.stringify(item, null, 2))
+			.then(() => {
+				console.log(`${label} copied to clipboard!`);
+			})
+			.catch((err) => {
+				console.error(`Failed to copy ${label}: `, err);
+			});
+	}
 </script>
 
 <main>
 	<LineChart {data} {dataKeys} width={600} height={400} {features} />
+	<code>seed: {seed}</code>
+
+	<!-- Buttons to copy the seed, data, dataKeys, and labels individually -->
+	<button on:click={() => copyToClipboard(seed, 'Seed')}>Copy Seed</button>
+	<button on:click={() => copyToClipboard(data, 'Data')}>Copy Data</button>
+	<button on:click={() => copyToClipboard(dataKeys, 'Data Keys')}>Copy Data Keys</button>
+	<button on:click={() => copyToClipboard(labels, 'Labels')}>Copy Labels</button>
 </main>
