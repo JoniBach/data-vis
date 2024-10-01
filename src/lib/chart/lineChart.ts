@@ -187,30 +187,27 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScal
     });
 }
 
+function checkIfFeatureExists(features: Feature[], feature: string) {
+    return features.some(f => f.feature === feature);
+}
+
+function conditionallyRenderFeature(feature: string, fn: Function, features: Feature[], createParameters: CreateParams) {
+    checkIfFeatureExists(features, feature) && fn(createParameters);
+}
+
+const featuresMap = {
+    'grid': createGrid,
+    'axis': createAxis,
+    'area': createArea,
+    'bar': createBars,
+    'line': createLine,
+    'point': createPoints
+}
+
 function createFeatures(createParameters: CreateParams, features: Feature[]) {
-    if (features.some(feature => feature.feature === 'grid')) {
-        createGrid(createParameters);
-    }
-
-    if (features.some(feature => feature.feature === 'axis')) {
-        createAxis(createParameters);
-    }
-
-    if (features.some(feature => feature.feature === 'area')) {
-        createArea(createParameters);
-    }
-
-    if (features.some(feature => feature.feature === 'bar')) {
-        createBars(createParameters);
-    }
-
-    if (features.some(feature => feature.feature === 'line')) {
-        createLine(createParameters);
-    }
-
-    if (features.some(feature => feature.feature === 'point')) {
-        createPoints(createParameters);
-    }
+    Object.keys(featuresMap).forEach(feature => {
+        conditionallyRenderFeature(feature, featuresMap[feature], features, createParameters);
+    });
 }
 
 
