@@ -8,6 +8,7 @@
 	export let height: number = 300;
 	export let features: any[] = [];
 	export let dataKeys: DataKeys;
+	export let squash: boolean = false;
 
 	let chartContainer: HTMLElement;
 
@@ -15,7 +16,7 @@
 	function renderChart() {
 		if (data && chartContainer) {
 			chartContainer.innerHTML = ''; // Clear previous chart
-			createLineChart(chartContainer, data, width, height, features, dataKeys, false);
+			createLineChart(chartContainer, data, width, height, features, dataKeys, false, squash);
 		}
 	}
 

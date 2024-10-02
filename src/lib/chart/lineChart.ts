@@ -730,7 +730,8 @@ export function createSeperateLineCharts(
     width: number = 500,
     height: number = 300,
     featuresArray: Feature[][],
-    dataKeysArray: DataKeys[]
+    dataKeysArray: DataKeys[],
+    squash: boolean = false
 ) {
     // Clear any previous charts inside the container
     d3.select(container).selectAll("*").remove();
@@ -758,12 +759,14 @@ export function createSeperateLineCharts(
         const chartContainer = document.createElement('div');
         container.appendChild(chartContainer);
 
+        const chartHeight = squash ? height / seriesDataArray.length : height;
+
         // Call createSeriesXYChart with the merged value domain
         createSeriesXYChart(
             chartContainer,
             seriesDataArray[i],
             width,
-            height,
+            chartHeight,
             featuresArray[i],
             dataKeysArray[i],
             mergedDateDomain,
@@ -795,11 +798,12 @@ export function createLineChart(
     height: number = 300,
     featuresArray: Feature[][],
     dataKeysArray: DataKeys[],
-    merge: boolean = false // Add a parameter to control merging
+    merge: boolean = false, // Add a parameter to control merging
+    squash: boolean = false // Add a parameter to control squashing
 ) {
     if (merge) {
-        createMergedLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray);
+        createMergedLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash);
     } else {
-        createSeperateLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray);
+        createSeperateLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash);
     }
 }

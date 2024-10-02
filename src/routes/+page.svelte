@@ -18,6 +18,7 @@
 			adjustmentRange: 5
 		}
 	};
+	const squash = false;
 
 	$: seed = null; // Initialize the seed value
 	$: data = [];
@@ -55,7 +56,7 @@
 </script>
 
 <main>
-	<LineChart {data} {dataKeys} {features} width={600} height={400} />
+	<LineChart {data} {dataKeys} {features} width={600} height={400} {squash} />
 
 	<code>
 		Seed: <input bind:value={seed} type="number" />
