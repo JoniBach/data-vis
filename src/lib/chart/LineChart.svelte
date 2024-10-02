@@ -9,6 +9,8 @@
 	export let features: any[] = [];
 	export let dataKeys: DataKeys;
 	export let squash: boolean = false;
+	export let syncX: boolean = false;
+	export let syncY: boolean = false;
 
 	let chartContainer: HTMLElement;
 
@@ -16,7 +18,18 @@
 	function renderChart() {
 		if (data && chartContainer) {
 			chartContainer.innerHTML = ''; // Clear previous chart
-			createLineChart(chartContainer, data, width, height, features, dataKeys, false, squash);
+			createLineChart(
+				chartContainer,
+				data,
+				width,
+				height,
+				features,
+				dataKeys,
+				false,
+				squash,
+				syncX,
+				syncY
+			);
 		}
 	}
 

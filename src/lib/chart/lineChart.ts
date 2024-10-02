@@ -627,17 +627,31 @@ function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKe
 
 
 // Function to compute bar width
-function computeBarWidth(dateScale: d3.ScaleTime<number, number>, dateDomain: Date[]): number {
+function computeBarWidth(dateScale: d3.ScaleTime<number, number>, dateDomain: Date[], chartWidth: number): number {
+    // Ensure the dates are sorted
+    const sortedDates = dateDomain.slice().sort((a, b) => a.getTime() - b.getTime());
     // Compute the time intervals between dates
-    const timeIntervals = dateDomain.slice(1).map((d, i) => d.getTime() - dateDomain[i].getTime());
+    const timeIntervals = sortedDates.slice(1).map((d, i) => d.getTime() - sortedDates[i].getTime());
+
     // Get the minimum time interval
-    const minTimeInterval = d3.min(timeIntervals) || 0;
-    // Map the time interval to x-axis units
-    const start = dateScale(dateDomain[0]);
-    const end = dateScale(new Date(dateDomain[0].getTime() + minTimeInterval));
-    const barWidth = (end - start) * 0.8; // Adjust with a factor to leave some space between bars
-    return Math.max(barWidth, 1); // Ensure the bar width is at least 1 pixel
+    let minTimeInterval = d3.min(timeIntervals);
+
+    if (!minTimeInterval || minTimeInterval <= 0) {
+        // Handle the case where there is only one date or no intervals
+        // Set barWidth to chartWidth divided by the number of data points
+        const numDataPoints = sortedDates.length || 1; // Avoid division by zero
+        const barWidth = (chartWidth / numDataPoints) * 0.8;
+        return Math.max(barWidth, 1);
+    } else {
+        // Map the time interval to x-axis units
+        const start = dateScale(sortedDates[0]);
+        const end = dateScale(new Date(sortedDates[0].getTime() + minTimeInterval));
+        const barWidth = (end - start) * 0.8; // Adjust with a factor to leave some space between bars
+        return Math.max(barWidth, 1); // Ensure the bar width is at least 1 pixel
+    }
 }
+
+
 export function createSeriesXYChart(
     container: HTMLElement,
     seriesData: any[],
@@ -671,8 +685,11 @@ export function createSeriesXYChart(
             return;
         }
 
+        // Use provided dateDomain or compute from data
+        const dateDomainUsed = dateDomain || seriesData.flatMap(series => series[dataKeys.data].map((d: any) => d[dataKeys.date]));
+
         // Step 2: Compute barWidth
-        const barWidth = computeBarWidth(dateScale, dateDomain!);
+        const barWidth = computeBarWidth(dateScale, dateDomainUsed, chartWidth);
 
         // Step 3: Adjust dateScale's range to [barWidth / 2, chartWidth - barWidth / 2]
         dateScale.range([barWidth / 2, chartWidth - barWidth / 2]);
@@ -724,6 +741,8 @@ export function createSeriesXYChart(
 
 
 
+
+
 export function createSeperateLineCharts(
     container: HTMLElement,
     seriesDataArray: any[][],
@@ -731,29 +750,41 @@ export function createSeperateLineCharts(
     height: number = 300,
     featuresArray: Feature[][],
     dataKeysArray: DataKeys[],
-    squash: boolean = false
+    squash: boolean = false,
+    syncX: boolean = false,
+    syncY: boolean = false
 ) {
     // Clear any previous charts inside the container
     d3.select(container).selectAll("*").remove();
 
-    // Compute merged date domain
-    const mergedDateDomain = computeMergedDateDomain(seriesDataArray, dataKeysArray);
+    let mergedDateDomain: Date[] | undefined;
+    let mergedValueDomain: [number, number] | undefined;
 
-    // Collect variants for each chart
-    const variants = featuresArray.map(features => {
-        const barFeature = features.find(f => f.feature === 'bar' && !f.hide);
-        return barFeature?.config?.variant || 'grouped';
-    });
+    if (syncX) {
+        // Compute merged date domain
+        mergedDateDomain = computeMergedDateDomain(seriesDataArray, dataKeysArray);
+    }
 
-    // Compute merged value domain
-    const mergedValueDomain = computeMergedValueDomain(seriesDataArray, dataKeysArray, variants);
+    if (syncY) {
+        // Collect variants for each chart
+        const variants = featuresArray.map(features => {
+            const barFeature = features.find(f => f.feature === 'bar' && !f.hide);
+            return barFeature?.config?.variant || 'grouped';
+        });
+
+        // Compute merged value domain
+        mergedValueDomain = computeMergedValueDomain(seriesDataArray, dataKeysArray, variants);
+    }
 
     // Iterate over each seriesData array and create a separate chart for each
     for (let i = 0; i < seriesDataArray.length; i++) {
         const features = featuresArray[i];
+        const seriesData = seriesDataArray[i];
+        const dataKeys = dataKeysArray[i];
 
-        // Use the merged value domain for all charts
-        const valueDomain = mergedValueDomain;
+        // Use the merged domains if syncing is enabled; otherwise, use individual domains
+        const dateDomain = syncX ? mergedDateDomain : undefined;
+        const valueDomain = syncY ? mergedValueDomain : undefined;
 
         // Create a new div or container for each series chart
         const chartContainer = document.createElement('div');
@@ -761,19 +792,20 @@ export function createSeperateLineCharts(
 
         const chartHeight = squash ? height / seriesDataArray.length : height;
 
-        // Call createSeriesXYChart with the merged value domain
+        // Call createSeriesXYChart with the appropriate domains
         createSeriesXYChart(
             chartContainer,
-            seriesDataArray[i],
+            seriesData,
             width,
             chartHeight,
-            featuresArray[i],
-            dataKeysArray[i],
-            mergedDateDomain,
+            features,
+            dataKeys,
+            dateDomain,
             valueDomain
         );
     }
 }
+
 
 
 
@@ -799,11 +831,13 @@ export function createLineChart(
     featuresArray: Feature[][],
     dataKeysArray: DataKeys[],
     merge: boolean = false, // Add a parameter to control merging
-    squash: boolean = false // Add a parameter to control squashing
+    squash: boolean = false, // Add a parameter to control squashing
+    syncX: boolean = false, // Add a parameter to control syncing x-axis
+    syncY: boolean = false // Add a parameter to control syncing y-axis
 ) {
     if (merge) {
-        createMergedLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash);
+        createMergedLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY);
     } else {
-        createSeperateLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash);
+        createSeperateLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY);
     }
 }

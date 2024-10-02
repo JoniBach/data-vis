@@ -1,15 +1,19 @@
+// Interfaces and Types
+
 export interface DataGenerationConfig {
     seriesRange: { min: number; max: number };
     monthsRange: { min: number; max: number };
     valueRange: { min: number; max: number };
-    trendDirection?: 'up' | 'down' | 'random' | null | undefined; // Optional, controls the trend
-    softCap?: {
-        enable: boolean;
-        upperLimit?: number;
-        lowerLimit?: number;
-        adjustmentRange?: number;
-    };
+    trendDirection?: 'up' | 'down' | 'random' | null; // Optional, controls the trend
+    softCap?: SoftCapConfig;
     trendVariance?: number; // Controls the amount of randomness (e.g., 1 for smooth, 10 for high variance)
+}
+
+export interface SoftCapConfig {
+    enable: boolean;
+    upperLimit?: number;
+    lowerLimit?: number;
+    adjustmentRange?: number;
 }
 
 export interface DataKeys {
@@ -19,33 +23,74 @@ export interface DataKeys {
     value: string;
 }
 
-const defaultFeatures = (labels) => [
+export interface LabelConfig {
+    title: string;
+    xAxis: string;
+    yAxis: string;
+}
+
+export interface FeatureConfig {
+    feature: string;
+    hide: boolean;
+    config?: Record<string, unknown>;
+}
+
+export interface DefaultDataKeyEntry {
+    dataKeys: DataKeys;
+    labels: LabelConfig;
+}
+
+export interface GeneratedData {
+    data: SeriesData[];
+    dataKeys: DataKeys;
+    seed: number;
+    features: FeatureConfig[];
+}
+
+export interface SeriesData {
+    [key: string]: string | DataPoint[];
+}
+
+export interface DataPoint {
+    [key: string]: Date | number;
+}
+
+export interface MultiSeriesResponse {
+    data: SeriesData[][];
+    dataKeys: DataKeys[];
+    features: FeatureConfig[][];
+    seed: number;
+}
+
+// Default Features Function
+
+const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
     {
         feature: 'line',
-        hide: false
+        hide: false,
     },
     {
         feature: 'bar',
         hide: false,
         config: {
-            variant: 'grouped' // or 'overlapped' or 'stacked'
-        }
+            variant: 'grouped', // or 'overlapped' or 'stacked'
+        },
     },
     {
         feature: 'point',
-        hide: false
+        hide: false,
     },
     // {
-    //     feature: 'area',
-    //     hide: true
+    //   feature: 'area',
+    //   hide: true,
     // },
     {
         feature: 'grid',
-        hide: false
+        hide: false,
     },
     {
         feature: 'axis',
-        hide: false
+        hide: false,
     },
     {
         feature: 'tooltip',
@@ -53,134 +98,149 @@ const defaultFeatures = (labels) => [
         config: {
             border: '1px solid #d3d3d3',
             padding: '5px',
-            background: '#f9f9f9'
-        }
+            background: '#f9f9f9',
+        },
     },
     {
         feature: 'label',
         hide: false,
-        config: labels
-    }
+        config: labels,
+    },
 ];
 const defaultDataKeys = [
     {
         dataKeys: {
-            name: 'name',
-            data: 'data',
+            name: 'city',
+            data: 'temperatureData',
             date: 'date',
-            value: 'value'
+            value: 'averageTemperature',
         },
         labels: {
-            title: 'Dummy Multi Series XY Chart Showing Mock Data',
+            title: 'Average Temperature Over Time',
             xAxis: 'Date',
-            yAxis: 'Value'
-        }
-    },
-    {
-        dataKeys: {
-            name: 'animal',
-            data: 'results',
-            date: 'treatedOn',
-            value: 'results'
+            yAxis: 'Temperature (°C)',
         },
-        labels: {
-            title: 'Vet Appointments',
-            xAxis: 'Date Treated',
-            yAxis: 'Results'
-        }
-    },
-    {
-        dataKeys: {
-            name: 'region',
-            data: 'salesData',
-            date: 'saleDate',
-            value: 'amount'
-        },
-        labels: {
-            title: 'Sales Data by Region',
-            xAxis: 'Sale Date',
-            yAxis: 'Sales Amount'
-        }
     },
     {
         dataKeys: {
             name: 'city',
-            data: 'weatherStats',
-            date: 'recordedAt',
-            value: 'temperature'
-        },
-        labels: {
-            title: 'City Weather Data',
-            xAxis: 'Date Recorded',
-            yAxis: 'Temperature (°C)'
-        }
-    },
-    {
-        dataKeys: {
-            name: 'company',
-            data: 'priceHistory',
+            data: 'airQualityData',
             date: 'date',
-            value: 'closingPrice'
+            value: 'aqiValue',
         },
         labels: {
-            title: 'Stock Prices',
+            title: 'Air Quality Index Over Time',
             xAxis: 'Date',
-            yAxis: 'Closing Price'
-        }
+            yAxis: 'AQI Value',
+        },
     },
     {
         dataKeys: {
-            name: 'student',
-            data: 'examScores',
-            date: 'examDate',
-            value: 'score'
+            name: 'website',
+            data: 'trafficData',
+            date: 'date',
+            value: 'numberOfVisitors',
         },
         labels: {
-            title: 'Student Exam Results',
-            xAxis: 'Exam Date',
-            yAxis: 'Score'
-        }
+            title: 'Website Traffic Over Time',
+            xAxis: 'Date',
+            yAxis: 'Number of Visitors',
+        },
+    },
+    {
+        dataKeys: {
+            name: 'store',
+            data: 'salesData',
+            date: 'date',
+            value: 'totalSales',
+        },
+        labels: {
+            title: 'Store Sales Over Time',
+            xAxis: 'Date',
+            yAxis: 'Total Sales (USD)',
+        },
     },
     {
         dataKeys: {
             name: 'user',
-            data: 'activityData',
-            date: 'activityDate',
-            value: 'caloriesBurned'
+            data: 'fitnessData',
+            date: 'date',
+            value: 'stepsWalked',
         },
         labels: {
-            title: 'User Fitness Activity',
-            xAxis: 'Activity Date',
-            yAxis: 'Calories Burned'
-        }
+            title: 'Daily Steps Walked Over Time',
+            xAxis: 'Date',
+            yAxis: 'Steps Walked',
+        },
     },
     {
         dataKeys: {
-            name: 'accountHolder',
-            data: 'transactionHistory',
-            date: 'transactionDate',
-            value: 'amount'
+            name: 'restaurant',
+            data: 'reservationData',
+            date: 'date',
+            value: 'numberOfReservations',
         },
         labels: {
-            title: 'Financial Transactions',
-            xAxis: 'Transaction Date',
-            yAxis: 'Amount'
-        }
+            title: 'Restaurant Reservations Over Time',
+            xAxis: 'Date',
+            yAxis: 'Number of Reservations',
+        },
     },
     {
         dataKeys: {
-            name: 'page',
-            data: 'trafficStats',
-            date: 'visitDate',
-            value: 'pageViews'
+            name: 'app',
+            data: 'downloadData',
+            date: 'date',
+            value: 'downloads',
         },
         labels: {
-            title: 'Website Traffic',
-            xAxis: 'Visit Date',
-            yAxis: 'Page Views'
-        }
-    }
+            title: 'App Downloads Over Time',
+            xAxis: 'Date',
+            yAxis: 'Number of Downloads',
+        },
+    },
+    {
+        dataKeys: {
+            name: 'product',
+            data: 'reviewData',
+            date: 'date',
+            value: 'averageRating',
+        },
+        labels: {
+            title: 'Product Average Rating Over Time',
+            xAxis: 'Date',
+            yAxis: 'Average Rating',
+        },
+    },
+    {
+        dataKeys: {
+            name: 'company',
+            data: 'stockPriceData',
+            date: 'date',
+            value: 'closingPrice',
+        },
+        labels: {
+            title: 'Company Stock Prices Over Time',
+            xAxis: 'Date',
+            yAxis: 'Closing Price (USD)',
+        },
+    },
+    {
+        dataKeys: {
+            name: 'region',
+            data: 'electricityUsageData',
+            date: 'date',
+            value: 'energyConsumed',
+        },
+        labels: {
+            title: 'Electricity Usage Over Time',
+            xAxis: 'Date',
+            yAxis: 'Energy Consumed (kWh)',
+        },
+    },
 ];
+
+// Seeded Random Number Generator Class
 
 class SeededRandom {
     private seed: number;
@@ -191,49 +251,53 @@ class SeededRandom {
     }
 
     // Linear congruential generator (LCG) for pseudo-random number generation
-    next(): number {
-        return this.seed = this.seed * 16807 % 2147483647;
+    public next(): number {
+        this.seed = (this.seed * 16807) % 2147483647;
+        return this.seed;
     }
 
-    nextFloat(): number {
+    public nextFloat(): number {
         return (this.next() - 1) / 2147483646;
     }
 
-    nextInt(min: number, max: number): number {
+    public nextInt(min: number, max: number): number {
         return Math.floor(this.nextFloat() * (max - min + 1)) + min;
     }
 }
 
-const randomizeFeatures = (labels) => {
-    return defaultFeatures({
+// Randomize Features Function
+
+const randomizeFeatures = (labels: LabelConfig): FeatureConfig[] => {
+    const updatedLabels: LabelConfig = {
         ...labels,
         title: `${labels.title} (${Math.floor(Math.random() * 100)})`,
-        xAxis: labels.xAxis,
-        yAxis: labels.yAxis
-    }).map(feature => {
-        // Ensure that all 'hide' properties are set to false
-        feature.hide = false;
-        return feature;
-    });
+    };
+
+    return defaultFeatures(updatedLabels).map((feature) => ({
+        ...feature,
+        hide: false, // Ensure that all 'hide' properties are set to false
+    }));
 };
 
+// Generate XY Data Function
 
 export function generateXyData(
     config: DataGenerationConfig,
     userDataKeys: DataKeys | null = null,
     seed: number | null = null,
     usedIndices: Set<number>
-): { labels?: DataKeys, data: any[], dataKeys: DataKeys, seed: number } {
-    // Use seeded random if a seed is provided, otherwise generate a new seed
+): GeneratedData {
+    // Initialize seeded random number generator
     const generatedSeed = seed !== null ? seed : Math.floor(Math.random() * 2147483647);
     const randomGenerator = new SeededRandom(generatedSeed);
 
-    const getRandomFloat = () => randomGenerator ? randomGenerator.nextFloat() : Math.random();
-    const getRandomInt = (min: number, max: number) => randomGenerator ? randomGenerator.nextInt(min, max) : Math.floor(Math.random() * (max - min + 1)) + min;
+    // Utility functions for random number generation
+    const getRandomFloat = (): number => randomGenerator.nextFloat();
+    const getRandomInt = (min: number, max: number): number => randomGenerator.nextInt(min, max);
 
     // Function to get a unique random index for defaultDataKeys
     const getUniqueRandomIndex = (max: number): number => {
-        let randomIndex;
+        let randomIndex: number;
         do {
             randomIndex = getRandomInt(0, max);
         } while (usedIndices.has(randomIndex));
@@ -245,28 +309,34 @@ export function generateXyData(
     const randomConfigIndex = getUniqueRandomIndex(defaultDataKeys.length - 1);
     const randomDataConfig = defaultDataKeys[randomConfigIndex];
 
-    const dataKeys = userDataKeys ?? randomDataConfig.dataKeys;
+    const dataKeys: DataKeys = userDataKeys ?? randomDataConfig.dataKeys;
 
     const numSeries = getRandomInt(config.seriesRange.min, config.seriesRange.max);
     const numMonths = getRandomInt(config.monthsRange.min, config.monthsRange.max);
 
-    const seriesData: any[] = [];
+    const seriesData: SeriesData[] = [];
     const startDate = new Date();
     const variance = config.trendVariance ?? 5;
 
     for (let i = 0; i < numSeries; i++) {
         const seriesName = `Series ${i + 1}`;
-        const data: any[] = [];
+        const dataPoints: DataPoint[] = [];
 
-        let initialValue = getRandomInt(config.valueRange.min, config.valueRange.max);
+        let currentValue = getRandomInt(config.valueRange.min, config.valueRange.max);
 
         let trendDirection = 0;
-        if (config.trendDirection === 'up') {
-            trendDirection = 1;
-        } else if (config.trendDirection === 'down') {
-            trendDirection = -1;
-        } else if (config.trendDirection === 'random') {
-            trendDirection = getRandomFloat() < 0.5 ? -1 : 1;
+        switch (config.trendDirection) {
+            case 'up':
+                trendDirection = 1;
+                break;
+            case 'down':
+                trendDirection = -1;
+                break;
+            case 'random':
+                trendDirection = getRandomFloat() < 0.5 ? -1 : 1;
+                break;
+            default:
+                trendDirection = 0;
         }
 
         for (let j = 0; j < numMonths; j++) {
@@ -277,78 +347,92 @@ export function generateXyData(
             } else {
                 randomChange = (getRandomFloat() * variance + 1) * trendDirection;
             }
-            initialValue += randomChange;
 
+            currentValue += randomChange;
+
+            // Apply soft caps if enabled
             if (config.softCap?.enable) {
-                if (config.softCap.upperLimit && initialValue > config.softCap.upperLimit) {
-                    initialValue -= getRandomFloat() * (config.softCap.adjustmentRange || 5);
+                const adjustmentRange = config.softCap.adjustmentRange || 5;
+                if (config.softCap.upperLimit !== undefined && currentValue > config.softCap.upperLimit) {
+                    currentValue -= getRandomFloat() * adjustmentRange;
                 }
-                if (config.softCap.lowerLimit && initialValue < config.softCap.lowerLimit) {
-                    initialValue += getRandomFloat() * (config.softCap.adjustmentRange || 5);
+                if (config.softCap.lowerLimit !== undefined && currentValue < config.softCap.lowerLimit) {
+                    currentValue += getRandomFloat() * adjustmentRange;
                 }
             }
 
-            initialValue = Math.max(config.valueRange.min, Math.min(config.valueRange.max, initialValue));
+            // Ensure value stays within specified range
+            currentValue = Math.max(config.valueRange.min, Math.min(config.valueRange.max, currentValue));
 
             const date = new Date(startDate);
             date.setMonth(startDate.getMonth() + j);
 
-            data.push({
+            dataPoints.push({
                 [dataKeys.date]: date,
-                [dataKeys.value]: Math.round(initialValue)
+                [dataKeys.value]: Math.round(currentValue),
             });
         }
 
         seriesData.push({
             [dataKeys.name]: seriesName,
-            [dataKeys.data]: data
+            [dataKeys.data]: dataPoints,
         });
     }
 
-    const features = randomizeFeatures(randomDataConfig.labels); // Generate unique features
+    const features = randomizeFeatures(randomDataConfig.labels);
 
-    const results = { data: seriesData, dataKeys, seed: generatedSeed, features };
-
-    return results;
+    return {
+        data: seriesData,
+        dataKeys,
+        seed: generatedSeed,
+        features,
+    };
 }
 
-const generateSingleSeries = (config, userDataKeys, seed, seriesIndex, usedIndices) => {
-    // Generate data for a single series with tracking of used indices
-    const generated = generateXyData(config, userDataKeys, seed !== null ? seed + seriesIndex : null, usedIndices);
-    return {
-        data: generated.data,
-        dataKeys: generated.dataKeys,
-        features: generated.features,
-        seed: generated.seed
-    };
+// Generate Single Series Function
+
+const generateSingleSeries = (
+    config: DataGenerationConfig,
+    userDataKeys: DataKeys | null,
+    seed: number | null,
+    seriesIndex: number,
+    usedIndices: Set<number>
+): GeneratedData => {
+    const adjustedSeed = seed !== null ? seed + seriesIndex : null;
+    return generateXyData(config, userDataKeys, adjustedSeed, usedIndices);
 };
 
-export const generateMultiSeriesData = (config, userDataKeys = null, seed = null) => {
+// Generate Multi-Series Data Function
+
+export const generateMultiSeriesData = (
+    config: DataGenerationConfig,
+    userDataKeys: DataKeys | null = null,
+    seed: number | null = null
+): MultiSeriesResponse => {
     const numberOfSeries = 3;
     let newSeed = seed;
-    const usedIndices = new Set(); // Set to track used indices and ensure uniqueness
+    const usedIndices = new Set<number>();
 
-    const seriesData = Array.from({ length: numberOfSeries }, (_, i) => {
-        const singleSeries = generateSingleSeries(config, userDataKeys, newSeed, i, usedIndices);
+    const seriesData = Array.from({ length: numberOfSeries }, (_, index) => {
+        const singleSeries = generateSingleSeries(config, userDataKeys, newSeed, index, usedIndices);
 
-        // Update the seed after the first series, to use in subsequent series
-        if (newSeed === null && i === 0) {
+        if (newSeed === null && index === 0) {
             newSeed = singleSeries.seed;
         }
 
         return singleSeries;
     });
 
-    // Combine the results into arrays of data, dataKeys, and features
-    const data = seriesData.map(series => series.data);
-    const dataKeys = seriesData.map(series => series.dataKeys);
-    const features = seriesData.map(series => series.features);
+    // Extract data, dataKeys, and features from each series
+    const data = seriesData.map((series) => series.data);
+    const dataKeys = seriesData.map((series) => series.dataKeys);
+    const features = seriesData.map((series) => series.features);
 
-    const response = {
+    const response: MultiSeriesResponse = {
         data,
         dataKeys,
         features,
-        seed: newSeed
+        seed: newSeed as number, // Type assertion since newSeed will be set after first iteration
     };
 
     console.log('Generating mock XY data with the following data:', response);

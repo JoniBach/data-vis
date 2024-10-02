@@ -19,6 +19,8 @@
 		}
 	};
 	const squash = false;
+	const syncX = true;
+	const syncY = true;
 
 	$: seed = null; // Initialize the seed value
 	$: data = [];
@@ -56,7 +58,7 @@
 </script>
 
 <main>
-	<LineChart {data} {dataKeys} {features} width={600} height={400} {squash} />
+	<LineChart {data} {dataKeys} {features} width={600} height={400} {squash} {syncX} {syncY} />
 
 	<code>
 		Seed: <input bind:value={seed} type="number" />
