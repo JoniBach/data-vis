@@ -344,64 +344,75 @@ function createInitialValueScale({ seriesData, chartHeight, dataKeys, valueDomai
         .domain([minValue, maxValue])
         .range([chartHeight, 0]);
 }
-function computeMergedValueDomain(seriesDataArray: any[][], dataKeysArray: DataKeys[], variant: string): [number, number] {
+function computeMergedValueDomain(
+    seriesDataArray: any[][],
+    dataKeysArray: DataKeys[],
+    variants: string[]
+): [number, number] {
     let minValue = Infinity;
     let maxValue = -Infinity;
 
-    if (variant === 'stacked') {
-        // For stacked bars, sum the values at each date across all series
-        const dateToTotalValue: Map<number, number> = new Map();
+    // Collect all unique dates across all charts
+    const allDatesSet = new Set<number>();
+    for (let i = 0; i < seriesDataArray.length; i++) {
+        const seriesData = seriesDataArray[i];
+        const dataKeys = dataKeysArray[i];
+        seriesData.forEach(series => {
+            series[dataKeys.data].forEach((d: any) => {
+                allDatesSet.add(d[dataKeys.date].getTime());
+            });
+        });
+    }
+    const allDates = Array.from(allDatesSet);
 
-        // Collect all unique dates
-        const allDates: Set<number> = new Set();
+    // For each date, compute the maximum total stacked value across charts
+    allDates.forEach(date => {
+        // Initialize the maximum positive and minimum negative values for this date
+        let dateMaxPositive = -Infinity;
+        let dateMinNegative = Infinity;
+
         for (let i = 0; i < seriesDataArray.length; i++) {
+            const variant = variants[i];
             const seriesData = seriesDataArray[i];
             const dataKeys = dataKeysArray[i];
-            seriesData.forEach(series => {
-                series[dataKeys.data].forEach((d: any) => {
-                    allDates.add(d[dataKeys.date].getTime());
-                });
-            });
-        }
 
-        // For each date, sum the values across all series
-        allDates.forEach(date => {
-            let totalPositive = 0;
-            let totalNegative = 0;
+            if (variant === 'stacked') {
+                // Sum values across all series for this chart
+                let chartPositive = 0;
+                let chartNegative = 0;
 
-            for (let i = 0; i < seriesDataArray.length; i++) {
-                const seriesData = seriesDataArray[i];
-                const dataKeys = dataKeysArray[i];
                 seriesData.forEach(series => {
                     const dataPoint = series[dataKeys.data].find((d: any) => d[dataKeys.date].getTime() === date);
                     if (dataPoint) {
                         const value = dataPoint[dataKeys.value];
                         if (value >= 0) {
-                            totalPositive += value;
+                            chartPositive += value;
                         } else {
-                            totalNegative += value;
+                            chartNegative += value;
                         }
                     }
                 });
-            }
 
-            if (totalPositive > maxValue) maxValue = totalPositive;
-            if (totalNegative < minValue) minValue = totalNegative;
-        });
-    } else {
-        // For other variants, find min and max values across all data points
-        for (let i = 0; i < seriesDataArray.length; i++) {
-            const seriesData = seriesDataArray[i];
-            const dataKeys = dataKeysArray[i];
-            seriesData.forEach(series => {
-                series[dataKeys.data].forEach((d: any) => {
-                    const value = d[dataKeys.value];
-                    if (value < minValue) minValue = value;
-                    if (value > maxValue) maxValue = value;
+                // Update dateMaxPositive and dateMinNegative
+                if (chartPositive > dateMaxPositive) dateMaxPositive = chartPositive;
+                if (chartNegative < dateMinNegative) dateMinNegative = chartNegative;
+            } else {
+                // For non-stacked charts, consider individual values
+                seriesData.forEach(series => {
+                    const dataPoint = series[dataKeys.data].find((d: any) => d[dataKeys.date].getTime() === date);
+                    if (dataPoint) {
+                        const value = dataPoint[dataKeys.value];
+                        if (value > dateMaxPositive) dateMaxPositive = value;
+                        if (value < dateMinNegative) dateMinNegative = value;
+                    }
                 });
-            });
+            }
         }
-    }
+
+        // Update minValue and maxValue based on the maximums found for this date
+        if (dateMaxPositive > maxValue) maxValue = dateMaxPositive;
+        if (dateMinNegative < minValue) minValue = dateMinNegative;
+    });
 
     // Ensure domain includes zero
     minValue = Math.min(minValue, 0);
@@ -595,6 +606,7 @@ function computeValueDomain(seriesData: any[], dataKeys: DataKeys, variant: stri
 }
 
 
+
 // Function to compute merged date domain
 function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKeys[]): Date[] {
     const allDates: Date[] = [];
@@ -711,6 +723,7 @@ export function createSeriesXYChart(
 
 
 
+
 export function createSeperateLineCharts(
     container: HTMLElement,
     seriesDataArray: any[][],
@@ -725,33 +738,41 @@ export function createSeperateLineCharts(
     // Compute merged date domain
     const mergedDateDomain = computeMergedDateDomain(seriesDataArray, dataKeysArray);
 
+    // Collect variants for each chart
+    const variants = featuresArray.map(features => {
+        const barFeature = features.find(f => f.feature === 'bar' && !f.hide);
+        return barFeature?.config?.variant || 'grouped';
+    });
+
+    // Compute merged value domain
+    const mergedValueDomain = computeMergedValueDomain(seriesDataArray, dataKeysArray, variants);
+
     // Iterate over each seriesData array and create a separate chart for each
     for (let i = 0; i < seriesDataArray.length; i++) {
-        // Determine if 'stacked' variant is used for this chart
         const features = featuresArray[i];
-        const barFeature = features.find(f => f.feature === 'bar' && !f.hide);
-        const barVariant = barFeature?.config?.variant || 'grouped';
 
-        // Compute value domain for this chart
-        const valueDomain = computeValueDomain(seriesDataArray[i], dataKeysArray[i], barVariant);
+        // Use the merged value domain for all charts
+        const valueDomain = mergedValueDomain;
 
         // Create a new div or container for each series chart
         const chartContainer = document.createElement('div');
-        container.appendChild(chartContainer); // Append the new container to the parent
+        container.appendChild(chartContainer);
 
-        // Call the createSeriesXYChart function with the new container for each series
+        // Call createSeriesXYChart with the merged value domain
         createSeriesXYChart(
-            chartContainer,             // Pass the newly created container for each chart
-            seriesDataArray[i],         // Pass the corresponding series data
+            chartContainer,
+            seriesDataArray[i],
             width,
             height,
-            featuresArray[i],           // Pass the corresponding features
-            dataKeysArray[i],           // Pass the corresponding data keys
-            mergedDateDomain,           // Pass the merged date domain
-            valueDomain                 // Pass the value domain computed per chart
+            featuresArray[i],
+            dataKeysArray[i],
+            mergedDateDomain,
+            valueDomain
         );
     }
 }
+
+
 
 
 // Function to create merged line charts (optional)
