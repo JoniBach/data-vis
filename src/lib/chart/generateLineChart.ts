@@ -18,6 +18,50 @@ export interface DataKeys {
     date: string;
     value: string;
 }
+
+const defaultFeatures = (labels) => [
+    {
+        feature: 'line',
+        hide: false
+    },
+    {
+        feature: 'bar',
+        hide: false,
+        config: {
+            variant: 'grouped' // or 'overlapped' or 'stacked'
+        }
+    },
+    {
+        feature: 'point',
+        hide: false
+    },
+    {
+        feature: 'area',
+        hide: true
+    },
+    {
+        feature: 'grid',
+        hide: false
+    },
+    {
+        feature: 'axis',
+        hide: false
+    },
+    {
+        feature: 'tooltip',
+        hide: false,
+        config: {
+            border: '1px solid #d3d3d3',
+            padding: '5px',
+            background: '#f9f9f9'
+        }
+    },
+    {
+        feature: 'label',
+        hide: false,
+        config: labels
+    }
+];
 const defaultDataKeys = [
     {
         dataKeys: {
@@ -257,7 +301,7 @@ export function generateXyData(
     }
 
     // Return the seed as well as the generated data and configuration
-    const results = { data: seriesData, dataKeys, seed: generatedSeed, ...(!userDataKeys ? { labels: randomDataConfig.labels } : {}) };
+    const results = { data: seriesData, dataKeys, seed: generatedSeed, ...(!userDataKeys ? { features: defaultFeatures(randomDataConfig.labels) } : {}) };
 
     console.log('Generating mock XY data with the following data:', results);
 

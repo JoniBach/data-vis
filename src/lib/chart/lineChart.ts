@@ -42,7 +42,7 @@ export interface CreateParams {
     seriesData: SeriesData[];
     chartGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
     colorScale: d3.ScaleOrdinal<string, string>;
-    dateScale: d3.ScaleBand<Date>;
+    dateScale: d3.ScaleTime<number, number>;
     valueScale: d3.ScaleLinear<number, number>;
     stackedValueScale?: d3.ScaleLinear<number, number>;
     area: d3.Area<DataPoint>;
@@ -51,6 +51,7 @@ export interface CreateParams {
     chartHeight: number;
     chartWidth: number;
     dataKeys: DataKeys;
+    barWidth: number;
 }
 
 interface TooltipListener {
@@ -112,7 +113,6 @@ eventSystem.on('tooltip', (chartTooltip, event, d, dataKeys: DataKeys) => {
     }
 });
 
-
 eventSystem.on('tooltipMove', (chartTooltip, event) => {
     chartTooltip.style("top", `${event.pageY - 10}px`)
         .style("left", `${event.pageX + 10}px`);
@@ -134,40 +134,41 @@ function createInitialChartGroup({ svg, margin }: { svg: d3.Selection<SVGSVGElem
         .attr('transform', `translate(${margin.left},${margin.top})`);
 }
 
-function createInitialDateScale({ seriesData, chartWidth, dataKeys }: { seriesData: any[], chartWidth: number, dataKeys: DataKeys }) {
+// Modified to use scaleTime and accept dateDomain
+function createInitialDateScale({ seriesData, chartWidth, dataKeys, dateDomain }: { seriesData: any[], chartWidth: number, dataKeys: DataKeys, dateDomain?: Date[] }) {
     const data = seriesData?.[0]?.[dataKeys.data];
     if (!data || data.length === 0) {
         console.error("No data available for the date scale");
         return null;
     }
 
-    return d3.scaleBand<Date>()
-        .domain(data.map((d: any) => d[dataKeys.date]))
-        .range([0, chartWidth])
-        .padding(0.1);
+    const domainDates = dateDomain ? dateDomain : data.map((d: any) => d[dataKeys.date]);
+
+    return d3.scaleTime()
+        .domain(d3.extent(domainDates) as [Date, Date])
+        .range([0, chartWidth]);
 }
 
-function createInitialValueScale({ seriesData, chartHeight, dataKeys }: { seriesData: any[], chartHeight: number, dataKeys: DataKeys }) {
-    const maxValue = d3.max(seriesData.flatMap(series => series?.[dataKeys.data]?.map(d => d[dataKeys.value]) || []));
-
-    if (!maxValue) {
-        console.error("No data available for the value scale");
-        return null;
-    }
+// Modified to accept valueDomain
+function createInitialValueScale({ seriesData, chartHeight, dataKeys, valueDomain }: { seriesData: any[], chartHeight: number, dataKeys: DataKeys, valueDomain?: [number, number] }) {
+    const [minValue, maxValue] = valueDomain ? valueDomain : [
+        d3.min(seriesData.flatMap(series => series?.[dataKeys.data]?.map(d => d[dataKeys.value]) || [])) || 0,
+        d3.max(seriesData.flatMap(series => series?.[dataKeys.data]?.map(d => d[dataKeys.value]) || [])) || 0
+    ];
 
     return d3.scaleLinear()
-        .domain([0, maxValue])
+        .domain([minValue, maxValue])
         .range([chartHeight, 0]);
 }
 
-function createInitialStackedValueScale({ seriesData, chartHeight, dataKeys }: { seriesData: any[], chartHeight: number, dataKeys: DataKeys }) {
-    const maxStackedValue = d3.max(
+function createInitialStackedValueScale({ seriesData, chartHeight, dataKeys, valueDomain }: { seriesData: any[], chartHeight: number, dataKeys: DataKeys, valueDomain?: [number, number] }) {
+    const maxStackedValue = valueDomain ? valueDomain[1] : d3.max(
         seriesData[0][dataKeys.data].map((_, i) =>
             seriesData.reduce((sum, series) => sum + series[dataKeys.data][i][dataKeys.value], 0)
         )
     );
 
-    if (!maxStackedValue) {
+    if (maxStackedValue === undefined || maxStackedValue === null) {
         console.error("No data available for the stacked value scale");
         return null;
     }
@@ -177,25 +178,21 @@ function createInitialStackedValueScale({ seriesData, chartHeight, dataKeys }: {
         .range([chartHeight, 0]);
 }
 
-
-
-
-
 function createInitialColorScale({ seriesData, dataKeys }: { seriesData: any[], dataKeys: DataKeys }) {
     return d3.scaleOrdinal(d3.schemeCategory10)
         .domain(seriesData.map((d: any) => d[dataKeys.name]));
 }
 
-function createInitialArea({ dateScale, valueScale, chartHeight, dataKeys }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number>, chartHeight: number, dataKeys: DataKeys }) {
+function createInitialArea({ dateScale, valueScale, chartHeight, dataKeys }: { dateScale: d3.ScaleTime<number, number>, valueScale: d3.ScaleLinear<number, number>, chartHeight: number, dataKeys: DataKeys }) {
     return d3.area<DataPoint>()
-        .x(d => (dateScale(d[dataKeys.date]) || 0) + dateScale.bandwidth() / 2)
+        .x(d => dateScale(d[dataKeys.date]))
         .y0(chartHeight)
         .y1(d => valueScale(d[dataKeys.value]));
 }
 
-function createInitialLine({ dateScale, valueScale, dataKeys }: { dateScale: d3.ScaleBand<Date>, valueScale: d3.ScaleLinear<number, number>, dataKeys: DataKeys }) {
+function createInitialLine({ dateScale, valueScale, dataKeys }: { dateScale: d3.ScaleTime<number, number>, valueScale: d3.ScaleLinear<number, number>, dataKeys: DataKeys }) {
     return d3.line<DataPoint>()
-        .x(d => (dateScale(d[dataKeys.date]) || 0) + dateScale.bandwidth() / 2)
+        .x(d => dateScale(d[dataKeys.date]))
         .y(d => valueScale(d[dataKeys.value]));
 }
 
@@ -231,7 +228,7 @@ function createArea({ seriesData, chartGroup, colorScale, area, chartTooltip, da
                 .attr('fill-opacity', 0.2)
                 .attr('d', area)
                 .on('mouseover', (event, d) => {
-                    eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys); // Pass dataKeys here
+                    eventSystem.trigger('tooltip', chartTooltip, event, d[0], dataKeys);
                 })
                 .on('mousemove', (event) => {
                     eventSystem.trigger('tooltipMove', chartTooltip, event);
@@ -245,8 +242,6 @@ function createArea({ seriesData, chartGroup, colorScale, area, chartTooltip, da
     }
 }
 
-
-
 function createLine({ seriesData, chartGroup, colorScale, line, dataKeys }: CreateParams) {
     const linesGroup = chartGroup.append('g').attr('class', 'lines-group');
     seriesData.forEach(series => {
@@ -259,13 +254,12 @@ function createLine({ seriesData, chartGroup, colorScale, line, dataKeys }: Crea
     });
 }
 
-
-function createGroupedBarsVariant({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, chartTooltip }: CreateParams) {
+function createGroupedBarsVariant({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, chartTooltip, barWidth }: CreateParams) {
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
 
     const seriesScale = d3.scaleBand()
         .domain(seriesData.map(d => d[dataKeys.name]))
-        .range([0, dateScale.bandwidth()])
+        .range([0, barWidth])
         .padding(0.05);
 
     seriesData.forEach(series => {
@@ -274,14 +268,14 @@ function createGroupedBarsVariant({ seriesData, chartGroup, colorScale, dateScal
             .enter()
             .append('rect')
             .attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
-            .attr('x', d => (dateScale(d[dataKeys.date]) || 0) + seriesScale(series[dataKeys.name])!)
+            .attr('x', d => dateScale(d[dataKeys.date]) - barWidth / 2 + seriesScale(series[dataKeys.name])!)
             .attr('y', d => valueScale(d[dataKeys.value]))
             .attr('width', seriesScale.bandwidth())
             .attr('height', d => chartHeight - valueScale(d[dataKeys.value]))
             .attr('fill', colorScale(series[dataKeys.name]))
             .attr('fill-opacity', 0.5)
             .on('mouseover', (event, d) => {
-                eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys); // Pass dataKeys here
+                eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys);
             })
             .on('mousemove', (event) => {
                 eventSystem.trigger('tooltipMove', chartTooltip, event);
@@ -292,11 +286,11 @@ function createGroupedBarsVariant({ seriesData, chartGroup, colorScale, dateScal
     });
 }
 
-function createStackedBarsVariant({ seriesData, chartGroup, colorScale, dateScale, stackedValueScale, chartHeight, dataKeys, chartTooltip }: CreateParams) {
+function createStackedBarsVariant({ seriesData, chartGroup, colorScale, dateScale, stackedValueScale, chartHeight, dataKeys, chartTooltip, barWidth }: CreateParams) {
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
 
     const reformattedData = seriesData[0][dataKeys.data].map((_, i) => {
-        const obj = {};
+        const obj: any = {};
         obj[dataKeys.date] = seriesData[0][dataKeys.data][i][dataKeys.date];
         seriesData.forEach(series => {
             obj[series[dataKeys.name]] = series[dataKeys.data][i][dataKeys.value];
@@ -317,14 +311,14 @@ function createStackedBarsVariant({ seriesData, chartGroup, colorScale, dateScal
             .enter()
             .append('rect')
             .attr('class', seriesName.replace(/\s+/g, '-'))
-            .attr('x', d => dateScale(d.data[dataKeys.date]) || 0)
-            .attr('y', d => stackedValueScale(d[1]))
-            .attr('width', dateScale.bandwidth())
-            .attr('height', d => stackedValueScale(d[0]) - stackedValueScale(d[1]))
+            .attr('x', d => dateScale(d.data[dataKeys.date]) - barWidth / 2)
+            .attr('y', d => stackedValueScale!(d[1]))
+            .attr('width', barWidth)
+            .attr('height', d => stackedValueScale!(d[0]) - stackedValueScale!(d[1]))
             .attr('fill', colorScale(seriesName))
             .attr('fill-opacity', 0.7)
             .on('mouseover', (event, d) => {
-                eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys);
+                eventSystem.trigger('tooltip', chartTooltip, event, { [dataKeys.date]: d.data[dataKeys.date], [dataKeys.value]: d[1] - d[0] }, dataKeys);
             })
             .on('mousemove', (event) => {
                 eventSystem.trigger('tooltipMove', chartTooltip, event);
@@ -332,12 +326,10 @@ function createStackedBarsVariant({ seriesData, chartGroup, colorScale, dateScal
             .on('mouseout', () => {
                 eventSystem.trigger('tooltipHide', chartTooltip);
             });
-
-
-
     });
 }
-function createOverlappedBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, chartTooltip }: CreateParams) {
+
+function createOverlappedBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, chartTooltip, barWidth }: CreateParams) {
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
 
     // For each date, sort the series data so that the smallest values are drawn last (on top)
@@ -350,18 +342,19 @@ function createOverlappedBars({ seriesData, chartGroup, colorScale, dateScale, v
             })).sort((a, b) => b.value - a.value) // Sort from largest to smallest (back to front)
         };
     });
+
     reformattedData.forEach(({ date, values }) => {
         values.forEach(({ name, value }) => {
             barsGroup.append('rect')
                 .attr('class', name.replace(/\s+/g, '-'))
-                .attr('x', dateScale(date) || 0)
+                .attr('x', dateScale(date) - barWidth / 2)
                 .attr('y', valueScale(value))
-                .attr('width', dateScale.bandwidth())
+                .attr('width', barWidth)
                 .attr('height', chartHeight - valueScale(value))
                 .attr('fill', colorScale(name))
                 .attr('fill-opacity', 1)
                 .on('mouseover', (event, d) => {
-                    eventSystem.trigger('tooltip', chartTooltip, event, { date, value }, dataKeys);
+                    eventSystem.trigger('tooltip', chartTooltip, event, { [dataKeys.date]: date, [dataKeys.value]: value }, dataKeys);
                 })
                 .on('mousemove', (event) => {
                     eventSystem.trigger('tooltipMove', chartTooltip, event);
@@ -373,23 +366,17 @@ function createOverlappedBars({ seriesData, chartGroup, colorScale, dateScale, v
     });
 }
 
-
-
-
-
-function createBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, stackedValueScale, chartTooltip }: CreateParams, config: { variant: 'grouped' | 'stacked' | 'overlapped' }) {
+function createBars(params: CreateParams, config: { variant: 'grouped' | 'stacked' | 'overlapped' }) {
     if (config.variant === 'stacked') {
-        createStackedBarsVariant({ seriesData, chartGroup, colorScale, dateScale, stackedValueScale, chartHeight, dataKeys, chartTooltip });
+        createStackedBarsVariant(params);
     }
     else if (config.variant === 'overlapped') {
-        createOverlappedBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, chartTooltip })
+        createOverlappedBars(params);
     } else {
         // Default to grouped bars
-        createGroupedBarsVariant({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, chartTooltip });
+        createGroupedBarsVariant(params);
     }
 }
-
-
 
 function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartTooltip, dataKeys }: CreateParams) {
     const pointsGroup = chartGroup.append('g').attr('class', 'points-group');
@@ -399,19 +386,19 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScal
             .enter()
             .append('circle')
             .attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
-            .attr('cx', d => (dateScale(d[dataKeys.date]) || 0) + dateScale.bandwidth() / 2)
+            .attr('cx', d => dateScale(d[dataKeys.date]))
             .attr('cy', d => valueScale(d[dataKeys.value]))
             .attr('r', 4)
             .attr('fill', colorScale(series[dataKeys.name]))
             .on('mouseover', (event, d) => {
-                eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys); // Pass dataKeys here
+                eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys);
             })
             .on('mousemove', (event) => {
                 eventSystem.trigger('tooltipMove', chartTooltip, event);
             })
             .on('mouseout', () => {
                 eventSystem.trigger('tooltipHide', chartTooltip);
-            });;
+            });
     });
 }
 
@@ -427,7 +414,7 @@ function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, conf
     if (config?.xAxis) {
         chartGroup.append('text')
             .attr('x', chartWidth / 2)
-            .attr('y', chartHeight + 30)
+            .attr('y', chartHeight + 40)
             .attr('text-anchor', 'middle')
             .attr('font-size', '12px')
             .text(config.xAxis);
@@ -462,16 +449,68 @@ function createFeatures(createParameters: CreateParams, features: Feature[]) {
     });
 }
 
+// Function to compute merged date domain
+function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKeys[]): Date[] {
+    const allDates: Date[] = [];
+    for (let i = 0; i < seriesDataArray.length; i++) {
+        const seriesData = seriesDataArray[i];
+        const dataKeys = dataKeysArray[i];
+        seriesData.forEach(series => {
+            series[dataKeys.data].forEach((d: any) => {
+                allDates.push(d[dataKeys.date]);
+            });
+        });
+    }
+    // Remove duplicates and sort
+    const uniqueDates = Array.from(new Set(allDates.map(date => date.getTime()))).map(time => new Date(time));
+    uniqueDates.sort((a, b) => a.getTime() - b.getTime());
+    return uniqueDates;
+}
+
+// Function to compute merged value domain
+function computeMergedValueDomain(seriesDataArray: any[][], dataKeysArray: DataKeys[]): [number, number] {
+    let minValue = Infinity;
+    let maxValue = -Infinity;
+    for (let i = 0; i < seriesDataArray.length; i++) {
+        const seriesData = seriesDataArray[i];
+        const dataKeys = dataKeysArray[i];
+        seriesData.forEach(series => {
+            series[dataKeys.data].forEach((d: any) => {
+                const value = d[dataKeys.value];
+                if (value < minValue) minValue = value;
+                if (value > maxValue) maxValue = value;
+            });
+        });
+    }
+    return [minValue, maxValue];
+}
+
+// Function to compute bar width
+function computeBarWidth(dateScale: d3.ScaleTime<number, number>, dateDomain: Date[]): number {
+    // Compute the time intervals between dates
+    const timeIntervals = dateDomain.slice(1).map((d, i) => d.getTime() - dateDomain[i].getTime());
+    // Get the minimum time interval
+    const minTimeInterval = d3.min(timeIntervals) || 0;
+    // Map the time interval to x-axis units
+    const start = dateScale(dateDomain[0]);
+    const end = dateScale(new Date(dateDomain[0].getTime() + minTimeInterval));
+    const barWidth = (end - start) * 0.8; // Adjust with a factor to leave some space between bars
+    return Math.max(barWidth, 1); // Ensure the bar width is at least 1 pixel
+}
+
+
 export function createSeriesXYChart(
     container: HTMLElement,
     seriesData: any[],
     width: number = 500,
     height: number = 300,
     features: Feature[],
-    dataKeys: DataKeys
+    dataKeys: DataKeys,
+    dateDomain?: Date[],
+    valueDomain?: [number, number]
 ) {
     try {
-        const margin = { top: 25, right: 30, bottom: 30, left: 50 };
+        const margin = { top: 25, right: 30, bottom: 50, left: 50 };
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
 
@@ -485,19 +524,25 @@ export function createSeriesXYChart(
         const svg = createInitialSVG({ container, width, height });
         const chartGroup = createInitialChartGroup({ svg, margin });
 
+        // Step 1: Create initial dateScale with range [0, chartWidth]
+        const dateScale = createInitialDateScale({ seriesData, chartWidth, dataKeys, dateDomain });
 
-        const dateScale = createInitialDateScale({ seriesData, chartWidth, dataKeys });
-        const valueScale = createInitialValueScale({ seriesData, chartHeight, dataKeys });
-        const stackedValueScale = createInitialStackedValueScale({ seriesData, chartHeight, dataKeys });
-
-
-        if (!dateScale || !valueScale) {
-            console.error("Invalid scales created.");
+        if (!dateScale) {
+            console.error("Invalid dateScale created.");
             return;
         }
 
-        if (!stackedValueScale) {
-            console.error("Invalid stacked value scale created.");
+        // Step 2: Compute barWidth
+        const barWidth = computeBarWidth(dateScale, dateDomain!);
+
+        // Step 3: Adjust dateScale's range to [barWidth / 2, chartWidth - barWidth / 2]
+        dateScale.range([barWidth / 2, chartWidth - barWidth / 2]);
+
+        const valueScale = createInitialValueScale({ seriesData, chartHeight, dataKeys, valueDomain });
+        const stackedValueScale = createInitialStackedValueScale({ seriesData, chartHeight, dataKeys, valueDomain });
+
+        if (!valueScale) {
+            console.error("Invalid valueScale created.");
             return;
         }
 
@@ -520,79 +565,76 @@ export function createSeriesXYChart(
             chartHeight,
             chartWidth,
             dataKeys,
+            barWidth,
         };
 
         createFeatures(createParameters, features);
     } catch (error) {
-        console.error("Error creating line chart:", error);
+        console.error("Error creating chart:", error);
     }
 }
 
-
-
-
-// Function to create separate line charts
 export function createSeperateLineCharts(
     container: HTMLElement,
-    seriesData: any[][],  // Array of series data arrays
+    seriesDataArray: any[][],
     width: number = 500,
     height: number = 300,
-    features: Feature[],
-    dataKeys: DataKeys[]  // Array of data keys for each series data
+    featuresArray: Feature[][],
+    dataKeysArray: DataKeys[]
 ) {
     // Clear any previous charts inside the container
     d3.select(container).selectAll("*").remove();
 
+    // Compute merged date and value domains
+    const mergedDateDomain = computeMergedDateDomain(seriesDataArray, dataKeysArray);
+    const mergedValueDomain = computeMergedValueDomain(seriesDataArray, dataKeysArray);
+
     // Iterate over each seriesData array and create a separate chart for each
-    for (let i = 0; i < seriesData.length; i++) {
+    for (let i = 0; i < seriesDataArray.length; i++) {
         // Create a new div or container for each series chart
         const chartContainer = document.createElement('div');
         container.appendChild(chartContainer); // Append the new container to the parent
 
         // Call the createSeriesXYChart function with the new container for each series
         createSeriesXYChart(
-            chartContainer,  // Pass the newly created container for each chart
-            seriesData[i],   // Pass the corresponding series data
+            chartContainer,             // Pass the newly created container for each chart
+            seriesDataArray[i],         // Pass the corresponding series data
             width,
             height,
-            features,
-            dataKeys[i],     // Pass the corresponding data keys
+            featuresArray[i],           // Pass the corresponding features
+            dataKeysArray[i],           // Pass the corresponding data keys
+            mergedDateDomain,           // Pass the merged date domain
+            mergedValueDomain           // Pass the merged value domain
         );
     }
 }
 
 
-
-// function createMergedDateScale 
-// function createMergedValueScale 
-// function createMergedStackValueScale
-
-// Function to create merged line charts
+// Function to create merged line charts (optional)
 export function createMergedLineCharts(
     container: HTMLElement,
-    seriesData: any[][],  // Array of series data arrays
+    seriesDataArray: any[][],
     width: number = 500,
     height: number = 300,
     features: Feature[],
-    dataKeys: DataKeys[]  // Array of data keys for each series data
+    dataKeysArray: DataKeys[]
 ) {
-
-
+    // Implement merged chart logic if needed
 }
 
 // Function to toggle between separate and merged charts
 export function createLineChart(
     container: HTMLElement,
-    seriesData: any[][],  // Array of series data arrays
+    seriesDataArray: any[][],
     width: number = 500,
     height: number = 300,
-    features: Feature[],
-    dataKeys: DataKeys[],  // Array of data keys for each series data
+    featuresArray: Feature[][],
+    dataKeysArray: DataKeys[],
     merge: boolean = false // Add a parameter to control merging
 ) {
     if (merge) {
-        createMergedLineCharts(container, seriesData, width, height, features, dataKeys);
+        createMergedLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray);
     } else {
-        createSeperateLineCharts(container, seriesData, width, height, features, dataKeys);
+        createSeperateLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray);
     }
 }
