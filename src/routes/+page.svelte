@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { generateMultiSeriesData } from '$lib/chart/generateLineChart.js';
 	import { generateXyData, LineChart } from '$lib/index.js'; // $lib is the alias for 'src/lib'
 	import type { DataGenerationConfig, Feature, SeriesData, DataKeys } from '$lib/index.js';
 	import { onMount } from 'svelte';
@@ -18,14 +19,14 @@
 		}
 	};
 
-	let seed = null; // Initialize the seed value
-	let data: SeriesData[];
-	let dataKeys: DataKeys;
-	let features: any;
+	$: seed = null; // Initialize the seed value
+	$: data = [];
+	$: dataKeys = [];
+	$: features = [];
 
 	// Generate data initially using the seed
 	function generateData() {
-		const generated = generateXyData(config, null, seed);
+		const generated = generateMultiSeriesData(config, seed);
 		data = generated.data;
 		dataKeys = generated.dataKeys;
 		features = generated.features;
@@ -51,27 +52,12 @@
 
 	// Watch for changes in seed input and regenerate data
 	$: seed, generateData(); // Re-run data generation when seed changes
-	$: console.log(data);
-
-	$: seriesData1 = data;
-	$: seriesData2 = data;
-
-	$: seriesDataKeys1 = dataKeys;
-	$: seriesDataKeys2 = dataKeys;
-
-	$: seriesFeatures1 = features;
-	$: seriesFeatures2 = features;
 </script>
 
 <main>
-	<LineChart
-		data={[seriesData1, seriesData2]}
-		dataKeys={[seriesDataKeys1, seriesDataKeys2]}
-		features={[seriesFeatures1, seriesFeatures2]}
-		width={600}
-		height={400}
-	/>
-
+	{#if data.length > 0}
+		<LineChart {data} {dataKeys} {features} width={600} height={400} />
+	{/if}
 	<code>
 		Seed: <input bind:value={seed} type="number" />
 	</code>

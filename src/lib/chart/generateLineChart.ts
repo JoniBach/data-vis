@@ -35,10 +35,10 @@ const defaultFeatures = (labels) => [
         feature: 'point',
         hide: false
     },
-    {
-        feature: 'area',
-        hide: true
-    },
+    // {
+    //     feature: 'area',
+    //     hide: true
+    // },
     {
         feature: 'grid',
         hide: false
@@ -204,70 +204,81 @@ class SeededRandom {
     }
 }
 
+const randomizeFeatures = (labels) => {
+    return defaultFeatures({
+        ...labels,
+        title: `${labels.title} (${Math.floor(Math.random() * 100)})`,
+        xAxis: labels.xAxis,
+        yAxis: labels.yAxis
+    }).map(feature => {
+        // Ensure that all 'hide' properties are set to false
+        feature.hide = false;
+        return feature;
+    });
+};
+
+
 export function generateXyData(
     config: DataGenerationConfig,
     userDataKeys: DataKeys | null = null,
-    seed: number | null = null
+    seed: number | null = null,
+    usedIndices: Set<number>
 ): { labels?: DataKeys, data: any[], dataKeys: DataKeys, seed: number } {
     // Use seeded random if a seed is provided, otherwise generate a new seed
     const generatedSeed = seed !== null ? seed : Math.floor(Math.random() * 2147483647);
     const randomGenerator = new SeededRandom(generatedSeed);
 
-    // Function to get the next random float, either from seeded generator or Math.random()
     const getRandomFloat = () => randomGenerator ? randomGenerator.nextFloat() : Math.random();
     const getRandomInt = (min: number, max: number) => randomGenerator ? randomGenerator.nextInt(min, max) : Math.floor(Math.random() * (max - min + 1)) + min;
 
-    // Select randomDataConfig based on the seed or Math.random()
-    const randomConfigIndex = getRandomInt(0, defaultDataKeys.length - 1);
+    // Function to get a unique random index for defaultDataKeys
+    const getUniqueRandomIndex = (max: number): number => {
+        let randomIndex;
+        do {
+            randomIndex = getRandomInt(0, max);
+        } while (usedIndices.has(randomIndex));
+        usedIndices.add(randomIndex);
+        return randomIndex;
+    };
+
+    // Select a random but unique data configuration index
+    const randomConfigIndex = getUniqueRandomIndex(defaultDataKeys.length - 1);
     const randomDataConfig = defaultDataKeys[randomConfigIndex];
 
     const dataKeys = userDataKeys ?? randomDataConfig.dataKeys;
 
-    const numSeries =
-        Math.floor(getRandomFloat() * (config.seriesRange.max - config.seriesRange.min + 1)) +
-        config.seriesRange.min;
-    const numMonths =
-        Math.floor(getRandomFloat() * (config.monthsRange.max - config.monthsRange.min + 1)) +
-        config.monthsRange.min;
+    const numSeries = getRandomInt(config.seriesRange.min, config.seriesRange.max);
+    const numMonths = getRandomInt(config.monthsRange.min, config.monthsRange.max);
 
     const seriesData: any[] = [];
     const startDate = new Date();
-    const variance = config.trendVariance ?? 5; // Default variance is 5 if not provided
+    const variance = config.trendVariance ?? 5;
 
     for (let i = 0; i < numSeries; i++) {
         const seriesName = `Series ${i + 1}`;
         const data: any[] = [];
 
-        // Set an initial value within the configurable value range
-        let initialValue =
-            Math.floor(getRandomFloat() * (config.valueRange.max - config.valueRange.min + 1)) +
-            config.valueRange.min;
+        let initialValue = getRandomInt(config.valueRange.min, config.valueRange.max);
 
-        // Determine the trend direction
         let trendDirection = 0;
         if (config.trendDirection === 'up') {
             trendDirection = 1;
         } else if (config.trendDirection === 'down') {
             trendDirection = -1;
         } else if (config.trendDirection === 'random') {
-            trendDirection = getRandomFloat() < 0.5 ? -1 : 1; // Random direction per series
-        } else if (config.trendDirection === null) {
-            trendDirection = 0; // No consistent trend, each step random
+            trendDirection = getRandomFloat() < 0.5 ? -1 : 1;
         }
 
         for (let j = 0; j < numMonths; j++) {
-            // Adjust the value based on the trend direction and the variance
             let randomChange = 0;
 
-            // If trendDirection is null, make the change totally random for each step
             if (config.trendDirection === null) {
-                randomChange = getRandomFloat() * variance * (getRandomFloat() < 0.5 ? -1 : 1); // Completely random up or down
+                randomChange = getRandomFloat() * variance * (getRandomFloat() < 0.5 ? -1 : 1);
             } else {
                 randomChange = (getRandomFloat() * variance + 1) * trendDirection;
             }
             initialValue += randomChange;
 
-            // If soft cap is enabled, apply soft cap logic
             if (config.softCap?.enable) {
                 if (config.softCap.upperLimit && initialValue > config.softCap.upperLimit) {
                     initialValue -= getRandomFloat() * (config.softCap.adjustmentRange || 5);
@@ -277,33 +288,70 @@ export function generateXyData(
                 }
             }
 
-            // Ensure value stays within bounds (absolute caps at the min and max values)
-            initialValue = Math.max(
-                config.valueRange.min,
-                Math.min(config.valueRange.max, initialValue)
-            );
+            initialValue = Math.max(config.valueRange.min, Math.min(config.valueRange.max, initialValue));
 
             const date = new Date(startDate);
             date.setMonth(startDate.getMonth() + j);
 
-            // Push the data using the keys from dataKeys
             data.push({
                 [dataKeys.date]: date,
                 [dataKeys.value]: Math.round(initialValue)
             });
         }
 
-        // Push the series data using the keys from dataKeys
         seriesData.push({
             [dataKeys.name]: seriesName,
             [dataKeys.data]: data
         });
     }
 
-    // Return the seed as well as the generated data and configuration
-    const results = { data: seriesData, dataKeys, seed: generatedSeed, ...(!userDataKeys ? { features: defaultFeatures(randomDataConfig.labels) } : {}) };
+    const features = randomizeFeatures(randomDataConfig.labels); // Generate unique features
 
-    console.log('Generating mock XY data with the following data:', results);
+    const results = { data: seriesData, dataKeys, seed: generatedSeed, features };
 
     return results;
 }
+
+const generateSingleSeries = (config, userDataKeys, seed, seriesIndex, usedIndices) => {
+    // Generate data for a single series with tracking of used indices
+    const generated = generateXyData(config, userDataKeys, seed !== null ? seed + seriesIndex : null, usedIndices);
+    return {
+        data: generated.data,
+        dataKeys: generated.dataKeys,
+        features: generated.features,
+        seed: generated.seed
+    };
+};
+
+export const generateMultiSeriesData = (config, userDataKeys = null, seed = null) => {
+    const numberOfSeries = 3;
+    let newSeed = seed;
+    const usedIndices = new Set(); // Set to track used indices and ensure uniqueness
+
+    const seriesData = Array.from({ length: numberOfSeries }, (_, i) => {
+        const singleSeries = generateSingleSeries(config, userDataKeys, newSeed, i, usedIndices);
+
+        // Update the seed after the first series, to use in subsequent series
+        if (newSeed === null && i === 0) {
+            newSeed = singleSeries.seed;
+        }
+
+        return singleSeries;
+    });
+
+    // Combine the results into arrays of data, dataKeys, and features
+    const data = seriesData.map(series => series.data);
+    const dataKeys = seriesData.map(series => series.dataKeys);
+    const features = seriesData.map(series => series.features);
+
+    const response = {
+        data,
+        dataKeys,
+        features,
+        seed: newSeed
+    };
+
+    console.log('Generating mock XY data with the following data:', response);
+
+    return response;
+};
