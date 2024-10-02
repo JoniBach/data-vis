@@ -149,17 +149,7 @@ function createInitialDateScale({ seriesData, chartWidth, dataKeys, dateDomain }
         .range([0, chartWidth]);
 }
 
-// Modified to accept valueDomain
-function createInitialValueScale({ seriesData, chartHeight, dataKeys, valueDomain }: { seriesData: any[], chartHeight: number, dataKeys: DataKeys, valueDomain?: [number, number] }) {
-    const [minValue, maxValue] = valueDomain ? valueDomain : [
-        d3.min(seriesData.flatMap(series => series?.[dataKeys.data]?.map(d => d[dataKeys.value]) || [])) || 0,
-        d3.max(seriesData.flatMap(series => series?.[dataKeys.data]?.map(d => d[dataKeys.value]) || [])) || 0
-    ];
 
-    return d3.scaleLinear()
-        .domain([minValue, maxValue])
-        .range([chartHeight, 0]);
-}
 
 function createInitialStackedValueScale({ seriesData, chartHeight, dataKeys, valueDomain }: { seriesData: any[], chartHeight: number, dataKeys: DataKeys, valueDomain?: [number, number] }) {
     const maxStackedValue = valueDomain ? valueDomain[1] : d3.max(
@@ -294,7 +284,9 @@ function createGroupedBarsVariant({ seriesData, chartGroup, colorScale, dateScal
     });
 }
 
-function createStackedBarsVariant({ seriesData, chartGroup, colorScale, dateScale, stackedValueScale, chartHeight, dataKeys, chartTooltip, barWidth }: CreateParams) {
+// ... [Other code remains the same] ...
+
+function createStackedBarsVariant({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, chartTooltip, barWidth }: CreateParams) {
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
 
     const reformattedData = seriesData[0][dataKeys.data].map((_, i) => {
@@ -307,7 +299,8 @@ function createStackedBarsVariant({ seriesData, chartGroup, colorScale, dateScal
     });
 
     const stack = d3.stack()
-        .keys(seriesData.map(d => d[dataKeys.name]));
+        .keys(seriesData.map(d => d[dataKeys.name]))
+        .offset(d3.stackOffsetDiverging); // Handle positive and negative values separately
 
     const stackedData = stack(reformattedData);
 
@@ -320,9 +313,9 @@ function createStackedBarsVariant({ seriesData, chartGroup, colorScale, dateScal
             .append('rect')
             .attr('class', seriesName.replace(/\s+/g, '-'))
             .attr('x', d => dateScale(d.data[dataKeys.date]) - barWidth / 2)
-            .attr('y', d => stackedValueScale!(d[1]))
+            .attr('y', d => d[1] < d[0] ? valueScale(d[0]) : valueScale(d[1]))
             .attr('width', barWidth)
-            .attr('height', d => stackedValueScale!(d[0]) - stackedValueScale!(d[1]))
+            .attr('height', d => Math.abs(valueScale(d[0]) - valueScale(d[1])))
             .attr('fill', colorScale(seriesName))
             .attr('fill-opacity', 0.7)
             .on('mouseover', (event, d) => {
@@ -336,6 +329,88 @@ function createStackedBarsVariant({ seriesData, chartGroup, colorScale, dateScal
             });
     });
 }
+
+function createInitialValueScale({ seriesData, chartHeight, dataKeys, valueDomain }: { seriesData: any[], chartHeight: number, dataKeys: DataKeys, valueDomain?: [number, number] }) {
+    let [minValue, maxValue] = valueDomain ? valueDomain : [
+        d3.min(seriesData.flatMap(series => series?.[dataKeys.data]?.map(d => d[dataKeys.value]) || [])) || 0,
+        d3.max(seriesData.flatMap(series => series?.[dataKeys.data]?.map(d => d[dataKeys.value]) || [])) || 0
+    ];
+
+    // Ensure the domain includes zero for proper stacking
+    minValue = Math.min(minValue, 0);
+    maxValue = Math.max(maxValue, 0);
+
+    return d3.scaleLinear()
+        .domain([minValue, maxValue])
+        .range([chartHeight, 0]);
+}
+function computeMergedValueDomain(seriesDataArray: any[][], dataKeysArray: DataKeys[], variant: string): [number, number] {
+    let minValue = Infinity;
+    let maxValue = -Infinity;
+
+    if (variant === 'stacked') {
+        // For stacked bars, sum the values at each date across all series
+        const dateToTotalValue: Map<number, number> = new Map();
+
+        // Collect all unique dates
+        const allDates: Set<number> = new Set();
+        for (let i = 0; i < seriesDataArray.length; i++) {
+            const seriesData = seriesDataArray[i];
+            const dataKeys = dataKeysArray[i];
+            seriesData.forEach(series => {
+                series[dataKeys.data].forEach((d: any) => {
+                    allDates.add(d[dataKeys.date].getTime());
+                });
+            });
+        }
+
+        // For each date, sum the values across all series
+        allDates.forEach(date => {
+            let totalPositive = 0;
+            let totalNegative = 0;
+
+            for (let i = 0; i < seriesDataArray.length; i++) {
+                const seriesData = seriesDataArray[i];
+                const dataKeys = dataKeysArray[i];
+                seriesData.forEach(series => {
+                    const dataPoint = series[dataKeys.data].find((d: any) => d[dataKeys.date].getTime() === date);
+                    if (dataPoint) {
+                        const value = dataPoint[dataKeys.value];
+                        if (value >= 0) {
+                            totalPositive += value;
+                        } else {
+                            totalNegative += value;
+                        }
+                    }
+                });
+            }
+
+            if (totalPositive > maxValue) maxValue = totalPositive;
+            if (totalNegative < minValue) minValue = totalNegative;
+        });
+    } else {
+        // For other variants, find min and max values across all data points
+        for (let i = 0; i < seriesDataArray.length; i++) {
+            const seriesData = seriesDataArray[i];
+            const dataKeys = dataKeysArray[i];
+            seriesData.forEach(series => {
+                series[dataKeys.data].forEach((d: any) => {
+                    const value = d[dataKeys.value];
+                    if (value < minValue) minValue = value;
+                    if (value > maxValue) maxValue = value;
+                });
+            });
+        }
+    }
+
+    // Ensure domain includes zero
+    minValue = Math.min(minValue, 0);
+    maxValue = Math.max(maxValue, 0);
+
+    return [minValue, maxValue];
+}
+
+
 
 function createOverlappedBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, chartTooltip, barWidth }: CreateParams) {
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
@@ -392,7 +467,6 @@ function createBars(params: CreateParams, config: { variant: 'grouped' | 'stacke
         createGroupedBarsVariant({ ...params, barWidth });
     }
 }
-
 
 function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartTooltip, dataKeys }: CreateParams) {
     const pointsGroup = chartGroup.append('g').attr('class', 'points-group');
@@ -465,6 +539,62 @@ function createFeatures(createParameters: CreateParams, features: Feature[]) {
     });
 }
 
+function computeValueDomain(seriesData: any[], dataKeys: DataKeys, variant: string): [number, number] {
+    let minValue = Infinity;
+    let maxValue = -Infinity;
+
+    if (variant === 'stacked') {
+        // For stacked bars, sum the values at each date across all series
+        const dateToTotalPositive: Map<number, number> = new Map();
+        const dateToTotalNegative: Map<number, number> = new Map();
+
+        // Collect all unique dates
+        const allDates = new Set<number>();
+        seriesData.forEach(series => {
+            series[dataKeys.data].forEach((d: any) => {
+                allDates.add(d[dataKeys.date].getTime());
+            });
+        });
+
+        // For each date, sum the values across all series
+        allDates.forEach(date => {
+            let totalPositive = 0;
+            let totalNegative = 0;
+
+            seriesData.forEach(series => {
+                const dataPoint = series[dataKeys.data].find((d: any) => d[dataKeys.date].getTime() === date);
+                if (dataPoint) {
+                    const value = dataPoint[dataKeys.value];
+                    if (value >= 0) {
+                        totalPositive += value;
+                    } else {
+                        totalNegative += value;
+                    }
+                }
+            });
+
+            if (totalPositive > maxValue) maxValue = totalPositive;
+            if (totalNegative < minValue) minValue = totalNegative;
+        });
+    } else {
+        // For other variants, find min and max values across all data points
+        seriesData.forEach(series => {
+            series[dataKeys.data].forEach((d: any) => {
+                const value = d[dataKeys.value];
+                if (value < minValue) minValue = value;
+                if (value > maxValue) maxValue = value;
+            });
+        });
+    }
+
+    // Ensure domain includes zero
+    minValue = Math.min(minValue, 0);
+    maxValue = Math.max(maxValue, 0);
+
+    return [minValue, maxValue];
+}
+
+
 // Function to compute merged date domain
 function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKeys[]): Date[] {
     const allDates: Date[] = [];
@@ -483,23 +613,6 @@ function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKe
     return uniqueDates;
 }
 
-// Function to compute merged value domain
-function computeMergedValueDomain(seriesDataArray: any[][], dataKeysArray: DataKeys[]): [number, number] {
-    let minValue = Infinity;
-    let maxValue = -Infinity;
-    for (let i = 0; i < seriesDataArray.length; i++) {
-        const seriesData = seriesDataArray[i];
-        const dataKeys = dataKeysArray[i];
-        seriesData.forEach(series => {
-            series[dataKeys.data].forEach((d: any) => {
-                const value = d[dataKeys.value];
-                if (value < minValue) minValue = value;
-                if (value > maxValue) maxValue = value;
-            });
-        });
-    }
-    return [minValue, maxValue];
-}
 
 // Function to compute bar width
 function computeBarWidth(dateScale: d3.ScaleTime<number, number>, dateDomain: Date[]): number {
@@ -513,8 +626,6 @@ function computeBarWidth(dateScale: d3.ScaleTime<number, number>, dateDomain: Da
     const barWidth = (end - start) * 0.8; // Adjust with a factor to leave some space between bars
     return Math.max(barWidth, 1); // Ensure the bar width is at least 1 pixel
 }
-
-
 export function createSeriesXYChart(
     container: HTMLElement,
     seriesData: any[],
@@ -554,8 +665,16 @@ export function createSeriesXYChart(
         // Step 3: Adjust dateScale's range to [barWidth / 2, chartWidth - barWidth / 2]
         dateScale.range([barWidth / 2, chartWidth - barWidth / 2]);
 
+        // Determine if 'stacked' variant is used
+        const barFeature = features.find(f => f.feature === 'bar' && !f.hide);
+        const barVariant = barFeature?.config?.variant || 'grouped';
+
+        // Adjust value domain based on bar variant
+        if (!valueDomain) {
+            valueDomain = computeValueDomain(seriesData, dataKeys, barVariant);
+        }
+
         const valueScale = createInitialValueScale({ seriesData, chartHeight, dataKeys, valueDomain });
-        const stackedValueScale = createInitialStackedValueScale({ seriesData, chartHeight, dataKeys, valueDomain });
 
         if (!valueScale) {
             console.error("Invalid valueScale created.");
@@ -574,7 +693,6 @@ export function createSeriesXYChart(
             colorScale,
             dateScale,
             valueScale,
-            stackedValueScale,
             area,
             line,
             chartTooltip,
@@ -590,6 +708,9 @@ export function createSeriesXYChart(
     }
 }
 
+
+
+
 export function createSeperateLineCharts(
     container: HTMLElement,
     seriesDataArray: any[][],
@@ -601,12 +722,19 @@ export function createSeperateLineCharts(
     // Clear any previous charts inside the container
     d3.select(container).selectAll("*").remove();
 
-    // Compute merged date and value domains
+    // Compute merged date domain
     const mergedDateDomain = computeMergedDateDomain(seriesDataArray, dataKeysArray);
-    const mergedValueDomain = computeMergedValueDomain(seriesDataArray, dataKeysArray);
 
     // Iterate over each seriesData array and create a separate chart for each
     for (let i = 0; i < seriesDataArray.length; i++) {
+        // Determine if 'stacked' variant is used for this chart
+        const features = featuresArray[i];
+        const barFeature = features.find(f => f.feature === 'bar' && !f.hide);
+        const barVariant = barFeature?.config?.variant || 'grouped';
+
+        // Compute value domain for this chart
+        const valueDomain = computeValueDomain(seriesDataArray[i], dataKeysArray[i], barVariant);
+
         // Create a new div or container for each series chart
         const chartContainer = document.createElement('div');
         container.appendChild(chartContainer); // Append the new container to the parent
@@ -620,7 +748,7 @@ export function createSeperateLineCharts(
             featuresArray[i],           // Pass the corresponding features
             dataKeysArray[i],           // Pass the corresponding data keys
             mergedDateDomain,           // Pass the merged date domain
-            mergedValueDomain           // Pass the merged value domain
+            valueDomain                 // Pass the value domain computed per chart
         );
     }
 }
@@ -632,7 +760,7 @@ export function createMergedLineCharts(
     seriesDataArray: any[][],
     width: number = 500,
     height: number = 300,
-    features: Feature[],
+    features: Feature[][],
     dataKeysArray: DataKeys[]
 ) {
     // Implement merged chart logic if needed
