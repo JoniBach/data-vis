@@ -26,7 +26,7 @@
 
 	// Generate data initially using the seed
 	function generateData() {
-		const generated = generateMultiSeriesData(config, seed);
+		const generated = generateMultiSeriesData(config, null, seed);
 		data = generated.data;
 		dataKeys = generated.dataKeys;
 		features = generated.features;
@@ -55,9 +55,8 @@
 </script>
 
 <main>
-	{#if data.length > 0}
-		<LineChart {data} {dataKeys} {features} width={600} height={400} />
-	{/if}
+	<LineChart {data} {dataKeys} {features} width={600} height={400} />
+
 	<code>
 		Seed: <input bind:value={seed} type="number" />
 	</code>

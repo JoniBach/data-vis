@@ -257,11 +257,19 @@ function createLine({ seriesData, chartGroup, colorScale, line, dataKeys }: Crea
 function createGroupedBarsVariant({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, chartTooltip, barWidth }: CreateParams) {
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
 
+    // Create a scale for spacing between series within each group
     const seriesScale = d3.scaleBand()
         .domain(seriesData.map(d => d[dataKeys.name]))
         .range([0, barWidth])
         .padding(0.05);
 
+    const bandwidth = Math.max(seriesScale.bandwidth(), 1);  // Ensure the bars have minimum visible width
+
+    // Check that seriesScale.bandwidth() is valid
+    if (bandwidth <= 0) {
+        console.error('Invalid series scale bandwidth:', bandwidth);
+        return;
+    }
     seriesData.forEach(series => {
         barsGroup.selectAll(`rect.${series[dataKeys.name].replace(/\s+/g, '-')}`)
             .data(series[dataKeys.data])
@@ -367,16 +375,24 @@ function createOverlappedBars({ seriesData, chartGroup, colorScale, dateScale, v
 }
 
 function createBars(params: CreateParams, config: { variant: 'grouped' | 'stacked' | 'overlapped' }) {
+    if (!params.seriesData || params.seriesData.length === 0) {
+        console.error('No data available for bars.');
+        return;
+    }
+
+    const barWidth = Math.max(params.barWidth, 1); // Ensure barWidth is never zero
+
     if (config.variant === 'stacked') {
-        createStackedBarsVariant(params);
+        createStackedBarsVariant({ ...params, barWidth });
     }
     else if (config.variant === 'overlapped') {
-        createOverlappedBars(params);
+        createOverlappedBars({ ...params, barWidth });
     } else {
         // Default to grouped bars
-        createGroupedBarsVariant(params);
+        createGroupedBarsVariant({ ...params, barWidth });
     }
 }
+
 
 function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartTooltip, dataKeys }: CreateParams) {
     const pointsGroup = chartGroup.append('g').attr('class', 'points-group');

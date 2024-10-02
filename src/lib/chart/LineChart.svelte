@@ -26,7 +26,7 @@
 
 	// Reactive statement: re-render the chart when data, width, height, features, or dataKeys change
 
-	$: data, renderChart(); // This will trigger the chart update when any dependency changes
+	$: chartContainer, data, width, height, features, dataKeys, renderChart(); // This will trigger the chart update when any dependency changes
 </script>
 
 <div bind:this={chartContainer} class="chart-container"></div>
