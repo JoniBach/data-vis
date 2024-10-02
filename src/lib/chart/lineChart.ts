@@ -462,7 +462,7 @@ function createFeatures(createParameters: CreateParams, features: Feature[]) {
     });
 }
 
-export function createLineChart(
+export function createSeriesXYChart(
     container: HTMLElement,
     seriesData: any[],
     width: number = 500,
@@ -489,6 +489,7 @@ export function createLineChart(
         const dateScale = createInitialDateScale({ seriesData, chartWidth, dataKeys });
         const valueScale = createInitialValueScale({ seriesData, chartHeight, dataKeys });
         const stackedValueScale = createInitialStackedValueScale({ seriesData, chartHeight, dataKeys });
+
 
         if (!dateScale || !valueScale) {
             console.error("Invalid scales created.");
@@ -524,5 +525,74 @@ export function createLineChart(
         createFeatures(createParameters, features);
     } catch (error) {
         console.error("Error creating line chart:", error);
+    }
+}
+
+
+
+
+// Function to create separate line charts
+export function createSeperateLineCharts(
+    container: HTMLElement,
+    seriesData: any[][],  // Array of series data arrays
+    width: number = 500,
+    height: number = 300,
+    features: Feature[],
+    dataKeys: DataKeys[]  // Array of data keys for each series data
+) {
+    // Clear any previous charts inside the container
+    d3.select(container).selectAll("*").remove();
+
+    // Iterate over each seriesData array and create a separate chart for each
+    for (let i = 0; i < seriesData.length; i++) {
+        // Create a new div or container for each series chart
+        const chartContainer = document.createElement('div');
+        container.appendChild(chartContainer); // Append the new container to the parent
+
+        // Call the createSeriesXYChart function with the new container for each series
+        createSeriesXYChart(
+            chartContainer,  // Pass the newly created container for each chart
+            seriesData[i],   // Pass the corresponding series data
+            width,
+            height,
+            features,
+            dataKeys[i],     // Pass the corresponding data keys
+        );
+    }
+}
+
+
+
+// function createMergedDateScale 
+// function createMergedValueScale 
+// function createMergedStackValueScale
+
+// Function to create merged line charts
+export function createMergedLineCharts(
+    container: HTMLElement,
+    seriesData: any[][],  // Array of series data arrays
+    width: number = 500,
+    height: number = 300,
+    features: Feature[],
+    dataKeys: DataKeys[]  // Array of data keys for each series data
+) {
+
+
+}
+
+// Function to toggle between separate and merged charts
+export function createLineChart(
+    container: HTMLElement,
+    seriesData: any[][],  // Array of series data arrays
+    width: number = 500,
+    height: number = 300,
+    features: Feature[],
+    dataKeys: DataKeys[],  // Array of data keys for each series data
+    merge: boolean = false // Add a parameter to control merging
+) {
+    if (merge) {
+        createMergedLineCharts(container, seriesData, width, height, features, dataKeys);
+    } else {
+        createSeperateLineCharts(container, seriesData, width, height, features, dataKeys);
     }
 }

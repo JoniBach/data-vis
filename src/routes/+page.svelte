@@ -61,7 +61,7 @@
 			feature: 'bar',
 			hide: false,
 			config: {
-				variant: 'grouped' // or 'grouped' or 'stacked'
+				variant: 'grouped' // or 'overlapped' or 'stacked'
 			}
 		},
 		{
@@ -95,11 +95,226 @@
 			config: labels
 		}
 	];
+
+	const mockSalesKeys = {
+		name: 'region',
+		data: 'salesData',
+		date: 'saleDate',
+		value: 'amount'
+	};
+
+	// Keys configuration
+	const mockEnvKeys = {
+		name: 'recording', // Represents the type of environment data (in this case, 'temperature')
+		data: 'envData', // Points to the array of environmental records
+		date: 'recordedOn', // The date field for each environmental data point
+		value: 'tempInStore' // The temperature values in the store
+	};
+
+	const mockEnvData = [
+		{
+			recording: 'temperature',
+			envData: [
+				{
+					recordedOn: '2024-11-01T00:00:00.000Z',
+					tempInStore: 18.75
+				},
+				{
+					recordedOn: '2024-12-01T00:00:00.000Z',
+					tempInStore: 24.51
+				},
+				{
+					recordedOn: '2025-01-01T00:00:00.000Z',
+					tempInStore: 22.32
+				},
+				{
+					recordedOn: '2025-02-01T00:00:00.000Z',
+					tempInStore: 20.99
+				},
+				{
+					recordedOn: '2025-03-01T00:00:00.000Z',
+					tempInStore: 16.56
+				}
+			]
+		}
+	].map((series) => ({
+		recording: series.recording,
+		envData: series.envData.map((sale) => ({
+			recordedOn: new Date(sale.recordedOn), // Convert saleDate string to JS Date object
+			tempInStore: sale.tempInStore
+		}))
+	}));
+
+	const mockSalesData = [
+		{
+			region: 'Series 1',
+			salesData: [
+				{
+					saleDate: '2024-10-02T15:28:02.811Z',
+					amount: 50
+				},
+				{
+					saleDate: '2024-11-02T16:28:02.811Z',
+					amount: 54
+				},
+				{
+					saleDate: '2024-12-02T16:28:02.811Z',
+					amount: 57
+				},
+				{
+					saleDate: '2025-01-02T16:28:02.811Z',
+					amount: 60
+				},
+				{
+					saleDate: '2025-02-02T16:28:02.811Z',
+					amount: 62
+				},
+				{
+					saleDate: '2025-03-02T16:28:02.811Z',
+					amount: 66
+				},
+				{
+					saleDate: '2025-04-02T15:28:02.811Z',
+					amount: 70
+				},
+				{
+					saleDate: '2025-05-02T15:28:02.811Z',
+					amount: 75
+				}
+			]
+		},
+		{
+			region: 'Series 2',
+			salesData: [
+				{
+					saleDate: '2024-10-02T15:28:02.811Z',
+					amount: 30
+				},
+				{
+					saleDate: '2024-11-02T16:28:02.811Z',
+					amount: 32
+				},
+				{
+					saleDate: '2024-12-02T16:28:02.811Z',
+					amount: 34
+				},
+				{
+					saleDate: '2025-01-02T16:28:02.811Z',
+					amount: 38
+				},
+				{
+					saleDate: '2025-02-02T16:28:02.811Z',
+					amount: 40
+				},
+				{
+					saleDate: '2025-03-02T16:28:02.811Z',
+					amount: 42
+				},
+				{
+					saleDate: '2025-04-02T15:28:02.811Z',
+					amount: 44
+				},
+				{
+					saleDate: '2025-05-02T15:28:02.811Z',
+					amount: 46
+				}
+			]
+		},
+		{
+			region: 'Series 3',
+			salesData: [
+				{
+					saleDate: '2024-10-02T15:28:02.811Z',
+					amount: 73
+				},
+				{
+					saleDate: '2024-11-02T16:28:02.811Z',
+					amount: 70
+				},
+				{
+					saleDate: '2024-12-02T16:28:02.811Z',
+					amount: 68
+				},
+				{
+					saleDate: '2025-01-02T16:28:02.811Z',
+					amount: 66
+				},
+				{
+					saleDate: '2025-02-02T16:28:02.811Z',
+					amount: 61
+				},
+				{
+					saleDate: '2025-03-02T16:28:02.811Z',
+					amount: 56
+				},
+				{
+					saleDate: '2025-04-02T15:28:02.811Z',
+					amount: 51
+				},
+				{
+					saleDate: '2025-05-02T15:28:02.811Z',
+					amount: 48
+				}
+			]
+		},
+		{
+			region: 'Series 4',
+			salesData: [
+				{
+					saleDate: '2024-10-02T15:28:02.811Z',
+					amount: 49
+				},
+				{
+					saleDate: '2024-11-02T16:28:02.811Z',
+					amount: 43
+				},
+				{
+					saleDate: '2024-12-02T16:28:02.811Z',
+					amount: 42
+				},
+				{
+					saleDate: '2025-01-02T16:28:02.811Z',
+					amount: 40
+				},
+				{
+					saleDate: '2025-02-02T16:28:02.811Z',
+					amount: 38
+				},
+				{
+					saleDate: '2025-03-02T16:28:02.811Z',
+					amount: 37
+				},
+				{
+					saleDate: '2025-04-02T15:28:02.811Z',
+					amount: 33
+				},
+				{
+					saleDate: '2025-05-02T15:28:02.811Z',
+					amount: 29
+				}
+			]
+		}
+	].map((series) => ({
+		region: series.region,
+		salesData: series.salesData.map((sale) => ({
+			saleDate: new Date(sale.saleDate), // Convert saleDate string to JS Date object
+			amount: sale.amount
+		}))
+	}));
 </script>
 
 <main>
 	<!-- Chart rendering -->
-	<LineChart {data} {dataKeys} width={600} height={400} {features} />
+	<LineChart
+		data={[mockSalesData, mockEnvData]}
+		dataKeys={[mockSalesKeys, mockEnvKeys]}
+		width={600}
+		height={400}
+		{features}
+	/>
+	<!-- <LineChart data={mockSalesData} dataKeys={mockSalesKeys} width={600} height={400} {features} /> -->
+	<!-- <LineChart data={mockEnvData} dataKeys={mockEnvKeys} width={600} height={400} {features} /> -->
+	<!-- <LineChart data={[data]} dataKeys={[dataKeys]} width={600} height={400} {features} /> -->
 
 	<!-- Seed input field to allow user input -->
 	<code>

@@ -15,7 +15,7 @@
 	function renderChart() {
 		if (data && chartContainer) {
 			chartContainer.innerHTML = ''; // Clear previous chart
-			createLineChart(chartContainer, data, width, height, features, dataKeys);
+			createLineChart(chartContainer, data, width, height, features, dataKeys, false);
 		}
 	}
 
