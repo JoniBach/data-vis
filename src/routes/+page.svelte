@@ -59,7 +59,10 @@
 		},
 		{
 			feature: 'bar',
-			hide: false
+			hide: false,
+			config: {
+				variant: 'grouped' // or 'grouped' or 'stacked'
+			}
 		},
 		{
 			feature: 'point',
