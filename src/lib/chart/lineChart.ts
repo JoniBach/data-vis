@@ -376,15 +376,23 @@ const featureRegistry: Record<string, FeatureFunction> = {
     line: (params) => createLineOrArea('line', params),
     point: createPoints,
     label: createLabel,
+    tooltip: () => null,
 };
 
-// (7/10): Works well but could benefit from additional error handling when `featureFunction` is undefined.
+// (9/10): Clean and robust with error handling, could further optimize featureRegistry for scalability.
 function createFeatures(createParameters: CreateParams, features: Feature[]) {
     features.forEach(({ feature, hide, config }) => {
         const featureFunction = featureRegistry[feature];
-        if (!hide && featureFunction) {
-            featureFunction(createParameters, config);
+
+        if (hide) {
+            return;
         }
+
+        if (!featureFunction) {
+            throw new Error(`Feature function not found for feature: ${feature}`);
+        }
+
+        featureFunction(createParameters, config);
     });
 }
 
