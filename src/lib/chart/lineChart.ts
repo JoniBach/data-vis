@@ -718,6 +718,21 @@ export function createSeperateLineCharts(
     }
 }
 
+// implament later
+export function createMergedLineCharts(
+    container: HTMLElement,
+    seriesDataArray: any[][],
+    width: number = 500,
+    height: number = 300,
+    featuresArray: Feature[][],
+    dataKeysArray: DataKeys[],
+    squash: boolean = false,
+    syncX: boolean = false,
+    syncY: boolean = false
+) {
+
+}
+
 // (7/10): Solid chart creation but lacks clear differentiation between merged and non-merged variants.
 export function createLineChart(
     container: HTMLElement,
@@ -732,7 +747,7 @@ export function createLineChart(
     syncY: boolean = false
 ) {
     if (merge) {
-        createSeperateLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY);
+        createMergedLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY);
     } else {
         createSeperateLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY);
     }
