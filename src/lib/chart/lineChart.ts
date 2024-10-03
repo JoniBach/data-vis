@@ -77,6 +77,7 @@ const eventSystem = {
     }
 };
 
+// (7/10): This utility function is fine, but could use more parameter validation, such as checking if the input is a string or number.
 function escapeHTML(str: number | string): string {
     return String(str)
         .replace(/&/g, "&amp;")
@@ -86,10 +87,12 @@ function escapeHTML(str: number | string): string {
         .replace(/'/g, "&#39;");
 }
 
+// (6/10): It's simple and gets the job done but lacks validation for "data" or "index" bounds.
 function safeGet(data: any[], key: string, index: number) {
     return data[index] ? data[index][key] : null;
 }
 
+// (8/10): Well-structured function, clear responsibility, but it could benefit from adding types or enums for `showTooltip`.
 function createTooltip(container: HTMLElement | null, showTooltip: boolean, config: TooltipConfig): d3.Selection<HTMLDivElement, unknown, null, undefined> {
     if (!showTooltip) {
         return d3.select(document.createElement('div'));
@@ -104,6 +107,7 @@ function createTooltip(container: HTMLElement | null, showTooltip: boolean, conf
         .style("padding", config?.padding || "5px");
 }
 
+// (9/10): Good use of event system, but error handling could be expanded.
 eventSystem.on('tooltip', (chartTooltip, event, d, dataKeys: DataKeys) => {
     try {
         const dateStr = escapeHTML(d3.timeFormat("%b %Y")(d[dataKeys.date]));
@@ -125,6 +129,7 @@ eventSystem.on('tooltipHide', (chartTooltip) => {
     chartTooltip.style("visibility", "hidden");
 });
 
+// (8/10): Does what it should, but no additional flexibility for responsive layouts or scaling.
 function createInitialSVG({ container, width, height }: { container: HTMLElement, width: number, height: number }) {
     return d3.select(container)
         .append('svg')
@@ -132,11 +137,13 @@ function createInitialSVG({ container, width, height }: { container: HTMLElement
         .attr('height', height);
 }
 
+// (7/10): Works well but would benefit from more extensive error handling or validation on `margin`.
 function createInitialChartGroup({ svg, margin }: { svg: d3.Selection<SVGSVGElement, unknown, null, undefined>, margin: { top: number, right: number, bottom: number, left: number } }) {
     return svg.append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
 }
 
+// (7/10): Solid functionality, but should account for type variations and use-cases more explicitly.
 function createInitialScale<T>(
     scaleFn: () => d3.ScaleLinear<number, number> | d3.ScaleTime<number, number> | d3.ScaleBand<T>,
     range: [number, number],
@@ -147,6 +154,7 @@ function createInitialScale<T>(
         .range(range);
 }
 
+// (8/10): Solid function for axis creation, but could be more modular to handle different scales.
 function createAxis(params: CreateParams, config: any) {
     const { chartGroup, dateScale, xScale, valueScale, chartHeight } = params;
 
@@ -169,6 +177,7 @@ function createAxis(params: CreateParams, config: any) {
         .call(d3.axisLeft(valueScale).ticks(yTicks).tickFormat(yTickFormat));
 }
 
+// (7/10): Handles different types of bar charts, but needs more error handling, especially for edge cases with the scales.
 function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: CreateParams, config: any = {}) {
     const { seriesData, chartGroup, colorScale, xScale, valueScale, chartHeight, dataKeys, chartTooltip } = params;
 
@@ -243,6 +252,7 @@ function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: C
     }
 }
 
+// (6/10): A decent helper function for preparing stacked data, but should have more input validation or error handling.
 function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
     return d3.stack()
         .keys(seriesData.map(d => d[dataKeys.name]))
@@ -255,6 +265,7 @@ function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
         );
 }
 
+// (9/10): Very well structured for line/area chart generation. Could further modularize the area and line sections.
 function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
     const { seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, dataKeys, chartHeight } = params;
 
@@ -284,6 +295,7 @@ function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
     });
 }
 
+// (8/10): Great for point creation, but lacks flexibility for customizing point size or shape.
 function createPoints({ seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, chartTooltip, dataKeys }: CreateParams) {
     const pointsGroup = chartGroup.append('g').attr('class', 'points-group');
     seriesData.forEach(series => {
@@ -308,6 +320,7 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, xScale, v
     });
 }
 
+// (8/10): Function does its job well, though would benefit from some modularity for handling additional grid options.
 function createGrid({ chartGroup, dateScale, xScale, valueScale, chartHeight, chartWidth }: CreateParams) {
     const gridGroup = chartGroup.append('g').attr('class', 'grid');
 
@@ -322,6 +335,7 @@ function createGrid({ chartGroup, dateScale, xScale, valueScale, chartHeight, ch
     }
 }
 
+// (7/10): Labels are well-handled, but the function could be broken up for more customization (like font size, alignment).
 function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, config?: LabelConfig) {
     if (config?.title) {
         chartGroup.append('text')
@@ -352,6 +366,7 @@ function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, conf
     }
 }
 
+// (8/10): Comprehensive registry for features, but could be more extensible for different chart types.
 const featureRegistry: Record<string, FeatureFunction> = {
     grid: createGrid,
     axis: createAxis,
@@ -362,6 +377,7 @@ const featureRegistry: Record<string, FeatureFunction> = {
     label: createLabel,
 };
 
+// (7/10): Works well but could benefit from additional error handling when `featureFunction` is undefined.
 function createFeatures(createParameters: CreateParams, features: Feature[]) {
     features.forEach(({ feature, hide, config }) => {
         const featureFunction = featureRegistry[feature];
@@ -371,6 +387,7 @@ function createFeatures(createParameters: CreateParams, features: Feature[]) {
     });
 }
 
+// (8/10): Great function, but error handling could be expanded.
 function computeMergedValueDomain(
     seriesDataArray: any[][],
     dataKeysArray: DataKeys[],
@@ -440,6 +457,7 @@ function computeMergedValueDomain(
     return [minValue, maxValue];
 }
 
+// (9/10): Works well, but like the value domain, error handling could be more robust for edge cases.
 function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKeys[]): Date[] {
     const allDates: Date[] = [];
     for (let i = 0; i < seriesDataArray.length; i++) {
@@ -456,6 +474,7 @@ function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKe
     return uniqueDates;
 }
 
+// (7/10): Good general-purpose chart creation function, though it could be simplified by breaking down responsibilities into smaller helper functions.
 export function createSeriesXYChart(
     container: HTMLElement,
     seriesData: any[],
@@ -542,6 +561,7 @@ export function createSeriesXYChart(
     }
 }
 
+// (8/10): Functions well for multiple charts, but it can get bloated for larger data sets. Breaking it down into smaller parts might help.
 export function createSeperateLineCharts(
     container: HTMLElement,
     seriesDataArray: any[][],
@@ -597,6 +617,7 @@ export function createSeperateLineCharts(
     }
 }
 
+// (7/10): A flexible function for merging multiple line charts but could be optimized further for larger data sets and different chart types.
 export function createLineChart(
     container: HTMLElement,
     seriesDataArray: any[][],
