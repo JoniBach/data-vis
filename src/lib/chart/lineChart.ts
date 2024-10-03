@@ -77,8 +77,13 @@ const eventSystem = {
     }
 };
 
-// (7/10): This utility function is fine, but could use more parameter validation, such as checking if the input is a string or number.
+// (8/10): Good input validation and sanitization, but could handle null, undefined, and invalid types more explicitly.
 function escapeHTML(str: number | string): string {
+    if (typeof str !== 'string' && typeof str !== 'number') {
+        console.warn('Invalid input type for escapeHTML. Expected a string or number.');
+        return '';
+    }
+
     return String(str)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -86,6 +91,7 @@ function escapeHTML(str: number | string): string {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
 }
+
 
 // (6/10): It's simple and gets the job done but lacks validation for "data" or "index" bounds.
 function safeGet(data: any[], key: string, index: number) {
