@@ -64,6 +64,7 @@ interface ListenerMap {
     tooltipHide: (chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>) => void;
 }
 
+// (9/10): Good modular event system, but could expand for future interactivity needs.
 const eventSystem = {
     listeners: {} as ListenerMap,
     on<T extends keyof ListenerMap>(eventType: T, callback: ListenerMap[T]) {
@@ -77,7 +78,7 @@ const eventSystem = {
     }
 };
 
-// (8/10): Good input validation and sanitization, but could handle null, undefined, and invalid types more explicitly.
+// (8/10): Simple but useful helper function for sanitizing input.
 function escapeHTML(str: number | string): string {
     if (typeof str !== 'string' && typeof str !== 'number') {
         console.warn('Invalid input type for escapeHTML. Expected a string or number.');
@@ -92,8 +93,7 @@ function escapeHTML(str: number | string): string {
         .replace(/'/g, "&#39;");
 }
 
-
-// (8/10): Well-structured function, clear responsibility, but it could benefit from adding types or enums for `showTooltip`.
+// (8/10): Solid function for creating tooltips but lacks support for dynamic content updates.
 function createTooltip(container: HTMLElement | null, showTooltip: boolean, config: TooltipConfig): d3.Selection<HTMLDivElement, unknown, null, undefined> {
     if (!showTooltip) {
         return d3.select(document.createElement('div'));
@@ -108,7 +108,7 @@ function createTooltip(container: HTMLElement | null, showTooltip: boolean, conf
         .style("padding", config?.padding || "5px");
 }
 
-// (9/10): Good use of event system, but error handling could be expanded.
+// (8/10): Good event handler but should include better type safety and error handling.
 eventSystem.on('tooltip', (chartTooltip, event, d, dataKeys: DataKeys) => {
     try {
         const dateStr = escapeHTML(d3.timeFormat("%b %Y")(d[dataKeys.date]));
@@ -121,16 +121,18 @@ eventSystem.on('tooltip', (chartTooltip, event, d, dataKeys: DataKeys) => {
     }
 });
 
+// (7/10): Simple yet effective; could be extended for touch events and better device support.
 eventSystem.on('tooltipMove', (chartTooltip, event) => {
     chartTooltip.style("top", `${event.pageY - 10}px`)
         .style("left", `${event.pageX + 10}px`);
 });
 
+// (7/10): Basic but functional; consider hiding tooltip gracefully with transitions.
 eventSystem.on('tooltipHide', (chartTooltip) => {
     chartTooltip.style("visibility", "hidden");
 });
 
-// (8/10): Does what it should, but no additional flexibility for responsive layouts or scaling.
+// (9/10): Well-structured function but could use type checks on container.
 function createInitialSVG({ container, width, height }: { container: HTMLElement, width: number, height: number }) {
     return d3.select(container)
         .append('svg')
@@ -138,24 +140,39 @@ function createInitialSVG({ container, width, height }: { container: HTMLElement
         .attr('height', height);
 }
 
-// (7/10): Works well but would benefit from more extensive error handling or validation on `margin`.
+// (8/10): Good practice of transforming chart groups, though it could further abstract the margin check.
 function createInitialChartGroup({ svg, margin }: { svg: d3.Selection<SVGSVGElement, unknown, null, undefined>, margin: { top: number, right: number, bottom: number, left: number } }) {
+    if (!isValidMargin(margin)) {
+        console.error("Invalid margin object provided. Ensure top, right, bottom, and left are numbers.");
+        return;
+    }
+
     return svg.append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
 }
 
-// (7/10): Solid functionality, but should account for type variations and use-cases more explicitly.
+// (8/10): Helpful validation function, though redundancy could be reduced by using a margin interface.
+function isValidMargin(margin: { top: number, right: number, bottom: number, left: number }): boolean {
+    return ['top', 'right', 'bottom', 'left'].every(prop => typeof margin[prop] === 'number');
+}
+
+// (7/10): Useful function but could further validate the scaleFn return type.
 function createInitialScale<T>(
     scaleFn: () => d3.ScaleLinear<number, number> | d3.ScaleTime<number, number> | d3.ScaleBand<T>,
     range: [number, number],
     domain: [number, number] | [Date, Date]
 ) {
+    if (!Array.isArray(range) || !Array.isArray(domain)) {
+        console.error("Invalid range or domain provided. Both must be arrays.");
+        return;
+    }
+
     return scaleFn()
         .domain(domain)
         .range(range);
 }
 
-// (8/10): Solid function for axis creation, but could be more modular to handle different scales.
+// (9/10): Clear function to create axes, with good use of D3 features, but could improve tick configuration.
 function createAxis(params: CreateParams, config: any) {
     const { chartGroup, dateScale, xScale, valueScale, chartHeight } = params;
 
@@ -178,11 +195,10 @@ function createAxis(params: CreateParams, config: any) {
         .call(d3.axisLeft(valueScale).ticks(yTicks).tickFormat(yTickFormat));
 }
 
-// (9/10): Handles different bar chart types robustly, with enhanced error handling and stricter typing for config.
+// (8/10): Well-structured bar chart generator but lacks handling for dynamic updates or transitions.
 function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: CreateParams, config: { fillOpacity?: number } = {}) {
     const { seriesData, chartGroup, colorScale, xScale, valueScale, chartHeight, dataKeys, chartTooltip } = params;
 
-    // Validate required scales and data
     if (!seriesData || !Array.isArray(seriesData) || seriesData.length === 0) {
         console.error('Invalid seriesData: must be a non-empty array.');
         return;
@@ -194,7 +210,7 @@ function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: C
     }
 
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
-    const fillOpacity = config.fillOpacity ?? 0.5; // Default opacity to 0.5 if not provided
+    const fillOpacity = config.fillOpacity ?? 0.5;
 
     const attachTooltipHandlers = (selection: d3.Selection<SVGRectElement, any, SVGGElement, any>, d: any) => {
         selection.on('mouseover', (event, d) => eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys))
@@ -266,9 +282,7 @@ function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: C
     }
 }
 
-
-
-// (9/10): Strong helper function with solid input validation and strict typing, minor performance and clarity improvements.
+// (8/10): Useful but overly complex; can be simplified for better readability.
 function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
     if (!Array.isArray(seriesData) || seriesData.length === 0) {
         throw new Error('Invalid seriesData: must be a non-empty array');
@@ -304,9 +318,7 @@ function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
         );
 }
 
-
-
-// (9/10): Very well structured for line/area chart generation. Could further modularize the area and line sections.
+// (8/10): Versatile function for line and area charts, but lacks transition and interaction handling.
 function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
     const { seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, dataKeys, chartHeight } = params;
 
@@ -336,7 +348,7 @@ function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
     });
 }
 
-// (8/10): Great for point creation, but lacks flexibility for customizing point size or shape.
+// (9/10): A well-designed function for rendering points with tooltip interaction.
 function createPoints({ seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, chartTooltip, dataKeys }: CreateParams) {
     const pointsGroup = chartGroup.append('g').attr('class', 'points-group');
     seriesData.forEach(series => {
@@ -361,7 +373,7 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, xScale, v
     });
 }
 
-// (8/10): Function does its job well, though would benefit from some modularity for handling additional grid options.
+// (8/10): Clean implementation for grid lines, though can be improved with dynamic tick calculations.
 function createGrid({ chartGroup, dateScale, xScale, valueScale, chartHeight, chartWidth }: CreateParams) {
     const gridGroup = chartGroup.append('g').attr('class', 'grid');
 
@@ -376,7 +388,7 @@ function createGrid({ chartGroup, dateScale, xScale, valueScale, chartHeight, ch
     }
 }
 
-// (9/10): Labels are customizable, function is more modular and maintainable, could further allow for font and alignment overrides.
+// (8/10): Efficient label creation but could be enhanced with more style configuration options.
 function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, config?: LabelConfig) {
 
     const createTitle = (title: string) => {
@@ -420,7 +432,7 @@ function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, conf
     }
 }
 
-// (8/10): Comprehensive registry for features, but could be more extensible for different chart types.
+// (9/10): Smart registry system for features, allowing extendability without modifying core logic.
 const featureRegistry: Record<string, FeatureFunction> = {
     grid: createGrid,
     axis: createAxis,
@@ -432,7 +444,7 @@ const featureRegistry: Record<string, FeatureFunction> = {
     tooltip: () => null,
 };
 
-// (9/10): Clean and robust with error handling, could further optimize featureRegistry for scalability.
+// (8/10): Highly customizable feature creation, though error handling for unknown features could be more explicit.
 function createFeatures(createParameters: CreateParams, features: Feature[]) {
     features.forEach(({ feature, hide, config }) => {
         const featureFunction = featureRegistry[feature];
@@ -449,7 +461,7 @@ function createFeatures(createParameters: CreateParams, features: Feature[]) {
     });
 }
 
-// (8/10): Great function, but error handling could be expanded.
+// (7/10): Important domain calculation, but could use performance optimization for large datasets.
 function computeMergedValueDomain(
     seriesDataArray: any[][],
     dataKeysArray: DataKeys[],
@@ -519,7 +531,7 @@ function computeMergedValueDomain(
     return [minValue, maxValue];
 }
 
-// (9/10): Works well, but like the value domain, error handling could be more robust for edge cases.
+// (7/10): Date merging logic is functional but could benefit from optimization in large datasets.
 function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKeys[]): Date[] {
     const allDates: Date[] = [];
     for (let i = 0; i < seriesDataArray.length; i++) {
@@ -536,7 +548,7 @@ function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKe
     return uniqueDates;
 }
 
-// (8/10): Well-structured and modular, but could benefit from stricter typing and more robust error handling.
+// (9/10): Well-structured and flexible chart creator, though it has room for performance improvements in large datasets.
 export function createSeriesXYChart(
     container: HTMLElement,
     seriesData: any[],
@@ -614,17 +626,17 @@ export function createSeriesXYChart(
     }
 }
 
-
+// (8/10): Necessary validation, but could return more descriptive errors or logs for invalid data.
 function isValidSeriesData(seriesData: any[], dataKeys: DataKeys): boolean {
     return seriesData && seriesData.length > 0 && seriesData[0]?.[dataKeys.data];
 }
 
-
+// (7/10): Efficient for small datasets but could be slow with large data arrays.
 function extractDateDomain(seriesData: any[], dataKeys: DataKeys): Date[] {
     return seriesData.flatMap(series => series[dataKeys.data].map((d: any) => d[dataKeys.date]));
 }
 
-
+// (8/10): Solid scaling logic, though barWidth calculation could be optimized for larger data sets.
 function createScales({ isBarChart, dateDomainUsed, chartWidth, seriesData, dataKeys }: any) {
     let dateScale: d3.ScaleTime<number, number> | undefined;
     let xScale: d3.ScaleBand<number> | undefined;
@@ -645,13 +657,12 @@ function createScales({ isBarChart, dateDomainUsed, chartWidth, seriesData, data
     return { dateScale, xScale, barWidth };
 }
 
-
+// (8/10): Simple utility function to control feature display, could improve readability with better typing.
 function shouldShowFeature(features: Feature[], featureName: string): boolean {
     return features.some(feature => feature.feature === featureName && !feature.hide);
 }
 
-
-// (8/10): Functions well for multiple charts, but it can get bloated for larger data sets. Breaking it down into smaller parts might help.
+// (8/10): Clean and logical, but lacks differentiation between merged and non-merged states.
 export function createSeperateLineCharts(
     container: HTMLElement,
     seriesDataArray: any[][],
@@ -707,7 +718,7 @@ export function createSeperateLineCharts(
     }
 }
 
-// (7/10): A flexible function for merging multiple line charts but could be optimized further for larger data sets and different chart types.
+// (7/10): Solid chart creation but lacks clear differentiation between merged and non-merged variants.
 export function createLineChart(
     container: HTMLElement,
     seriesDataArray: any[][],
