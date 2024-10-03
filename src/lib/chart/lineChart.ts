@@ -150,32 +150,24 @@ function createInitialScale<T>(
 function createAxis(params: CreateParams, config: any) {
     const { chartGroup, dateScale, xScale, valueScale, chartHeight } = params;
 
-    // Handle x-axis tick format (interpreted from config)
-    const xTickFormat = config?.xTickFormat || "%b %Y"; // Default to month/year if not provided
+    const xTickFormat = config?.xTickFormat || "%b %Y";
     const xAxis = xScale
         ? d3.axisBottom(xScale).tickFormat(d => d3.timeFormat(xTickFormat)(new Date(d as number)))
         : d3.axisBottom(dateScale!).tickFormat(d3.timeFormat(xTickFormat));
 
-    // Handle y-axis decimal precision (interpreted from config)
-    const yTickDecimals = config?.yTickDecimals !== undefined ? config.yTickDecimals : 2; // Default to 2 decimals
+    const yTickDecimals = config?.yTickDecimals !== undefined ? config.yTickDecimals : 2;
     const yTickFormat = d3.format(`.${yTickDecimals}f`);
 
-    // Number of ticks for both axes
-    const xTicks = config?.xTicks || 5; // Default to 5 ticks on x-axis
-    const yTicks = config?.yTicks || 10; // Default to 10 ticks on y-axis
+    const xTicks = config?.xTicks || 5;
+    const yTicks = config?.yTicks || 10;
 
-    // Create x-axis
     chartGroup.append('g')
         .attr('transform', `translate(0,${chartHeight})`)
         .call(xAxis.ticks(xTicks));
 
-    // Create y-axis
     chartGroup.append('g')
         .call(d3.axisLeft(valueScale).ticks(yTicks).tickFormat(yTickFormat));
 }
-
-
-
 
 function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: CreateParams, config: any = {}) {
     const { seriesData, chartGroup, colorScale, xScale, valueScale, chartHeight, dataKeys, chartTooltip } = params;
@@ -186,18 +178,14 @@ function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: C
     }
 
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
-
-    // Extract fill-opacity from config with a default value
     const fillOpacity = config.fillOpacity || 0.5;
 
-    // Abstracted tooltip handlers for reuse
     const attachTooltipHandlers = (selection: d3.Selection<SVGRectElement, any, SVGGElement, any>, d: any) => {
         selection.on('mouseover', (event, d) => eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys))
             .on('mousemove', (event) => eventSystem.trigger('tooltipMove', chartTooltip, event))
             .on('mouseout', () => eventSystem.trigger('tooltipHide', chartTooltip));
     };
 
-    // Helper function to create individual bars
     const createBar = (selection: d3.Selection<SVGRectElement, any, SVGGElement, any>, d: any, x: number, y: number, height: number, width: number, fillColor: string) => {
         selection.attr('x', x)
             .attr('y', y)
@@ -208,7 +196,6 @@ function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: C
         attachTooltipHandlers(selection, d);
     };
 
-    // Handle stacked bar chart logic
     if (type === 'stacked') {
         const stackedData = prepareStackedData(seriesData, dataKeys);
 
@@ -231,7 +218,6 @@ function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: C
             });
         });
     } else {
-        // Handle overlapped or grouped bar chart logic
         const seriesScale = d3.scaleBand()
             .domain(seriesData.map(d => d[dataKeys.name]))
             .range([0, xScale.bandwidth()])
@@ -257,7 +243,6 @@ function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: C
     }
 }
 
-// Helper function to prepare stacked data for d3.stack()
 function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
     return d3.stack()
         .keys(seriesData.map(d => d[dataKeys.name]))
@@ -270,41 +255,34 @@ function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
         );
 }
 
-
 function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
     const { seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, dataKeys, chartHeight } = params;
 
-    // Helper function to compute x position based on xScale or dateScale
     const computeXPosition = (d: DataPoint) => xScale
         ? xScale(d[dataKeys.date].getTime())! + xScale.bandwidth() / 2
         : dateScale!(d[dataKeys.date]);
 
-    // Generator function for line or area
     const generator = type === 'line'
         ? d3.line<DataPoint>()
             .x(computeXPosition)
-            .y(d => valueScale(d[dataKeys.value])) // For line charts, y is always the value
+            .y(d => valueScale(d[dataKeys.value]))
         : d3.area<DataPoint>()
             .x(computeXPosition)
-            .y1(d => valueScale(d[dataKeys.value])) // For area charts, y1 is the value
-            .y0(chartHeight); // For area charts, y0 is the bottom of the chart
+            .y1(d => valueScale(d[dataKeys.value]))
+            .y0(chartHeight);
 
-    // Create group for the chart paths (line or area)
     const group = chartGroup.append('g').attr('class', `${type}-group`);
 
-    // Append the paths for each series in the data
     seriesData.forEach(series => {
         group.append('path')
             .datum(series[dataKeys.data])
             .attr('fill', type === 'area' ? colorScale(series[dataKeys.name]) : 'none')
             .attr('stroke', type === 'line' ? colorScale(series[dataKeys.name]) : undefined)
-            .attr('fill-opacity', type === 'area' ? 0.4 : 1) // Set opacity for areas
+            .attr('fill-opacity', type === 'area' ? 0.4 : 1)
             .attr('d', generator)
-            .attr('stroke-width', type === 'line' ? 2 : 0); // Line stroke width
+            .attr('stroke-width', type === 'line' ? 2 : 0);
     });
 }
-
-
 
 function createPoints({ seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, chartTooltip, dataKeys }: CreateParams) {
     const pointsGroup = chartGroup.append('g').attr('class', 'points-group');
@@ -345,38 +323,34 @@ function createGrid({ chartGroup, dateScale, xScale, valueScale, chartHeight, ch
 }
 
 function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, config?: LabelConfig) {
-    // Add title if provided in the config
     if (config?.title) {
         chartGroup.append('text')
-            .attr('x', chartWidth / 2)  // Centered horizontally
-            .attr('y', -10)             // Positioned above the chart
+            .attr('x', chartWidth / 2)
+            .attr('y', -10)
             .attr('text-anchor', 'middle')
             .attr('font-size', '16px')
-            .text(config.title);         // Set the title text
+            .text(config.title);
     }
 
-    // Add x-axis label if provided in the config
     if (config?.xAxis) {
         chartGroup.append('text')
-            .attr('x', chartWidth / 2)   // Centered horizontally
-            .attr('y', chartHeight + 40) // Positioned below the x-axis
+            .attr('x', chartWidth / 2)
+            .attr('y', chartHeight + 40)
             .attr('text-anchor', 'middle')
             .attr('font-size', '12px')
-            .text(config.xAxis);         // Set the x-axis label text
+            .text(config.xAxis);
     }
 
-    // Add y-axis label if provided in the config
     if (config?.yAxis) {
         chartGroup.append('text')
-            .attr('transform', 'rotate(-90)') // Rotate to make it vertical
-            .attr('x', -chartHeight / 2)      // Centered vertically
-            .attr('y', -40)                   // Positioned left of the y-axis
+            .attr('transform', 'rotate(-90)')
+            .attr('x', -chartHeight / 2)
+            .attr('y', -40)
             .attr('text-anchor', 'middle')
             .attr('font-size', '12px')
-            .text(config.yAxis);              // Set the y-axis label text
+            .text(config.yAxis);
     }
 }
-
 
 const featureRegistry: Record<string, FeatureFunction> = {
     grid: createGrid,
@@ -481,7 +455,6 @@ function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKe
     uniqueDates.sort((a, b) => a.getTime() - b.getTime());
     return uniqueDates;
 }
-
 
 export function createSeriesXYChart(
     container: HTMLElement,
