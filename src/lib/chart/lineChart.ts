@@ -536,7 +536,7 @@ function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKe
     return uniqueDates;
 }
 
-// (7/10): Good general-purpose chart creation function, though it could be simplified by breaking down responsibilities into smaller helper functions.
+// (8/10): Well-structured and modular, but could benefit from stricter typing and more robust error handling.
 export function createSeriesXYChart(
     container: HTMLElement,
     seriesData: any[],
@@ -554,7 +554,7 @@ export function createSeriesXYChart(
 
         d3.select(container).selectAll("*").remove();
 
-        if (!seriesData || seriesData.length === 0 || !seriesData[0]?.[dataKeys.data]) {
+        if (!isValidSeriesData(seriesData, dataKeys)) {
             console.error("Invalid or no data provided for the chart.");
             return;
         }
@@ -563,43 +563,34 @@ export function createSeriesXYChart(
         const chartGroup = createInitialChartGroup({ svg, margin });
 
         const isBarChart = features.some(feature => feature.feature === 'bar' && !feature.hide);
+        const dateDomainUsed = dateDomain || extractDateDomain(seriesData, dataKeys);
 
-        const dateDomainUsed = dateDomain || seriesData.flatMap(series => series[dataKeys.data].map((d: any) => d[dataKeys.date]));
-
-        let dateScale: d3.ScaleTime<number, number> | undefined;
-        let xScale: d3.ScaleBand<number> | undefined;
-        let barWidth = 0;
-
-        if (isBarChart) {
-            xScale = d3.scaleBand()
-                .domain(dateDomainUsed.map(d => d.getTime()))
-                .range([0, chartWidth])
-                .padding(0.1);
-
-            barWidth = xScale.bandwidth();
-        } else {
-            dateScale = d3.scaleTime()
-                .domain(d3.extent(dateDomainUsed) as [Date, Date])
-                .range([0, chartWidth]);
-        }
+        const { dateScale, xScale, barWidth } = createScales({
+            isBarChart,
+            dateDomainUsed,
+            chartWidth,
+            seriesData,
+            dataKeys
+        });
 
         const barFeature = features.find(f => f.feature === 'bar' && !f.hide);
         const barVariant = barFeature?.config?.variant || 'grouped';
 
-        if (!valueDomain) {
-            valueDomain = computeMergedValueDomain([seriesData], [dataKeys], [barVariant]);
-        }
+        valueDomain = valueDomain || computeMergedValueDomain([seriesData], [dataKeys], [barVariant]);
 
         const valueScale = createInitialScale(d3.scaleLinear, [chartHeight, 0], valueDomain as [number, number]);
 
         const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
             .domain(seriesData.map(d => d[dataKeys.name]));
 
-        const area = dateScale ? createLineOrArea('area', { ...arguments[0], colorScale, dateScale, valueScale }) : undefined;
-        const line = dateScale ? createLineOrArea('line', { ...arguments[0], colorScale, dateScale, valueScale }) : undefined;
+        const area = dateScale ? createLineOrArea('area', { colorScale, dateScale, valueScale, ...arguments[0] }) : undefined;
+        const line = dateScale ? createLineOrArea('line', { colorScale, dateScale, valueScale, ...arguments[0] }) : undefined;
 
-        const showTooltip = features.some(feature => feature.feature === 'tooltip' && !feature.hide);
-        const chartTooltip = createTooltip(container, showTooltip, features.find(feature => feature.feature === 'tooltip')?.config);
+        const chartTooltip = createTooltip(
+            container,
+            shouldShowFeature(features, 'tooltip'),
+            features.find(feature => feature.feature === 'tooltip')?.config
+        );
 
         const createParameters: CreateParams = {
             seriesData,
@@ -622,6 +613,43 @@ export function createSeriesXYChart(
         console.error("Error creating chart:", error);
     }
 }
+
+
+function isValidSeriesData(seriesData: any[], dataKeys: DataKeys): boolean {
+    return seriesData && seriesData.length > 0 && seriesData[0]?.[dataKeys.data];
+}
+
+
+function extractDateDomain(seriesData: any[], dataKeys: DataKeys): Date[] {
+    return seriesData.flatMap(series => series[dataKeys.data].map((d: any) => d[dataKeys.date]));
+}
+
+
+function createScales({ isBarChart, dateDomainUsed, chartWidth, seriesData, dataKeys }: any) {
+    let dateScale: d3.ScaleTime<number, number> | undefined;
+    let xScale: d3.ScaleBand<number> | undefined;
+    let barWidth = 0;
+
+    if (isBarChart) {
+        xScale = d3.scaleBand()
+            .domain(dateDomainUsed.map(d => d.getTime()))
+            .range([0, chartWidth])
+            .padding(0.1);
+        barWidth = xScale.bandwidth();
+    } else {
+        dateScale = d3.scaleTime()
+            .domain(d3.extent(dateDomainUsed) as [Date, Date])
+            .range([0, chartWidth]);
+    }
+
+    return { dateScale, xScale, barWidth };
+}
+
+
+function shouldShowFeature(features: Feature[], featureName: string): boolean {
+    return features.some(feature => feature.feature === featureName && !feature.hide);
+}
+
 
 // (8/10): Functions well for multiple charts, but it can get bloated for larger data sets. Breaking it down into smaller parts might help.
 export function createSeperateLineCharts(
