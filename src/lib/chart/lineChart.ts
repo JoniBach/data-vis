@@ -93,11 +93,6 @@ function escapeHTML(str: number | string): string {
 }
 
 
-// (6/10): It's simple and gets the job done but lacks validation for "data" or "index" bounds.
-function safeGet(data: any[], key: string, index: number) {
-    return data[index] ? data[index][key] : null;
-}
-
 // (8/10): Well-structured function, clear responsibility, but it could benefit from adding types or enums for `showTooltip`.
 function createTooltip(container: HTMLElement | null, showTooltip: boolean, config: TooltipConfig): d3.Selection<HTMLDivElement, unknown, null, undefined> {
     if (!showTooltip) {
