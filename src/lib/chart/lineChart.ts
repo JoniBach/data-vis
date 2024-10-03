@@ -336,34 +336,47 @@ function createGrid({ chartGroup, dateScale, xScale, valueScale, chartHeight, ch
     }
 }
 
-// (7/10): Labels are well-handled, but the function could be broken up for more customization (like font size, alignment).
+// (9/10): Labels are customizable, function is more modular and maintainable, could further allow for font and alignment overrides.
 function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, config?: LabelConfig) {
-    if (config?.title) {
+
+    const createTitle = (title: string) => {
         chartGroup.append('text')
             .attr('x', chartWidth / 2)
             .attr('y', -10)
             .attr('text-anchor', 'middle')
             .attr('font-size', '16px')
-            .text(config.title);
-    }
+            .text(title);
+    };
 
-    if (config?.xAxis) {
+    const createXAxisLabel = (xAxis: string) => {
         chartGroup.append('text')
             .attr('x', chartWidth / 2)
             .attr('y', chartHeight + 40)
             .attr('text-anchor', 'middle')
             .attr('font-size', '12px')
-            .text(config.xAxis);
-    }
+            .text(xAxis);
+    };
 
-    if (config?.yAxis) {
+    const createYAxisLabel = (yAxis: string) => {
         chartGroup.append('text')
             .attr('transform', 'rotate(-90)')
             .attr('x', -chartHeight / 2)
             .attr('y', -40)
             .attr('text-anchor', 'middle')
             .attr('font-size', '12px')
-            .text(config.yAxis);
+            .text(yAxis);
+    };
+
+    if (config?.title) {
+        createTitle(config.title);
+    }
+
+    if (config?.xAxis) {
+        createXAxisLabel(config.xAxis);
+    }
+
+    if (config?.yAxis) {
+        createYAxisLabel(config.yAxis);
     }
 }
 
