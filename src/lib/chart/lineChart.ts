@@ -177,7 +177,7 @@ function createAxis(params: CreateParams, config: any) {
 
 
 
-function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: CreateParams) {
+function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: CreateParams, config: any = {}) {
     const { seriesData, chartGroup, colorScale, xScale, valueScale, chartHeight, dataKeys, chartTooltip } = params;
 
     if (!xScale) {
@@ -187,59 +187,89 @@ function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: C
 
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
 
-    if (type === 'stacked') {
-        const stack = d3.stack()
-            .keys(seriesData.map(d => d[dataKeys.name]))
-            .offset(d3.stackOffsetDiverging);
+    // Extract fill-opacity from config with a default value
+    const fillOpacity = config.fillOpacity || 0.5;
 
-        const stackedData = stack(
+    // Abstracted tooltip handlers for reuse
+    const attachTooltipHandlers = (selection: d3.Selection<SVGRectElement, any, SVGGElement, any>, d: any) => {
+        selection.on('mouseover', (event, d) => eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys))
+            .on('mousemove', (event) => eventSystem.trigger('tooltipMove', chartTooltip, event))
+            .on('mouseout', () => eventSystem.trigger('tooltipHide', chartTooltip));
+    };
+
+    // Helper function to create individual bars
+    const createBar = (selection: d3.Selection<SVGRectElement, any, SVGGElement, any>, d: any, x: number, y: number, height: number, width: number, fillColor: string) => {
+        selection.attr('x', x)
+            .attr('y', y)
+            .attr('height', height)
+            .attr('width', width)
+            .attr('fill', fillColor)
+            .attr('fill-opacity', fillOpacity);
+        attachTooltipHandlers(selection, d);
+    };
+
+    // Handle stacked bar chart logic
+    if (type === 'stacked') {
+        const stackedData = prepareStackedData(seriesData, dataKeys);
+
+        stackedData.forEach((layer, layerIndex) => {
+            const seriesName = seriesData[layerIndex][dataKeys.name];
+
+            const bars = barsGroup.selectAll(`rect.${seriesName.replace(/\s+/g, '-')}`)
+                .data(layer)
+                .enter()
+                .append('rect');
+
+            bars.each((d, i, nodes) => {
+                const bar = d3.select(nodes[i]);
+                const xPos = xScale!(d.data[dataKeys.date])!;
+                const yPos = valueScale(d[1]);
+                const height = Math.abs(valueScale(d[0]) - valueScale(d[1]));
+                const fillColor = colorScale(seriesName);
+
+                createBar(bar, d, xPos, yPos, height, xScale.bandwidth(), fillColor);
+            });
+        });
+    } else {
+        // Handle overlapped or grouped bar chart logic
+        const seriesScale = d3.scaleBand()
+            .domain(seriesData.map(d => d[dataKeys.name]))
+            .range([0, xScale.bandwidth()])
+            .padding(0.05);
+
+        seriesData.forEach(series => {
+            const bars = barsGroup.selectAll(`rect.${series[dataKeys.name].replace(/\s+/g, '-')}`)
+                .data(series[dataKeys.data])
+                .enter()
+                .append('rect');
+
+            bars.each((d, i, nodes) => {
+                const bar = d3.select(nodes[i]);
+                const xPos = xScale(d[dataKeys.date].getTime())! + (type === 'grouped' ? seriesScale(series[dataKeys.name])! : 0);
+                const yPos = valueScale(d[dataKeys.value]);
+                const height = chartHeight - valueScale(d[dataKeys.value]);
+                const width = type === 'grouped' ? seriesScale.bandwidth() : xScale.bandwidth();
+                const fillColor = colorScale(series[dataKeys.name]);
+
+                createBar(bar, d, xPos, yPos, height, width, fillColor);
+            });
+        });
+    }
+}
+
+// Helper function to prepare stacked data for d3.stack()
+function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
+    return d3.stack()
+        .keys(seriesData.map(d => d[dataKeys.name]))
+        .offset(d3.stackOffsetDiverging)(
             seriesData[0][dataKeys.data].map((_, i) => {
                 const obj: any = { [dataKeys.date]: seriesData[0][dataKeys.data][i][dataKeys.date].getTime() };
                 seriesData.forEach(series => obj[series[dataKeys.name]] = series[dataKeys.data][i][dataKeys.value]);
                 return obj;
             })
         );
-
-        stackedData.forEach((layer, layerIndex) => {
-            const seriesName = seriesData[layerIndex][dataKeys.name];
-            barsGroup.selectAll(`rect.${seriesName.replace(/\s+/g, '-')}`)
-                .data(layer)
-                .enter()
-                .append('rect')
-                .attr('x', d => xScale(d.data[dataKeys.date])!)
-                .attr('y', d => valueScale(d[1]))
-                .attr('height', d => Math.abs(valueScale(d[0]) - valueScale(d[1])))
-                .attr('width', xScale.bandwidth())
-                .attr('fill', colorScale(seriesName))
-                .on('mouseover', (event, d) => eventSystem.trigger('tooltip', chartTooltip, event, { [dataKeys.date]: new Date(d.data[dataKeys.date]), [dataKeys.value]: d[1] - d[0] }, dataKeys))
-                .on('mousemove', (event) => eventSystem.trigger('tooltipMove', chartTooltip, event))
-                .on('mouseout', () => eventSystem.trigger('tooltipHide', chartTooltip));
-        });
-
-    } else if (type === 'overlapped' || type === 'grouped') {
-        const seriesNames = seriesData.map(d => d[dataKeys.name]);
-        const seriesScale = d3.scaleBand()
-            .domain(seriesNames)
-            .range([0, xScale.bandwidth()])
-            .padding(0.05);
-
-        seriesData.forEach(series => {
-            barsGroup.selectAll(`rect.${series[dataKeys.name].replace(/\s+/g, '-')}`)
-                .data(series[dataKeys.data])
-                .enter()
-                .append('rect')
-                .attr('x', d => xScale(d[dataKeys.date].getTime())! + (type === 'grouped' ? seriesScale(series[dataKeys.name])! : 0))
-                .attr('y', d => valueScale(d[dataKeys.value]))
-                .attr('height', d => chartHeight - valueScale(d[dataKeys.value]))
-                .attr('width', type === 'grouped' ? seriesScale.bandwidth() : xScale.bandwidth())
-                .attr('fill', colorScale(series[dataKeys.name]))
-                .attr('fill-opacity', 0.5)
-                .on('mouseover', (event, d) => eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys))
-                .on('mousemove', (event) => eventSystem.trigger('tooltipMove', chartTooltip, event))
-                .on('mouseout', () => eventSystem.trigger('tooltipHide', chartTooltip));
-        });
-    }
 }
+
 
 function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
     const { seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, dataKeys, chartHeight } = params;
