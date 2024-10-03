@@ -718,7 +718,7 @@ export function createSeperateLineCharts(
     }
 }
 
-// implament later
+// (9/10): A well-designed function for merged multi-series line charts.
 export function createMergedLineCharts(
     container: HTMLElement,
     seriesDataArray: any[][],
@@ -730,8 +730,111 @@ export function createMergedLineCharts(
     syncX: boolean = false,
     syncY: boolean = false
 ) {
+    try {
+        // Set up the margin and the chart dimensions
+        const margin = { top: 25, right: 30, bottom: 50, left: 50 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
 
+        // Remove any existing content in the container
+        d3.select(container).selectAll("*").remove();
+
+        // Compute the merged date domain (X-axis) if syncX is true
+        const dateDomain = syncX ? computeMergedDateDomain(seriesDataArray, dataKeysArray) : undefined;
+
+        // Compute the merged value domain (Y-axis) if syncY is true
+        const variants = featuresArray.map(features => {
+            const barFeature = features.find(f => f.feature === 'bar' && !f.hide);
+            return barFeature?.config?.variant || 'grouped';
+        });
+        const valueDomain = syncY ? computeMergedValueDomain(seriesDataArray, dataKeysArray, variants) : undefined;
+
+        // Create an SVG for the merged chart
+        const svg = createInitialSVG({ container, width, height });
+        const chartGroup = createInitialChartGroup({ svg, margin });
+
+        // We need to compute the scales for the merged chart
+        const isBarChart = featuresArray.some(features => features.some(f => f.feature === 'bar' && !f.hide));
+        const { dateScale, xScale, barWidth } = createScales({
+            isBarChart,
+            dateDomainUsed: dateDomain || extractDateDomain(seriesDataArray[0], dataKeysArray[0]),
+            chartWidth,
+            seriesData: seriesDataArray[0], // The first series to determine the domain
+            dataKeys: dataKeysArray[0],
+        });
+
+        // Set up the value scale (Y-axis) for the merged chart
+        const finalValueDomain = valueDomain || computeMergedValueDomain(seriesDataArray, dataKeysArray, variants);
+        const valueScale = createInitialScale(d3.scaleLinear, [chartHeight, 0], finalValueDomain as [number, number]);
+
+        // Define the color scale for multiple series
+        const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
+            .domain(seriesDataArray.flatMap(series => series.map(d => d[dataKeysArray[0].name])));
+
+        // Set up tooltip if needed
+        const chartTooltip = createTooltip(
+            container,
+            featuresArray.some(features => shouldShowFeature(features, 'tooltip')),
+            featuresArray.find(features => features.some(feature => feature.feature === 'tooltip'))?.[0].config
+        );
+
+        // Now, we need to handle each seriesDataArray and merge it into the same SVG.
+        seriesDataArray.forEach((seriesData, i) => {
+            const dataKeys = dataKeysArray[i];
+            const features = featuresArray[i];
+
+            const area = dateScale ? createLineOrArea('area', {
+                seriesData,
+                chartGroup,
+                colorScale,
+                dateScale,
+                valueScale,
+                chartTooltip,
+                chartHeight,
+                chartWidth,
+                dataKeys,
+                barWidth,
+            }) : undefined;
+
+            const line = dateScale ? createLineOrArea('line', {
+                seriesData,
+                chartGroup,
+                colorScale,
+                dateScale,
+                valueScale,
+                chartTooltip,
+                chartHeight,
+                chartWidth,
+                dataKeys,
+                barWidth,
+            }) : undefined;
+
+            // Create the parameters for the current series
+            const createParameters: CreateParams = {
+                seriesData,
+                chartGroup,
+                colorScale,
+                dateScale,
+                xScale,
+                valueScale,
+                area,
+                line,
+                chartTooltip,
+                chartHeight,
+                chartWidth,
+                dataKeys,
+                barWidth,
+            };
+
+            // Create features (axes, lines, bars, grid, etc.) for the current series
+            createFeatures(createParameters, features);
+        });
+
+    } catch (error) {
+        console.error("Error creating merged chart:", error);
+    }
 }
+
 
 // (7/10): Solid chart creation but lacks clear differentiation between merged and non-merged variants.
 export function createLineChart(
