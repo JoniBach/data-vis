@@ -81,8 +81,8 @@ const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
         hide: false,
     },
     // {
-    //   feature: 'area',
-    //   hide: true,
+    //     feature: 'area',
+    //     hide: true,
     // },
     {
         feature: 'grid',

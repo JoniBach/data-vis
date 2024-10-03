@@ -42,17 +42,19 @@ export interface CreateParams {
     seriesData: SeriesData[];
     chartGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
     colorScale: d3.ScaleOrdinal<string, string>;
-    dateScale: d3.ScaleTime<number, number>;
+    dateScale?: d3.ScaleTime<number, number>;
+    xScale?: d3.ScaleBand<number>;
     valueScale: d3.ScaleLinear<number, number>;
     stackedValueScale?: d3.ScaleLinear<number, number>;
-    area: d3.Area<DataPoint>;
-    line: d3.Line<DataPoint>;
+    area?: d3.Area<DataPoint>;
+    line?: d3.Line<DataPoint>;
     chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>;
     chartHeight: number;
     chartWidth: number;
     dataKeys: DataKeys;
     barWidth: number;
 }
+
 
 interface TooltipListener {
     (chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>, event: MouseEvent, d: DataPoint): void;
@@ -186,87 +188,71 @@ function createInitialLine({ dateScale, valueScale, dataKeys }: { dateScale: d3.
         .y(d => valueScale(d[dataKeys.value]));
 }
 
-function createGrid({ chartGroup, dateScale, valueScale, chartHeight, chartWidth }: CreateParams) {
+function createGrid({ chartGroup, dateScale, xScale, valueScale, chartHeight, chartWidth }: CreateParams) {
     chartGroup.append('g')
         .attr('class', 'grid')
         .call(d3.axisLeft(valueScale).tickSize(-chartWidth).tickFormat(() => ""))
         .selectAll('line').attr('stroke', '#ccc').attr('stroke-dasharray', '2,2');
     chartGroup.selectAll('.grid path').attr('stroke', 'none');
 
-    chartGroup.append('g')
-        .attr('class', 'grid')
-        .attr('transform', `translate(0,${chartHeight})`)
-        .call(d3.axisBottom(dateScale).tickSize(-chartHeight).tickFormat(() => ""))
-        .selectAll('line').attr('stroke', '#ccc').attr('stroke-dasharray', '2,2');
-    chartGroup.selectAll('.grid path').attr('stroke', 'none');
+    if (xScale) {
+        chartGroup.append('g')
+            .attr('class', 'grid')
+            .attr('transform', `translate(0,${chartHeight})`)
+            .call(d3.axisBottom(xScale).tickSize(-chartHeight).tickFormat(() => ""))
+            .selectAll('line').attr('stroke', '#ccc').attr('stroke-dasharray', '2,2');
+        chartGroup.selectAll('.grid path').attr('stroke', 'none');
+    } else if (dateScale) {
+        chartGroup.append('g')
+            .attr('class', 'grid')
+            .attr('transform', `translate(0,${chartHeight})`)
+            .call(d3.axisBottom(dateScale).tickSize(-chartHeight).tickFormat(() => ""))
+            .selectAll('line').attr('stroke', '#ccc').attr('stroke-dasharray', '2,2');
+        chartGroup.selectAll('.grid path').attr('stroke', 'none');
+    }
 }
 
-function createAxis({ chartGroup, dateScale, valueScale, chartHeight }: CreateParams) {
-    chartGroup.append('g')
-        .attr('transform', `translate(0,${chartHeight})`)
-        .call(d3.axisBottom(dateScale).tickFormat(d3.timeFormat("%b %Y")));
+
+function createAxis({ chartGroup, dateScale, xScale, valueScale, chartHeight }: CreateParams) {
+    if (xScale) {
+        // Use xScale for x-axis
+        chartGroup.append('g')
+            .attr('transform', `translate(0,${chartHeight})`)
+            .call(d3.axisBottom(xScale).tickFormat(d => d3.timeFormat("%b %Y")(new Date(d as number))));
+    } else if (dateScale) {
+        // Use dateScale for x-axis
+        chartGroup.append('g')
+            .attr('transform', `translate(0,${chartHeight})`)
+            .call(d3.axisBottom(dateScale).tickFormat(d3.timeFormat("%b %Y")));
+    }
     chartGroup.append('g').call(d3.axisLeft(valueScale));
 }
 
-function createArea({ seriesData, chartGroup, colorScale, area, chartTooltip, dataKeys }: CreateParams) {
-    try {
-        const areasGroup = chartGroup.append('g').attr('class', 'areas-group');
-        seriesData.forEach(series => {
-            areasGroup.append('path')
-                .datum(series[dataKeys.data])
-                .attr('fill', colorScale(series[dataKeys.name]))
-                .attr('fill-opacity', 0.2)
-                .attr('d', area)
-                .on('mouseover', (event, d) => {
-                    eventSystem.trigger('tooltip', chartTooltip, event, d[0], dataKeys);
-                })
-                .on('mousemove', (event) => {
-                    eventSystem.trigger('tooltipMove', chartTooltip, event);
-                })
-                .on('mouseout', () => {
-                    eventSystem.trigger('tooltipHide', chartTooltip);
-                });
-        });
-    } catch (error) {
-        console.error("Error creating area chart:", error);
+
+
+
+function createGroupedBarsVariant({ seriesData, chartGroup, colorScale, xScale, valueScale, chartHeight, dataKeys, chartTooltip }: CreateParams) {
+    if (!xScale) {
+        console.error('xScale is not defined for grouped bars.');
+        return;
     }
-}
 
-function createLine({ seriesData, chartGroup, colorScale, line, dataKeys }: CreateParams) {
-    const linesGroup = chartGroup.append('g').attr('class', 'lines-group');
-    seriesData.forEach(series => {
-        linesGroup.append('path')
-            .datum(series[dataKeys.data])
-            .attr('fill', 'none')
-            .attr('stroke', colorScale(series[dataKeys.name]))
-            .attr('stroke-width', 2)
-            .attr('d', line);
-    });
-}
-
-function createGroupedBarsVariant({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, chartTooltip, barWidth }: CreateParams) {
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
 
     // Create a scale for spacing between series within each group
+    const seriesNames = seriesData.map(d => d[dataKeys.name]);
     const seriesScale = d3.scaleBand()
-        .domain(seriesData.map(d => d[dataKeys.name]))
-        .range([0, barWidth])
+        .domain(seriesNames)
+        .range([0, xScale.bandwidth()])
         .padding(0.05);
 
-    const bandwidth = Math.max(seriesScale.bandwidth(), 1);  // Ensure the bars have minimum visible width
-
-    // Check that seriesScale.bandwidth() is valid
-    if (bandwidth <= 0) {
-        console.error('Invalid series scale bandwidth:', bandwidth);
-        return;
-    }
     seriesData.forEach(series => {
         barsGroup.selectAll(`rect.${series[dataKeys.name].replace(/\s+/g, '-')}`)
             .data(series[dataKeys.data])
             .enter()
             .append('rect')
             .attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
-            .attr('x', d => dateScale(d[dataKeys.date]) - barWidth / 2 + seriesScale(series[dataKeys.name])!)
+            .attr('x', d => xScale!(d[dataKeys.date].getTime())! + seriesScale(series[dataKeys.name])!)
             .attr('y', d => valueScale(d[dataKeys.value]))
             .attr('width', seriesScale.bandwidth())
             .attr('height', d => chartHeight - valueScale(d[dataKeys.value]))
@@ -284,14 +270,20 @@ function createGroupedBarsVariant({ seriesData, chartGroup, colorScale, dateScal
     });
 }
 
+
 // ... [Other code remains the same] ...
 
-function createStackedBarsVariant({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, chartTooltip, barWidth }: CreateParams) {
+function createStackedBarsVariant({ seriesData, chartGroup, colorScale, xScale, valueScale, chartHeight, dataKeys, chartTooltip }: CreateParams) {
+    if (!xScale) {
+        console.error('xScale is not defined for stacked bars.');
+        return;
+    }
+
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
 
     const reformattedData = seriesData[0][dataKeys.data].map((_, i) => {
         const obj: any = {};
-        obj[dataKeys.date] = seriesData[0][dataKeys.data][i][dataKeys.date];
+        obj[dataKeys.date] = seriesData[0][dataKeys.data][i][dataKeys.date].getTime();
         seriesData.forEach(series => {
             obj[series[dataKeys.name]] = series[dataKeys.data][i][dataKeys.value];
         });
@@ -312,14 +304,14 @@ function createStackedBarsVariant({ seriesData, chartGroup, colorScale, dateScal
             .enter()
             .append('rect')
             .attr('class', seriesName.replace(/\s+/g, '-'))
-            .attr('x', d => dateScale(d.data[dataKeys.date]) - barWidth / 2)
+            .attr('x', d => xScale!(d.data[dataKeys.date])!)
             .attr('y', d => d[1] < d[0] ? valueScale(d[0]) : valueScale(d[1]))
-            .attr('width', barWidth)
+            .attr('width', xScale.bandwidth())
             .attr('height', d => Math.abs(valueScale(d[0]) - valueScale(d[1])))
             .attr('fill', colorScale(seriesName))
             .attr('fill-opacity', 0.7)
             .on('mouseover', (event, d) => {
-                eventSystem.trigger('tooltip', chartTooltip, event, { [dataKeys.date]: d.data[dataKeys.date], [dataKeys.value]: d[1] - d[0] }, dataKeys);
+                eventSystem.trigger('tooltip', chartTooltip, event, { [dataKeys.date]: new Date(d.data[dataKeys.date]), [dataKeys.value]: d[1] - d[0] }, dataKeys);
             })
             .on('mousemove', (event) => {
                 eventSystem.trigger('tooltipMove', chartTooltip, event);
@@ -329,6 +321,7 @@ function createStackedBarsVariant({ seriesData, chartGroup, colorScale, dateScal
             });
     });
 }
+
 
 function createInitialValueScale({ seriesData, chartHeight, dataKeys, valueDomain }: { seriesData: any[], chartHeight: number, dataKeys: DataKeys, valueDomain?: [number, number] }) {
     let [minValue, maxValue] = valueDomain ? valueDomain : [
@@ -423,13 +416,18 @@ function computeMergedValueDomain(
 
 
 
-function createOverlappedBars({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartHeight, dataKeys, chartTooltip, barWidth }: CreateParams) {
+function createOverlappedBars({ seriesData, chartGroup, colorScale, xScale, valueScale, chartHeight, dataKeys, chartTooltip }: CreateParams) {
+    if (!xScale) {
+        console.error('xScale is not defined for overlapped bars.');
+        return;
+    }
+
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
 
     // For each date, sort the series data so that the smallest values are drawn last (on top)
     const reformattedData = seriesData[0][dataKeys.data].map((_, i) => {
         return {
-            date: seriesData[0][dataKeys.data][i][dataKeys.date],
+            date: seriesData[0][dataKeys.data][i][dataKeys.date].getTime(),
             values: seriesData.map(series => ({
                 name: series[dataKeys.name],
                 value: series[dataKeys.data][i][dataKeys.value]
@@ -441,14 +439,14 @@ function createOverlappedBars({ seriesData, chartGroup, colorScale, dateScale, v
         values.forEach(({ name, value }) => {
             barsGroup.append('rect')
                 .attr('class', name.replace(/\s+/g, '-'))
-                .attr('x', dateScale(date) - barWidth / 2)
+                .attr('x', xScale!(date)!)
                 .attr('y', valueScale(value))
-                .attr('width', barWidth)
+                .attr('width', xScale.bandwidth())
                 .attr('height', chartHeight - valueScale(value))
                 .attr('fill', colorScale(name))
                 .attr('fill-opacity', 1)
-                .on('mouseover', (event, d) => {
-                    eventSystem.trigger('tooltip', chartTooltip, event, { [dataKeys.date]: date, [dataKeys.value]: value }, dataKeys);
+                .on('mouseover', (event) => {
+                    eventSystem.trigger('tooltip', chartTooltip, event, { [dataKeys.date]: new Date(date), [dataKeys.value]: value }, dataKeys);
                 })
                 .on('mousemove', (event) => {
                     eventSystem.trigger('tooltipMove', chartTooltip, event);
@@ -466,20 +464,23 @@ function createBars(params: CreateParams, config: { variant: 'grouped' | 'stacke
         return;
     }
 
-    const barWidth = Math.max(params.barWidth, 1); // Ensure barWidth is never zero
+    if (!params.xScale) {
+        console.error('xScale is not defined in createBars.');
+        return;
+    }
 
     if (config.variant === 'stacked') {
-        createStackedBarsVariant({ ...params, barWidth });
-    }
-    else if (config.variant === 'overlapped') {
-        createOverlappedBars({ ...params, barWidth });
+        createStackedBarsVariant(params);
+    } else if (config.variant === 'overlapped') {
+        createOverlappedBars(params);
     } else {
         // Default to grouped bars
-        createGroupedBarsVariant({ ...params, barWidth });
+        createGroupedBarsVariant(params);
     }
 }
 
-function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScale, chartTooltip, dataKeys }: CreateParams) {
+
+function createPoints({ seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, chartTooltip, dataKeys }: CreateParams) {
     const pointsGroup = chartGroup.append('g').attr('class', 'points-group');
     seriesData.forEach(series => {
         pointsGroup.selectAll(`circle.${series[dataKeys.name].replace(/\s+/g, '-')}`)
@@ -487,7 +488,7 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScal
             .enter()
             .append('circle')
             .attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
-            .attr('cx', d => dateScale(d[dataKeys.date]))
+            .attr('cx', d => xScale ? xScale(d[dataKeys.date].getTime())! + xScale.bandwidth() / 2 : dateScale!(d[dataKeys.date]))
             .attr('cy', d => valueScale(d[dataKeys.value]))
             .attr('r', 4)
             .attr('fill', colorScale(series[dataKeys.name]))
@@ -502,6 +503,88 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, valueScal
             });
     });
 }
+
+function createArea({ seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, dataKeys, chartHeight }: CreateParams) {
+    try {
+        // Define the area generator
+        const areaGenerator = d3.area<DataPoint>()
+            .x(d => {
+                // Center x-values if using xScale (categorical)
+                if (xScale) {
+                    return xScale(d[dataKeys.date].getTime())! + xScale.bandwidth() / 2;
+                }
+                // Otherwise use dateScale (continuous)
+                return dateScale!(d[dataKeys.date]);
+            })
+            .y0(chartHeight)  // Set the baseline for the area at the bottom of the chart
+            .y1(d => valueScale(d[dataKeys.value]));  // Set the top of the area according to the value scale
+
+        // Create a group for the areas
+        const areasGroup = chartGroup.append('g').attr('class', 'areas-group');
+
+        // Iterate over each series of data
+        seriesData.forEach(series => {
+            const seriesName = series[dataKeys.name];  // Get the series name
+            const seriesDataPoints = series[dataKeys.data];  // Get the series data points
+
+            // Append the path (area) to the group
+            areasGroup.append('path')
+                .datum(seriesDataPoints)
+                .attr('class', seriesName.replace(/\s+/g, '-'))  // Sanitize class names
+                .attr('fill', colorScale(seriesName))  // Set the fill color using the color scale
+                .attr('fill-opacity', 0.3)  // Set the opacity of the area fill
+                .attr('d', areaGenerator)  // Generate the area path based on data
+                .on('mouseover', (event, d) => {
+                    eventSystem.trigger('tooltip', chartTooltip, event, d[0], dataKeys);
+                })
+                .on('mousemove', (event) => {
+                    eventSystem.trigger('tooltipMove', chartTooltip, event);
+                })
+                .on('mouseout', () => {
+                    eventSystem.trigger('tooltipHide', chartTooltip);
+                });
+        });
+    } catch (error) {
+        console.error("Error creating area chart:", error);
+    }
+}
+
+// 
+function createLine({ seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, dataKeys }: CreateParams) {
+    try {
+        // Ensure the line generator is defined properly
+        const lineGenerator = d3.line<DataPoint>()
+            .x(d => {
+                // If using xScale (typically for bar charts), center the line point on the band
+                if (xScale) {
+                    return xScale(d[dataKeys.date].getTime())! + xScale.bandwidth() / 2;
+                }
+                // Otherwise, use dateScale for continuous time axes
+                return dateScale!(d[dataKeys.date]);
+            })
+            .y(d => valueScale(d[dataKeys.value]));
+
+        // Create a group for the lines
+        const linesGroup = chartGroup.append('g').attr('class', 'lines-group');
+
+        // Iterate over each series of data
+        seriesData.forEach(series => {
+            const seriesName = series[dataKeys.name];
+            const seriesDataPoints = series[dataKeys.data];
+
+            linesGroup.append('path')
+                .datum(seriesDataPoints)
+                .attr('class', seriesName.replace(/\s+/g, '-'))
+                .attr('fill', 'none')
+                .attr('stroke', colorScale(seriesName))
+                .attr('stroke-width', 2)
+                .attr('d', lineGenerator); // Generate the line path
+        });
+    } catch (error) {
+        console.error("Error creating line chart:", error);
+    }
+}
+
 
 function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, config?: LabelConfig) {
     if (config?.title) {
@@ -641,7 +724,8 @@ function computeBarWidth(dateScale: d3.ScaleTime<number, number>, dateDomain: Da
         // Set barWidth to chartWidth divided by the number of data points
         const numDataPoints = sortedDates.length || 1; // Avoid division by zero
         const barWidth = (chartWidth / numDataPoints) * 0.8;
-        return Math.max(barWidth, 1);
+        return Math.max(barWidth, 1); // Ensure the bar width is at least 1 pixel
+
     } else {
         // Map the time interval to x-axis units
         const start = dateScale(sortedDates[0]);
@@ -650,7 +734,6 @@ function computeBarWidth(dateScale: d3.ScaleTime<number, number>, dateDomain: Da
         return Math.max(barWidth, 1); // Ensure the bar width is at least 1 pixel
     }
 }
-
 
 export function createSeriesXYChart(
     container: HTMLElement,
@@ -677,22 +760,30 @@ export function createSeriesXYChart(
         const svg = createInitialSVG({ container, width, height });
         const chartGroup = createInitialChartGroup({ svg, margin });
 
-        // Step 1: Create initial dateScale with range [0, chartWidth]
-        const dateScale = createInitialDateScale({ seriesData, chartWidth, dataKeys, dateDomain });
-
-        if (!dateScale) {
-            console.error("Invalid dateScale created.");
-            return;
-        }
+        // Determine if 'bar' feature is being rendered
+        const isBarChart = features.some(feature => feature.feature === 'bar' && !feature.hide);
 
         // Use provided dateDomain or compute from data
         const dateDomainUsed = dateDomain || seriesData.flatMap(series => series[dataKeys.data].map((d: any) => d[dataKeys.date]));
 
-        // Step 2: Compute barWidth
-        const barWidth = computeBarWidth(dateScale, dateDomainUsed, chartWidth);
+        let dateScale: d3.ScaleTime<number, number> | undefined;
+        let xScale: d3.ScaleBand<number> | undefined;
+        let barWidth = 0;
 
-        // Step 3: Adjust dateScale's range to [barWidth / 2, chartWidth - barWidth / 2]
-        dateScale.range([barWidth / 2, chartWidth - barWidth / 2]);
+        if (isBarChart) {
+            // Create a scaleBand for bar charts
+            xScale = d3.scaleBand()
+                .domain(dateDomainUsed.map(d => d.getTime()))
+                .range([0, chartWidth])
+                .padding(0.1); // Adjust padding as needed
+
+            barWidth = xScale.bandwidth();
+        } else {
+            // Create a scaleTime for line or area charts
+            dateScale = d3.scaleTime()
+                .domain(d3.extent(dateDomainUsed) as [Date, Date])
+                .range([0, chartWidth]);
+        }
 
         // Determine if 'stacked' variant is used
         const barFeature = features.find(f => f.feature === 'bar' && !f.hide);
@@ -711,8 +802,8 @@ export function createSeriesXYChart(
         }
 
         const colorScale = createInitialColorScale({ seriesData, dataKeys });
-        const area = createInitialArea({ dateScale, valueScale, chartHeight, dataKeys });
-        const line = createInitialLine({ dateScale, valueScale, dataKeys });
+        const area = dateScale ? createInitialArea({ dateScale, valueScale, chartHeight, dataKeys }) : undefined;
+        const line = dateScale ? createInitialLine({ dateScale, valueScale, dataKeys }) : undefined;
         const showTooltip = features.some(feature => feature.feature === 'tooltip' && !feature.hide);
         const chartTooltip = createTooltip(container, showTooltip, features.find(feature => feature.feature === 'tooltip')?.config);
 
@@ -721,6 +812,7 @@ export function createSeriesXYChart(
             chartGroup,
             colorScale,
             dateScale,
+            xScale,
             valueScale,
             area,
             line,
@@ -736,12 +828,6 @@ export function createSeriesXYChart(
         console.error("Error creating chart:", error);
     }
 }
-
-
-
-
-
-
 
 export function createSeperateLineCharts(
     container: HTMLElement,
@@ -805,9 +891,6 @@ export function createSeperateLineCharts(
         );
     }
 }
-
-
-
 
 
 // Function to create merged line charts (optional)

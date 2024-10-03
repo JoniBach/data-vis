@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { generateMultiSeriesData } from '$lib/chart/generateLineChart.js';
-	import { generateXyData, LineChart } from '$lib/index.js'; // $lib is the alias for 'src/lib'
-	import type { DataGenerationConfig, Feature, SeriesData, DataKeys } from '$lib/index.js';
+	import { LineChart } from '$lib/index.js'; // $lib is the alias for 'src/lib'
+	import type { DataGenerationConfig } from '$lib/index.js';
 	import { onMount } from 'svelte';
 
 	// Example usage with trendVariance configuration:
@@ -58,7 +58,7 @@
 </script>
 
 <main>
-	<LineChart {data} {dataKeys} {features} width={600} height={400} {squash} {syncX} {syncY} />
+	<LineChart {data} {dataKeys} {features} width={600} height={240} {squash} {syncX} {syncY} />
 
 	<code>
 		Seed: <input bind:value={seed} type="number" />
