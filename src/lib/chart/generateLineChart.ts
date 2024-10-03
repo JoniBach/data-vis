@@ -89,8 +89,14 @@ const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
         hide: false,
     },
     {
-        feature: 'axis',
+        feature: "axis",
         hide: false,
+        config: {
+            xTickFormat: "%m / %y",  // This will be passed as a string for formatting the x-axis (day/month/year format)
+            yTickDecimals: 0,   // Specify the number of decimal places on the y-axis
+            xTicks: 5,          // Number of ticks on the x-axis
+            yTicks: 10,         // Number of ticks on the y-axis
+        }
     },
     {
         feature: 'tooltip',

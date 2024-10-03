@@ -147,17 +147,35 @@ function createInitialScale<T>(
         .range(range);
 }
 
-function createAxis({ chartGroup, dateScale, xScale, valueScale, chartHeight }: CreateParams) {
-    const xAxis = xScale
-        ? d3.axisBottom(xScale).tickFormat(d => d3.timeFormat("%b %Y")(new Date(d as number)))
-        : d3.axisBottom(dateScale!).tickFormat(d3.timeFormat("%b %Y"));
+function createAxis(params: CreateParams, config: any) {
+    const { chartGroup, dateScale, xScale, valueScale, chartHeight } = params;
 
+    // Handle x-axis tick format (interpreted from config)
+    const xTickFormat = config?.xTickFormat || "%b %Y"; // Default to month/year if not provided
+    const xAxis = xScale
+        ? d3.axisBottom(xScale).tickFormat(d => d3.timeFormat(xTickFormat)(new Date(d as number)))
+        : d3.axisBottom(dateScale!).tickFormat(d3.timeFormat(xTickFormat));
+
+    // Handle y-axis decimal precision (interpreted from config)
+    const yTickDecimals = config?.yTickDecimals !== undefined ? config.yTickDecimals : 2; // Default to 2 decimals
+    const yTickFormat = d3.format(`.${yTickDecimals}f`);
+
+    // Number of ticks for both axes
+    const xTicks = config?.xTicks || 5; // Default to 5 ticks on x-axis
+    const yTicks = config?.yTicks || 10; // Default to 10 ticks on y-axis
+
+    // Create x-axis
     chartGroup.append('g')
         .attr('transform', `translate(0,${chartHeight})`)
-        .call(xAxis);
+        .call(xAxis.ticks(xTicks));
 
-    chartGroup.append('g').call(d3.axisLeft(valueScale));
+    // Create y-axis
+    chartGroup.append('g')
+        .call(d3.axisLeft(valueScale).ticks(yTicks).tickFormat(yTickFormat));
 }
+
+
+
 
 function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: CreateParams) {
     const { seriesData, chartGroup, colorScale, xScale, valueScale, chartHeight, dataKeys, chartTooltip } = params;
@@ -226,27 +244,36 @@ function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: C
 function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
     const { seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, dataKeys, chartHeight } = params;
 
+    // Helper function to compute x position based on xScale or dateScale
+    const computeXPosition = (d: DataPoint) => xScale
+        ? xScale(d[dataKeys.date].getTime())! + xScale.bandwidth() / 2
+        : dateScale!(d[dataKeys.date]);
+
+    // Generator function for line or area
     const generator = type === 'line'
         ? d3.line<DataPoint>()
-            .x(d => xScale ? xScale(d[dataKeys.date].getTime())! + xScale.bandwidth() / 2 : dateScale!(d[dataKeys.date])) // Adjust for both scales
-            .y(d => valueScale(d[dataKeys.value])) // y position for line chart
+            .x(computeXPosition)
+            .y(d => valueScale(d[dataKeys.value])) // For line charts, y is always the value
         : d3.area<DataPoint>()
-            .x(d => xScale ? xScale(d[dataKeys.date].getTime())! + xScale.bandwidth() / 2 : dateScale!(d[dataKeys.date])) // Adjust for both scales
-            .y1(d => valueScale(d[dataKeys.value])) // Top of the area (value)
-            .y0(chartHeight); // Bottom of the area (chart height)
+            .x(computeXPosition)
+            .y1(d => valueScale(d[dataKeys.value])) // For area charts, y1 is the value
+            .y0(chartHeight); // For area charts, y0 is the bottom of the chart
 
+    // Create group for the chart paths (line or area)
     const group = chartGroup.append('g').attr('class', `${type}-group`);
 
+    // Append the paths for each series in the data
     seriesData.forEach(series => {
         group.append('path')
             .datum(series[dataKeys.data])
             .attr('fill', type === 'area' ? colorScale(series[dataKeys.name]) : 'none')
             .attr('stroke', type === 'line' ? colorScale(series[dataKeys.name]) : undefined)
-            .attr('fill-opacity', type === 'area' ? 0.4 : 1) // Set opacity for area charts
+            .attr('fill-opacity', type === 'area' ? 0.4 : 1) // Set opacity for areas
             .attr('d', generator)
-            .attr('stroke-width', type === 'line' ? 2 : 0); // Add stroke width for line
+            .attr('stroke-width', type === 'line' ? 2 : 0); // Line stroke width
     });
 }
+
 
 
 function createPoints({ seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, chartTooltip, dataKeys }: CreateParams) {
@@ -288,32 +315,38 @@ function createGrid({ chartGroup, dateScale, xScale, valueScale, chartHeight, ch
 }
 
 function createLabel({ chartGroup, chartWidth, chartHeight }: CreateParams, config?: LabelConfig) {
+    // Add title if provided in the config
     if (config?.title) {
         chartGroup.append('text')
-            .attr('x', chartWidth / 2)
-            .attr('y', -10)
+            .attr('x', chartWidth / 2)  // Centered horizontally
+            .attr('y', -10)             // Positioned above the chart
             .attr('text-anchor', 'middle')
             .attr('font-size', '16px')
-            .text(config.title);
+            .text(config.title);         // Set the title text
     }
+
+    // Add x-axis label if provided in the config
     if (config?.xAxis) {
         chartGroup.append('text')
-            .attr('x', chartWidth / 2)
-            .attr('y', chartHeight + 40)
+            .attr('x', chartWidth / 2)   // Centered horizontally
+            .attr('y', chartHeight + 40) // Positioned below the x-axis
             .attr('text-anchor', 'middle')
             .attr('font-size', '12px')
-            .text(config.xAxis);
+            .text(config.xAxis);         // Set the x-axis label text
     }
+
+    // Add y-axis label if provided in the config
     if (config?.yAxis) {
         chartGroup.append('text')
-            .attr('transform', `rotate(-90)`)
-            .attr('x', -chartHeight / 2)
-            .attr('y', -40)
+            .attr('transform', 'rotate(-90)') // Rotate to make it vertical
+            .attr('x', -chartHeight / 2)      // Centered vertically
+            .attr('y', -40)                   // Positioned left of the y-axis
             .attr('text-anchor', 'middle')
             .attr('font-size', '12px')
-            .text(config.yAxis);
+            .text(config.yAxis);              // Set the y-axis label text
     }
 }
+
 
 const featureRegistry: Record<string, FeatureFunction> = {
     grid: createGrid,
@@ -419,23 +452,6 @@ function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKe
     return uniqueDates;
 }
 
-function computeBarWidth(dateScale: d3.ScaleTime<number, number>, dateDomain: Date[], chartWidth: number): number {
-    const sortedDates = dateDomain.slice().sort((a, b) => a.getTime() - b.getTime());
-    const timeIntervals = sortedDates.slice(1).map((d, i) => d.getTime() - sortedDates[i].getTime());
-
-    let minTimeInterval = d3.min(timeIntervals);
-
-    if (!minTimeInterval || minTimeInterval <= 0) {
-        const numDataPoints = sortedDates.length || 1;
-        const barWidth = (chartWidth / numDataPoints) * 0.8;
-        return Math.max(barWidth, 1);
-    } else {
-        const start = dateScale(sortedDates[0]);
-        const end = dateScale(new Date(sortedDates[0].getTime() + minTimeInterval));
-        const barWidth = (end - start) * 0.8;
-        return Math.max(barWidth, 1);
-    }
-}
 
 export function createSeriesXYChart(
     container: HTMLElement,
