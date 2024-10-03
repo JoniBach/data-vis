@@ -253,18 +253,35 @@ function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: C
     }
 }
 
-// (6/10): A decent helper function for preparing stacked data, but should have more input validation or error handling.
+// (8/10): Good helper function for preparing stacked data, improved with input validation and stricter typing.
 function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
+    if (!Array.isArray(seriesData) || seriesData.length === 0) {
+        throw new Error('Invalid seriesData: must be a non-empty array');
+    }
+
+    if (!dataKeys || !dataKeys.name || !dataKeys.date || !dataKeys.value || !dataKeys.data) {
+        throw new Error('Invalid dataKeys: all keys (name, date, value, data) must be defined');
+    }
+
     return d3.stack()
         .keys(seriesData.map(d => d[dataKeys.name]))
         .offset(d3.stackOffsetDiverging)(
             seriesData[0][dataKeys.data].map((_, i) => {
-                const obj: any = { [dataKeys.date]: seriesData[0][dataKeys.data][i][dataKeys.date].getTime() };
-                seriesData.forEach(series => obj[series[dataKeys.name]] = series[dataKeys.data][i][dataKeys.value]);
+                const obj: Record<string, number> = {
+                    [dataKeys.date]: seriesData[0][dataKeys.data][i][dataKeys.date].getTime()
+                };
+                seriesData.forEach(series => {
+                    if (series[dataKeys.name] && series[dataKeys.data][i]) {
+                        obj[series[dataKeys.name]] = series[dataKeys.data][i][dataKeys.value];
+                    } else {
+                        throw new Error('Data inconsistency found in seriesData');
+                    }
+                });
                 return obj;
             })
         );
 }
+
 
 // (9/10): Very well structured for line/area chart generation. Could further modularize the area and line sections.
 function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
