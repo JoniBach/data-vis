@@ -178,12 +178,13 @@ function createAxis(params: CreateParams, config: any) {
         .call(d3.axisLeft(valueScale).ticks(yTicks).tickFormat(yTickFormat));
 }
 
-// (7/10): Handles different types of bar charts, but needs more error handling, especially for edge cases with the scales.
+// (8/10): Handles different bar chart types well, improved error handling for scales and general robustness.
 function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: CreateParams, config: any = {}) {
     const { seriesData, chartGroup, colorScale, xScale, valueScale, chartHeight, dataKeys, chartTooltip } = params;
 
-    if (!xScale) {
-        console.error('xScale is not defined for bars.');
+    // Validate scales
+    if (!xScale || !valueScale || !colorScale) {
+        console.error('xScale, valueScale, or colorScale is not defined for bars.');
         return;
     }
 
@@ -207,51 +208,59 @@ function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: C
     };
 
     if (type === 'stacked') {
-        const stackedData = prepareStackedData(seriesData, dataKeys);
+        try {
+            const stackedData = prepareStackedData(seriesData, dataKeys);
 
-        stackedData.forEach((layer, layerIndex) => {
-            const seriesName = seriesData[layerIndex][dataKeys.name];
+            stackedData.forEach((layer, layerIndex) => {
+                const seriesName = seriesData[layerIndex][dataKeys.name];
+                const bars = barsGroup.selectAll(`rect.${seriesName.replace(/\s+/g, '-')}`)
+                    .data(layer)
+                    .enter()
+                    .append('rect');
 
-            const bars = barsGroup.selectAll(`rect.${seriesName.replace(/\s+/g, '-')}`)
-                .data(layer)
-                .enter()
-                .append('rect');
+                bars.each((d, i, nodes) => {
+                    const bar = d3.select(nodes[i]);
+                    const xPos = xScale!(d.data[dataKeys.date])!;
+                    const yPos = valueScale(d[1]);
+                    const height = Math.abs(valueScale(d[0]) - valueScale(d[1]));
+                    const fillColor = colorScale(seriesName);
 
-            bars.each((d, i, nodes) => {
-                const bar = d3.select(nodes[i]);
-                const xPos = xScale!(d.data[dataKeys.date])!;
-                const yPos = valueScale(d[1]);
-                const height = Math.abs(valueScale(d[0]) - valueScale(d[1]));
-                const fillColor = colorScale(seriesName);
-
-                createBar(bar, d, xPos, yPos, height, xScale.bandwidth(), fillColor);
+                    createBar(bar, d, xPos, yPos, height, xScale.bandwidth(), fillColor);
+                });
             });
-        });
+        } catch (error) {
+            console.error('Error generating stacked bars:', error);
+        }
     } else {
-        const seriesScale = d3.scaleBand()
-            .domain(seriesData.map(d => d[dataKeys.name]))
-            .range([0, xScale.bandwidth()])
-            .padding(0.05);
+        try {
+            const seriesScale = d3.scaleBand()
+                .domain(seriesData.map(d => d[dataKeys.name]))
+                .range([0, xScale.bandwidth()])
+                .padding(0.05);
 
-        seriesData.forEach(series => {
-            const bars = barsGroup.selectAll(`rect.${series[dataKeys.name].replace(/\s+/g, '-')}`)
-                .data(series[dataKeys.data])
-                .enter()
-                .append('rect');
+            seriesData.forEach(series => {
+                const bars = barsGroup.selectAll(`rect.${series[dataKeys.name].replace(/\s+/g, '-')}`)
+                    .data(series[dataKeys.data])
+                    .enter()
+                    .append('rect');
 
-            bars.each((d, i, nodes) => {
-                const bar = d3.select(nodes[i]);
-                const xPos = xScale(d[dataKeys.date].getTime())! + (type === 'grouped' ? seriesScale(series[dataKeys.name])! : 0);
-                const yPos = valueScale(d[dataKeys.value]);
-                const height = chartHeight - valueScale(d[dataKeys.value]);
-                const width = type === 'grouped' ? seriesScale.bandwidth() : xScale.bandwidth();
-                const fillColor = colorScale(series[dataKeys.name]);
+                bars.each((d, i, nodes) => {
+                    const bar = d3.select(nodes[i]);
+                    const xPos = xScale(d[dataKeys.date].getTime())! + (type === 'grouped' ? seriesScale(series[dataKeys.name])! : 0);
+                    const yPos = valueScale(d[dataKeys.value]);
+                    const height = chartHeight - valueScale(d[dataKeys.value]);
+                    const width = type === 'grouped' ? seriesScale.bandwidth() : xScale.bandwidth();
+                    const fillColor = colorScale(series[dataKeys.name]);
 
-                createBar(bar, d, xPos, yPos, height, width, fillColor);
+                    createBar(bar, d, xPos, yPos, height, width, fillColor);
+                });
             });
-        });
+        } catch (error) {
+            console.error('Error generating bars for grouped or overlapped variant:', error);
+        }
     }
 }
+
 
 // (9/10): Strong helper function with solid input validation and strict typing, minor performance and clarity improvements.
 function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
