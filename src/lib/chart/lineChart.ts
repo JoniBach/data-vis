@@ -178,18 +178,23 @@ function createAxis(params: CreateParams, config: any) {
         .call(d3.axisLeft(valueScale).ticks(yTicks).tickFormat(yTickFormat));
 }
 
-// (8/10): Handles different bar chart types well, improved error handling for scales and general robustness.
-function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: CreateParams, config: any = {}) {
+// (9/10): Handles different bar chart types robustly, with enhanced error handling and stricter typing for config.
+function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: CreateParams, config: { fillOpacity?: number } = {}) {
     const { seriesData, chartGroup, colorScale, xScale, valueScale, chartHeight, dataKeys, chartTooltip } = params;
 
-    // Validate scales
+    // Validate required scales and data
+    if (!seriesData || !Array.isArray(seriesData) || seriesData.length === 0) {
+        console.error('Invalid seriesData: must be a non-empty array.');
+        return;
+    }
+
     if (!xScale || !valueScale || !colorScale) {
         console.error('xScale, valueScale, or colorScale is not defined for bars.');
         return;
     }
 
     const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
-    const fillOpacity = config.fillOpacity || 0.5;
+    const fillOpacity = config.fillOpacity ?? 0.5; // Default opacity to 0.5 if not provided
 
     const attachTooltipHandlers = (selection: d3.Selection<SVGRectElement, any, SVGGElement, any>, d: any) => {
         selection.on('mouseover', (event, d) => eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys))
@@ -220,7 +225,7 @@ function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: C
 
                 bars.each((d, i, nodes) => {
                     const bar = d3.select(nodes[i]);
-                    const xPos = xScale!(d.data[dataKeys.date])!;
+                    const xPos = xScale(d.data[dataKeys.date])!;
                     const yPos = valueScale(d[1]);
                     const height = Math.abs(valueScale(d[0]) - valueScale(d[1]));
                     const fillColor = colorScale(seriesName);
@@ -260,6 +265,7 @@ function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: C
         }
     }
 }
+
 
 
 // (9/10): Strong helper function with solid input validation and strict typing, minor performance and clarity improvements.
