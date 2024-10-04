@@ -19,8 +19,8 @@ export interface SoftCapConfig {
 export interface DataKeys {
     name: string;
     data: string;
-    date: string;
-    value: string;
+    xKey: string;
+    yKey: string;
     magnitude?: string; // Add this new property
 }
 
@@ -125,8 +125,8 @@ const defaultDataKeys = [
         dataKeys: {
             name: 'city',
             data: 'temperatureData',
-            date: 'date',
-            value: 'averageTemperature',
+            xKey: 'date',
+            yKey: 'averageTemperature',
             magnitude: 'humidityLevel', // Added magnitude
         },
         labels: {
@@ -139,8 +139,8 @@ const defaultDataKeys = [
         dataKeys: {
             name: 'city',
             data: 'airQualityData',
-            date: 'date',
-            value: 'aqiValue',
+            xKey: 'date',
+            yKey: 'aqiValue',
             magnitude: 'pollutionConcentration', // Added magnitude
         },
         labels: {
@@ -153,8 +153,8 @@ const defaultDataKeys = [
         dataKeys: {
             name: 'website',
             data: 'trafficData',
-            date: 'date',
-            value: 'numberOfVisitors',
+            xKey: 'date',
+            yKey: 'numberOfVisitors',
             magnitude: 'timeSpentPerVisit', // Added magnitude
         },
         labels: {
@@ -167,8 +167,8 @@ const defaultDataKeys = [
         dataKeys: {
             name: 'store',
             data: 'salesData',
-            date: 'date',
-            value: 'totalSales',
+            xKey: 'date',
+            yKey: 'totalSales',
             magnitude: 'numberOfTransactions', // Added magnitude
         },
         labels: {
@@ -181,8 +181,8 @@ const defaultDataKeys = [
         dataKeys: {
             name: 'user',
             data: 'fitnessData',
-            date: 'date',
-            value: 'stepsWalked',
+            xKey: 'date',
+            yKey: 'stepsWalked',
             magnitude: 'caloriesBurned', // Added magnitude
         },
         labels: {
@@ -195,8 +195,8 @@ const defaultDataKeys = [
         dataKeys: {
             name: 'restaurant',
             data: 'reservationData',
-            date: 'date',
-            value: 'numberOfReservations',
+            xKey: 'date',
+            yKey: 'numberOfReservations',
             magnitude: 'averagePartySize', // Added magnitude
         },
         labels: {
@@ -209,8 +209,8 @@ const defaultDataKeys = [
         dataKeys: {
             name: 'app',
             data: 'downloadData',
-            date: 'date',
-            value: 'downloads',
+            xKey: 'date',
+            yKey: 'downloads',
             magnitude: 'activeUsers', // Added magnitude
         },
         labels: {
@@ -223,8 +223,8 @@ const defaultDataKeys = [
         dataKeys: {
             name: 'product',
             data: 'reviewData',
-            date: 'date',
-            value: 'averageRating',
+            xKey: 'date',
+            yKey: 'averageRating',
             magnitude: 'reviewCount', // Added magnitude
         },
         labels: {
@@ -237,8 +237,8 @@ const defaultDataKeys = [
         dataKeys: {
             name: 'company',
             data: 'stockPriceData',
-            date: 'date',
-            value: 'closingPrice',
+            xKey: 'date',
+            yKey: 'closingPrice',
             magnitude: 'dailyVolume', // Added magnitude
         },
         labels: {
@@ -251,8 +251,8 @@ const defaultDataKeys = [
         dataKeys: {
             name: 'region',
             data: 'electricityUsageData',
-            date: 'date',
-            value: 'energyConsumed',
+            xKey: 'date',
+            yKey: 'energyConsumed',
             magnitude: 'peakDemand', // Added magnitude
         },
         labels: {
@@ -373,8 +373,8 @@ export function generateXyData(
             date.setMonth(startDate.getMonth() + j);
 
             dataPoints.push({
-                [dataKeys.date]: date,
-                [dataKeys.value]: Math.round(currentValue),
+                [dataKeys.xKey]: date,
+                [dataKeys.yKey]: Math.round(currentValue),
                 [dataKeys.magnitude ?? 'magnitude']: Math.round(currentMagnitude), // Add magnitude to data points
             });
         }

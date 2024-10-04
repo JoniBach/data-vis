@@ -111,8 +111,8 @@ function createTooltip(container: HTMLElement | null, showTooltip: boolean, conf
 // (8/10): Good event handler but should include better type safety and error handling.
 eventSystem.on('tooltip', (chartTooltip, event, d, dataKeys: DataKeys) => {
     try {
-        const dateStr = escapeHTML(d3.timeFormat("%b %Y")(d[dataKeys.date]));
-        const valueStr = escapeHTML(d[dataKeys.value]);
+        const dateStr = escapeHTML(d3.timeFormat("%b %Y")(d[dataKeys.xKey]));
+        const valueStr = escapeHTML(d[dataKeys.yKey]);
 
         chartTooltip.style("visibility", "visible")
             .html(`Date: ${dateStr}<br>Value: ${valueStr}`);
@@ -253,9 +253,9 @@ function createErrorBars(seriesData: any[], barsGroup: any, params: CreateParams
 
             bars.each((d, i, nodes) => {
                 const bar = d3.select(nodes[i]);
-                const xPos = xScale(d[dataKeys.date].getTime())! + seriesScale(series[dataKeys.name])!;
-                const yPos = valueScale(d[dataKeys.value]);
-                const height = chartHeight - valueScale(d[dataKeys.value]);
+                const xPos = xScale(d[dataKeys.xKey].getTime())! + seriesScale(series[dataKeys.name])!;
+                const yPos = valueScale(d[dataKeys.yKey]);
+                const height = chartHeight - valueScale(d[dataKeys.yKey]);
                 const width = seriesScale.bandwidth();
                 const fillColor = colorScale(series[dataKeys.name]);
 
@@ -347,7 +347,7 @@ function createStackedBars(seriesData: any[], barsGroup: any, params: CreatePara
 
             bars.each((d, i, nodes) => {
                 const bar = d3.select(nodes[i]);
-                const xPos = xScale(d.data[dataKeys.date])!;
+                const xPos = xScale(d.data[dataKeys.xKey])!;
                 const yPos = valueScale(d[1]);
                 const height = Math.abs(valueScale(d[0]) - valueScale(d[1]));
                 const fillColor = colorScale(seriesName);
@@ -378,9 +378,9 @@ function createNonStackedBars(type: 'grouped' | 'overlapped', seriesData: any[],
 
             bars.each((d, i, nodes) => {
                 const bar = d3.select(nodes[i]);
-                const xPos = xScale(d[dataKeys.date].getTime())! + (type === 'grouped' ? seriesScale(series[dataKeys.name])! : 0);
-                const yPos = valueScale(d[dataKeys.value]);
-                const height = chartHeight - valueScale(d[dataKeys.value]);
+                const xPos = xScale(d[dataKeys.xKey].getTime())! + (type === 'grouped' ? seriesScale(series[dataKeys.name])! : 0);
+                const yPos = valueScale(d[dataKeys.yKey]);
+                const height = chartHeight - valueScale(d[dataKeys.yKey]);
                 const width = type === 'grouped' ? seriesScale.bandwidth() : xScale.bandwidth();
                 const fillColor = colorScale(series[dataKeys.name]);
 
@@ -399,7 +399,7 @@ function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
         throw new Error('Invalid seriesData: must be a non-empty array');
     }
 
-    if (!dataKeys || !dataKeys.name || !dataKeys.date || !dataKeys.value || !dataKeys.data) {
+    if (!dataKeys || !dataKeys.name || !dataKeys.xKey || !dataKeys.yKey || !dataKeys.data) {
         throw new Error('Invalid dataKeys: all keys (name, date, value, data) must be defined');
     }
 
@@ -413,13 +413,13 @@ function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
         .offset(d3.stackOffsetDiverging)(
             firstSeriesData.map((_, i) => {
                 const obj: Record<string, number> = {
-                    [dataKeys.date]: firstSeriesData[i][dataKeys.date].getTime()
+                    [dataKeys.xKey]: firstSeriesData[i][dataKeys.xKey].getTime()
                 };
                 seriesData.forEach(series => {
                     const seriesName = series[dataKeys.name];
                     const dataPoint = series[dataKeys.data][i];
                     if (seriesName && dataPoint) {
-                        obj[seriesName] = dataPoint[dataKeys.value];
+                        obj[seriesName] = dataPoint[dataKeys.yKey];
                     } else {
                         throw new Error(`Data inconsistency found at index ${i} for series: ${seriesName}`);
                     }
@@ -440,17 +440,17 @@ function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
     }
 
     const computeXPosition = (d: DataPoint) => xScale
-        ? xScale(d[dataKeys.date].getTime())! + xScale.bandwidth() / 2
-        : dateScale!(d[dataKeys.date]);
+        ? xScale(d[dataKeys.xKey].getTime())! + xScale.bandwidth() / 2
+        : dateScale!(d[dataKeys.xKey]);
 
     // Create line or area generator based on the type
     const generator = type === 'line'
         ? d3.line<DataPoint>()
             .x(computeXPosition)
-            .y(d => valueScale(d[dataKeys.value]))
+            .y(d => valueScale(d[dataKeys.yKey]))
         : d3.area<DataPoint>()
             .x(computeXPosition)
-            .y1(d => valueScale(d[dataKeys.value]))
+            .y1(d => valueScale(d[dataKeys.yKey]))
             .y0(chartHeight);
 
     // Ensure the group exists before appending
@@ -484,8 +484,8 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, xScale, v
             .enter()
             .append('circle')
             .attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
-            .attr('cx', d => xScale ? xScale(d[dataKeys.date].getTime())! + xScale.bandwidth() / 2 : dateScale!(d[dataKeys.date]))
-            .attr('cy', d => valueScale(d[dataKeys.value]))
+            .attr('cx', d => xScale ? xScale(d[dataKeys.xKey].getTime())! + xScale.bandwidth() / 2 : dateScale!(d[dataKeys.xKey]))
+            .attr('cy', d => valueScale(d[dataKeys.yKey]))
             .attr('r', 4)
             .attr('fill', colorScale(series[dataKeys.name]))
             .on('mouseover', (event, d) => {
@@ -506,8 +506,8 @@ function createBubbles(params: CreateParams, config: { minRadius?: number, maxRa
     const maxRadius = config.maxRadius ?? 20;
 
     const radiusScale = d3.scaleSqrt()
-        .domain([d3.min(seriesData, series => d3.min(series[dataKeys.data], d => d[dataKeys.value])) || 0,
-        d3.max(seriesData, series => d3.max(series[dataKeys.data], d => d[dataKeys.value])) || 1])
+        .domain([d3.min(seriesData, series => d3.min(series[dataKeys.data], d => d[dataKeys.yKey])) || 0,
+        d3.max(seriesData, series => d3.max(series[dataKeys.data], d => d[dataKeys.yKey])) || 1])
         .range([minRadius, maxRadius]);
 
     // Define a clipping path to prevent overflow outside the chart area
@@ -531,9 +531,9 @@ function createBubbles(params: CreateParams, config: { minRadius?: number, maxRa
             .enter()
             .append('circle')
             .attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
-            .attr('cx', d => xScale ? xScale(d[dataKeys.date].getTime())! + xScale.bandwidth() / 2 : dateScale!(d[dataKeys.date]))
-            .attr('cy', d => valueScale(d[dataKeys.value]))
-            .attr('r', d => radiusScale(d[dataKeys.value]))
+            .attr('cx', d => xScale ? xScale(d[dataKeys.xKey].getTime())! + xScale.bandwidth() / 2 : dateScale!(d[dataKeys.xKey]))
+            .attr('cy', d => valueScale(d[dataKeys.yKey]))
+            .attr('r', d => radiusScale(d[dataKeys.yKey]))
             .attr('fill', colorScale(series[dataKeys.name]))
             .attr('fill-opacity', 0.7);
 
@@ -661,7 +661,7 @@ function computeMergedValueDomain(
         const dataKeys = dataKeysArray[i];
         seriesData.forEach(series => {
             series[dataKeys.data].forEach((d: any) => {
-                allDatesSet.add(d[dataKeys.date].getTime());
+                allDatesSet.add(d[dataKeys.xKey].getTime());
             });
         });
     }
@@ -681,9 +681,9 @@ function computeMergedValueDomain(
                 let chartNegative = 0;
 
                 seriesData.forEach(series => {
-                    const dataPoint = series[dataKeys.data].find((d: any) => d[dataKeys.date].getTime() === date);
+                    const dataPoint = series[dataKeys.data].find((d: any) => d[dataKeys.xKey].getTime() === date);
                     if (dataPoint) {
-                        const value = dataPoint[dataKeys.value];
+                        const value = dataPoint[dataKeys.yKey];
                         if (value >= 0) {
                             chartPositive += value;
                         } else {
@@ -696,9 +696,9 @@ function computeMergedValueDomain(
                 if (chartNegative < dateMinNegative) dateMinNegative = chartNegative;
             } else {
                 seriesData.forEach(series => {
-                    const dataPoint = series[dataKeys.data].find((d: any) => d[dataKeys.date].getTime() === date);
+                    const dataPoint = series[dataKeys.data].find((d: any) => d[dataKeys.xKey].getTime() === date);
                     if (dataPoint) {
-                        const value = dataPoint[dataKeys.value];
+                        const value = dataPoint[dataKeys.yKey];
                         if (value > dateMaxPositive) dateMaxPositive = value;
                         if (value < dateMinNegative) dateMinNegative = value;
                     }
@@ -724,7 +724,7 @@ function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKe
         const dataKeys = dataKeysArray[i];
         seriesData.forEach(series => {
             series[dataKeys.data].forEach((d: any) => {
-                allDates.push(d[dataKeys.date]);
+                allDates.push(d[dataKeys.xKey]);
             });
         });
     }
@@ -818,7 +818,7 @@ function isValidSeriesData(seriesData: any[], dataKeys: DataKeys): boolean {
 
 // (7/10): Efficient for small datasets but could be slow with large data arrays.
 function extractDateDomain(seriesData: any[], dataKeys: DataKeys): Date[] {
-    return seriesData.flatMap(series => series[dataKeys.data].map((d: any) => d[dataKeys.date]));
+    return seriesData.flatMap(series => series[dataKeys.data].map((d: any) => d[dataKeys.xKey]));
 }
 
 // (8/10): Solid scaling logic, though barWidth calculation could be optimized for larger data sets.
