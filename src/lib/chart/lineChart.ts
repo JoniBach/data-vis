@@ -390,7 +390,7 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, xScale, v
 }
 
 function createBubbles(params: CreateParams, config: { minRadius?: number, maxRadius?: number } = {}) {
-    const { seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, chartTooltip, dataKeys } = params;
+    const { seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, chartTooltip, dataKeys, chartHeight, chartWidth } = params;
     const minRadius = config.minRadius ?? 5;
     const maxRadius = config.maxRadius ?? 20;
 
@@ -399,8 +399,19 @@ function createBubbles(params: CreateParams, config: { minRadius?: number, maxRa
         d3.max(seriesData, series => d3.max(series[dataKeys.data], d => d[dataKeys.value])) || 1])
         .range([minRadius, maxRadius]);
 
-    // Create a group to hold the bubbles
-    const bubblesGroup = chartGroup.append('g').attr('class', 'bubbles-group');
+    // Define a clipping path to prevent overflow outside the chart area
+    chartGroup.append("defs").append("clipPath")
+        .attr("id", "clip")
+        .append("rect")
+        .attr("width", chartWidth)
+        .attr("height", chartHeight)
+        .attr("x", 0)
+        .attr("y", 0);
+
+    // Create a group for the bubbles and apply the clipping path
+    const bubblesGroup = chartGroup.append('g')
+        .attr('class', 'bubbles-group')
+        .attr("clip-path", "url(#clip)"); // Apply the clipping path here
 
     // Create the bubbles
     seriesData.forEach(series => {
@@ -425,6 +436,7 @@ function createBubbles(params: CreateParams, config: { minRadius?: number, maxRa
         });
     });
 }
+
 
 
 // (8/10): Clean implementation for grid lines, though can be improved with dynamic tick calculations.
