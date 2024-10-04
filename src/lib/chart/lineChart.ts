@@ -322,10 +322,17 @@ function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
 function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
     const { seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, dataKeys, chartHeight } = params;
 
+    // Ensure that the chart group, scales, and data are available
+    if (!chartGroup || (!dateScale && !xScale) || !valueScale) {
+        console.error("Missing required elements (chartGroup, dateScale/xScale, valueScale) to create chart.");
+        return;
+    }
+
     const computeXPosition = (d: DataPoint) => xScale
         ? xScale(d[dataKeys.date].getTime())! + xScale.bandwidth() / 2
         : dateScale!(d[dataKeys.date]);
 
+    // Create line or area generator based on the type
     const generator = type === 'line'
         ? d3.line<DataPoint>()
             .x(computeXPosition)
@@ -335,8 +342,15 @@ function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
             .y1(d => valueScale(d[dataKeys.value]))
             .y0(chartHeight);
 
+    // Ensure the group exists before appending
+    if (!chartGroup) {
+        console.error("No valid chartGroup found to append the path.");
+        return;
+    }
+
     const group = chartGroup.append('g').attr('class', `${type}-group`);
 
+    // Append path for each series
     seriesData.forEach(series => {
         group.append('path')
             .datum(series[dataKeys.data])
@@ -347,6 +361,8 @@ function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
             .attr('stroke-width', type === 'line' ? 2 : 0);
     });
 }
+
+
 
 // (9/10): A well-designed function for rendering points with tooltip interaction.
 function createPoints({ seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, chartTooltip, dataKeys }: CreateParams) {
@@ -441,25 +457,31 @@ const featureRegistry: Record<string, FeatureFunction> = {
     line: (params) => createLineOrArea('line', params),
     point: createPoints,
     label: createLabel,
-    tooltip: () => null,
+    tooltip: () => null, // Tooltips can be safely ignored when hidden
 };
+
 
 // (8/10): Highly customizable feature creation, though error handling for unknown features could be more explicit.
 function createFeatures(createParameters: CreateParams, features: Feature[]) {
     features.forEach(({ feature, hide, config }) => {
         const featureFunction = featureRegistry[feature];
 
+        // Skip the feature if it's hidden
         if (hide) {
             return;
         }
 
+        // Check if the feature function exists in the registry
         if (!featureFunction) {
-            throw new Error(`Feature function not found for feature: ${feature}`);
+            console.warn(`Feature function not found for feature: ${feature}`);
+            return;
         }
 
+        // Call the feature creation function with parameters and configuration
         featureFunction(createParameters, config);
     });
 }
+
 
 // (7/10): Important domain calculation, but could use performance optimization for large datasets.
 function computeMergedValueDomain(
