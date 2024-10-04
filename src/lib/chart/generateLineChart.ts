@@ -75,7 +75,10 @@ const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
         feature: 'bar',
         hide: false,
         config: {
-            variant: 'grouped', // or 'overlapped' or 'stacked'
+            variant: 'error',
+            // variant: 'overlapped',
+            // variant: 'stacked',
+            // variant: 'grouped',
         },
     },
     {

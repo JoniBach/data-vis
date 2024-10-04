@@ -196,91 +196,202 @@ function createAxis(params: CreateParams, config: any) {
 }
 
 // (8/10): Well-structured bar chart generator but lacks handling for dynamic updates or transitions.
-function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped', params: CreateParams, config: { fillOpacity?: number } = {}) {
-    const { seriesData, chartGroup, colorScale, xScale, valueScale, chartHeight, dataKeys, chartTooltip } = params;
+// Main function to create bar charts based on type
+// Main function to create bar charts based on type
+function createBarsVariant(type: 'grouped' | 'stacked' | 'overlapped' | 'error', params: CreateParams, config: { fillOpacity?: number } = {}) {
+    const { seriesData, chartGroup, colorScale, xScale, valueScale, chartHeight, chartWidth, dataKeys, chartTooltip } = params;
 
-    if (!seriesData || !Array.isArray(seriesData) || seriesData.length === 0) {
-        console.error('Invalid seriesData: must be a non-empty array.');
-        return;
-    }
+    // Validate input
+    if (!validateInput(seriesData, xScale, valueScale, colorScale)) return;
 
-    if (!xScale || !valueScale || !colorScale) {
-        console.error('xScale, valueScale, or colorScale is not defined for bars.');
-        return;
-    }
+    // Define a clipping path to prevent overflow outside the chart area
+    chartGroup.append("defs").append("clipPath")
+        .attr("id", "clip")
+        .append("rect")
+        .attr("width", chartWidth)
+        .attr("height", chartHeight)
+        .attr("x", 0)
+        .attr("y", 0);
 
-    const barsGroup = chartGroup.append('g').attr('class', 'bars-group');
+    // Create a group for the bars and apply the clipping path
+    const barsGroup = chartGroup.append('g')
+        .attr('class', 'bars-group')
+        .attr("clip-path", "url(#clip)"); // Apply the clipping path here
+
     const fillOpacity = config.fillOpacity ?? 0.5;
 
-    const attachTooltipHandlers = (selection: d3.Selection<SVGRectElement, any, SVGGElement, any>, d: any) => {
-        selection.on('mouseover', (event, d) => eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys))
-            .on('mousemove', (event) => eventSystem.trigger('tooltipMove', chartTooltip, event))
-            .on('mouseout', () => eventSystem.trigger('tooltipHide', chartTooltip));
-    };
-
-    const createBar = (selection: d3.Selection<SVGRectElement, any, SVGGElement, any>, d: any, x: number, y: number, height: number, width: number, fillColor: string) => {
-        selection.attr('x', x)
-            .attr('y', y)
-            .attr('height', height)
-            .attr('width', width)
-            .attr('fill', fillColor)
-            .attr('fill-opacity', fillOpacity);
-        attachTooltipHandlers(selection, d);
-    };
-
+    // Delegate to the appropriate variant function
     if (type === 'stacked') {
-        try {
-            const stackedData = prepareStackedData(seriesData, dataKeys);
-
-            stackedData.forEach((layer, layerIndex) => {
-                const seriesName = seriesData[layerIndex][dataKeys.name];
-                const bars = barsGroup.selectAll(`rect.${seriesName.replace(/\s+/g, '-')}`)
-                    .data(layer)
-                    .enter()
-                    .append('rect');
-
-                bars.each((d, i, nodes) => {
-                    const bar = d3.select(nodes[i]);
-                    const xPos = xScale(d.data[dataKeys.date])!;
-                    const yPos = valueScale(d[1]);
-                    const height = Math.abs(valueScale(d[0]) - valueScale(d[1]));
-                    const fillColor = colorScale(seriesName);
-
-                    createBar(bar, d, xPos, yPos, height, xScale.bandwidth(), fillColor);
-                });
-            });
-        } catch (error) {
-            console.error('Error generating stacked bars:', error);
-        }
+        createStackedBars(seriesData, barsGroup, params, fillOpacity, dataKeys, chartHeight);
+    } else if (type === 'error') {
+        createErrorBars(seriesData, barsGroup, params, fillOpacity, dataKeys, chartHeight);
     } else {
-        try {
-            const seriesScale = d3.scaleBand()
-                .domain(seriesData.map(d => d[dataKeys.name]))
-                .range([0, xScale.bandwidth()])
-                .padding(0.05);
-
-            seriesData.forEach(series => {
-                const bars = barsGroup.selectAll(`rect.${series[dataKeys.name].replace(/\s+/g, '-')}`)
-                    .data(series[dataKeys.data])
-                    .enter()
-                    .append('rect');
-
-                bars.each((d, i, nodes) => {
-                    const bar = d3.select(nodes[i]);
-                    const xPos = xScale(d[dataKeys.date].getTime())! + (type === 'grouped' ? seriesScale(series[dataKeys.name])! : 0);
-                    const yPos = valueScale(d[dataKeys.value]);
-                    const height = chartHeight - valueScale(d[dataKeys.value]);
-                    const width = type === 'grouped' ? seriesScale.bandwidth() : xScale.bandwidth();
-                    const fillColor = colorScale(series[dataKeys.name]);
-
-                    createBar(bar, d, xPos, yPos, height, width, fillColor);
-                });
-            });
-        } catch (error) {
-            console.error('Error generating bars for grouped or overlapped variant:', error);
-        }
+        createNonStackedBars(type, seriesData, barsGroup, params, fillOpacity, dataKeys, chartHeight);
     }
 }
+
+// Function to create error bars (variant: error)
+function createErrorBars(seriesData: any[], barsGroup: any, params: CreateParams, fillOpacity: number, dataKeys: any, chartHeight: number) {
+    const { xScale, valueScale, colorScale } = params;
+
+    try {
+        const seriesScale = d3.scaleBand()
+            .domain(seriesData.map(d => d[dataKeys.name]))
+            .range([0, xScale.bandwidth()])
+            .padding(0.05);
+
+        const magnitudeScale = d3.scaleLinear()
+            .domain([d3.min(seriesData, series => d3.min(series[dataKeys.data], d => d[dataKeys.magnitude])) || 0,
+            d3.max(seriesData, series => d3.max(series[dataKeys.data], d => d[dataKeys.magnitude])) || 1])
+            .range([0, chartHeight * 0.2]); // Adjust the error bar size range based on magnitude
+
+        seriesData.forEach(series => {
+            const bars = barsGroup.selectAll(`rect.${series[dataKeys.name].replace(/\s+/g, '-')}`)
+                .data(series[dataKeys.data])
+                .enter()
+                .append('rect');
+
+            bars.each((d, i, nodes) => {
+                const bar = d3.select(nodes[i]);
+                const xPos = xScale(d[dataKeys.date].getTime())! + seriesScale(series[dataKeys.name])!;
+                const yPos = valueScale(d[dataKeys.value]);
+                const height = chartHeight - valueScale(d[dataKeys.value]);
+                const width = seriesScale.bandwidth();
+                const fillColor = colorScale(series[dataKeys.name]);
+
+                // Create the bar
+                createBar(bar, d, xPos, yPos, height, width, fillColor, fillOpacity, params.chartTooltip, dataKeys);
+
+                // Add error bars (vertical line with caps)
+                const errorMagnitude = magnitudeScale(d[dataKeys.magnitude]);
+                const errorLineGroup = barsGroup.append('g').attr('class', 'error-bars-group');
+
+                // Vertical line
+                errorLineGroup.append('line')
+                    .attr('x1', xPos + width / 2)
+                    .attr('x2', xPos + width / 2)
+                    .attr('y1', yPos - errorMagnitude)
+                    .attr('y2', yPos + errorMagnitude)
+                    .attr('stroke', 'black')
+                    .attr('stroke-width', 1.5);
+
+                // Top cap
+                errorLineGroup.append('line')
+                    .attr('x1', xPos + width / 4)
+                    .attr('x2', xPos + (3 * width) / 4)
+                    .attr('y1', yPos - errorMagnitude)
+                    .attr('y2', yPos - errorMagnitude)
+                    .attr('stroke', 'black')
+                    .attr('stroke-width', 1.5);
+
+                // Bottom cap
+                errorLineGroup.append('line')
+                    .attr('x1', xPos + width / 4)
+                    .attr('x2', xPos + (3 * width) / 4)
+                    .attr('y1', yPos + errorMagnitude)
+                    .attr('y2', yPos + errorMagnitude)
+                    .attr('stroke', 'black')
+                    .attr('stroke-width', 1.5);
+            });
+        });
+    } catch (error) {
+        console.error('Error generating error bars:', error);
+    }
+}
+
+
+// Helper function to validate input
+function validateInput(seriesData: any[], xScale: any, valueScale: any, colorScale: any): boolean {
+    if (!seriesData || !Array.isArray(seriesData) || seriesData.length === 0) {
+        console.error('Invalid seriesData: must be a non-empty array.');
+        return false;
+    }
+    if (!xScale || !valueScale || !colorScale) {
+        console.error('xScale, valueScale, or colorScale is not defined for bars.');
+        return false;
+    }
+    return true;
+}
+
+// Attach tooltip handlers
+function attachTooltipHandlers(selection: d3.Selection<SVGRectElement, any, SVGGElement, any>, chartTooltip: any, dataKeys: any) {
+    selection.on('mouseover', (event, d) => eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys))
+        .on('mousemove', (event) => eventSystem.trigger('tooltipMove', chartTooltip, event))
+        .on('mouseout', () => eventSystem.trigger('tooltipHide', chartTooltip));
+}
+
+// General function to create a bar with tooltip
+function createBar(selection: d3.Selection<SVGRectElement, any, SVGGElement, any>, d: any, x: number, y: number, height: number, width: number, fillColor: string, fillOpacity: number, chartTooltip: any, dataKeys: any) {
+    selection.attr('x', x)
+        .attr('y', y)
+        .attr('height', height)
+        .attr('width', width)
+        .attr('fill', fillColor)
+        .attr('fill-opacity', fillOpacity);
+    attachTooltipHandlers(selection, chartTooltip, dataKeys);
+}
+
+// Function to create stacked bars
+function createStackedBars(seriesData: any[], barsGroup: any, params: CreateParams, fillOpacity: number, dataKeys: any, chartHeight: number) {
+    const { xScale, valueScale, colorScale } = params;
+
+    try {
+        const stackedData = prepareStackedData(seriesData, dataKeys);
+
+        stackedData.forEach((layer, layerIndex) => {
+            const seriesName = seriesData[layerIndex][dataKeys.name];
+            const bars = barsGroup.selectAll(`rect.${seriesName.replace(/\s+/g, '-')}`)
+                .data(layer)
+                .enter()
+                .append('rect');
+
+            bars.each((d, i, nodes) => {
+                const bar = d3.select(nodes[i]);
+                const xPos = xScale(d.data[dataKeys.date])!;
+                const yPos = valueScale(d[1]);
+                const height = Math.abs(valueScale(d[0]) - valueScale(d[1]));
+                const fillColor = colorScale(seriesName);
+
+                createBar(bar, d, xPos, yPos, height, xScale.bandwidth(), fillColor, fillOpacity, params.chartTooltip, dataKeys);
+            });
+        });
+    } catch (error) {
+        console.error('Error generating stacked bars:', error);
+    }
+}
+
+// Function to create grouped or overlapped bars
+function createNonStackedBars(type: 'grouped' | 'overlapped', seriesData: any[], barsGroup: any, params: CreateParams, fillOpacity: number, dataKeys: any, chartHeight: number) {
+    const { xScale, valueScale, colorScale } = params;
+
+    try {
+        const seriesScale = d3.scaleBand()
+            .domain(seriesData.map(d => d[dataKeys.name]))
+            .range([0, xScale.bandwidth()])
+            .padding(0.05);
+
+        seriesData.forEach(series => {
+            const bars = barsGroup.selectAll(`rect.${series[dataKeys.name].replace(/\s+/g, '-')}`)
+                .data(series[dataKeys.data])
+                .enter()
+                .append('rect');
+
+            bars.each((d, i, nodes) => {
+                const bar = d3.select(nodes[i]);
+                const xPos = xScale(d[dataKeys.date].getTime())! + (type === 'grouped' ? seriesScale(series[dataKeys.name])! : 0);
+                const yPos = valueScale(d[dataKeys.value]);
+                const height = chartHeight - valueScale(d[dataKeys.value]);
+                const width = type === 'grouped' ? seriesScale.bandwidth() : xScale.bandwidth();
+                const fillColor = colorScale(series[dataKeys.name]);
+
+                createBar(bar, d, xPos, yPos, height, width, fillColor, fillOpacity, params.chartTooltip, dataKeys);
+            });
+        });
+    } catch (error) {
+        console.error('Error generating bars for grouped or overlapped variant:', error);
+    }
+}
+
 
 // (8/10): Useful but overly complex; can be simplified for better readability.
 function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
