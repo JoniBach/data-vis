@@ -389,6 +389,44 @@ function createPoints({ seriesData, chartGroup, colorScale, dateScale, xScale, v
     });
 }
 
+function createBubbles(params: CreateParams, config: { minRadius?: number, maxRadius?: number } = {}) {
+    const { seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, chartTooltip, dataKeys } = params;
+    const minRadius = config.minRadius ?? 5;
+    const maxRadius = config.maxRadius ?? 20;
+
+    const radiusScale = d3.scaleSqrt()
+        .domain([d3.min(seriesData, series => d3.min(series[dataKeys.data], d => d[dataKeys.value])) || 0,
+        d3.max(seriesData, series => d3.max(series[dataKeys.data], d => d[dataKeys.value])) || 1])
+        .range([minRadius, maxRadius]);
+
+    // Create a group to hold the bubbles
+    const bubblesGroup = chartGroup.append('g').attr('class', 'bubbles-group');
+
+    // Create the bubbles
+    seriesData.forEach(series => {
+        const bubbles = bubblesGroup.selectAll(`circle.${series[dataKeys.name].replace(/\s+/g, '-')}`)
+            .data(series[dataKeys.data])
+            .enter()
+            .append('circle')
+            .attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
+            .attr('cx', d => xScale ? xScale(d[dataKeys.date].getTime())! + xScale.bandwidth() / 2 : dateScale!(d[dataKeys.date]))
+            .attr('cy', d => valueScale(d[dataKeys.value]))
+            .attr('r', d => radiusScale(d[dataKeys.value]))
+            .attr('fill', colorScale(series[dataKeys.name]))
+            .attr('fill-opacity', 0.7);
+
+        // Add tooltip handlers
+        bubbles.on('mouseover', (event, d) => {
+            eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys);
+        }).on('mousemove', (event) => {
+            eventSystem.trigger('tooltipMove', chartTooltip, event);
+        }).on('mouseout', () => {
+            eventSystem.trigger('tooltipHide', chartTooltip);
+        });
+    });
+}
+
+
 // (8/10): Clean implementation for grid lines, though can be improved with dynamic tick calculations.
 function createGrid({ chartGroup, dateScale, xScale, valueScale, chartHeight, chartWidth }: CreateParams) {
     const gridGroup = chartGroup.append('g').attr('class', 'grid');
@@ -458,7 +496,9 @@ const featureRegistry: Record<string, FeatureFunction> = {
     point: createPoints,
     label: createLabel,
     tooltip: () => null, // Tooltips can be safely ignored when hidden
+    bubbles: createBubbles,  // New feature for bubble charts
 };
+
 
 
 // (8/10): Highly customizable feature creation, though error handling for unknown features could be more explicit.

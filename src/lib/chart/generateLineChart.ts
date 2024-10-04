@@ -21,7 +21,9 @@ export interface DataKeys {
     data: string;
     date: string;
     value: string;
+    magnitude?: string; // Add this new property
 }
+
 
 export interface LabelConfig {
     title: string;
@@ -80,6 +82,8 @@ const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
         feature: 'point',
         hide: false,
     },
+    { feature: 'bubbles', hide: false, config: { minRadius: 5, maxRadius: 30 } },  // Adding bubbles feature
+
     // {
     //     feature: 'area',
     //     hide: true,
@@ -120,6 +124,7 @@ const defaultDataKeys = [
             data: 'temperatureData',
             date: 'date',
             value: 'averageTemperature',
+            magnitude: 'humidityLevel', // Added magnitude
         },
         labels: {
             title: 'Average Temperature Over Time',
@@ -133,6 +138,7 @@ const defaultDataKeys = [
             data: 'airQualityData',
             date: 'date',
             value: 'aqiValue',
+            magnitude: 'pollutionConcentration', // Added magnitude
         },
         labels: {
             title: 'Air Quality Index Over Time',
@@ -146,6 +152,7 @@ const defaultDataKeys = [
             data: 'trafficData',
             date: 'date',
             value: 'numberOfVisitors',
+            magnitude: 'timeSpentPerVisit', // Added magnitude
         },
         labels: {
             title: 'Website Traffic Over Time',
@@ -159,6 +166,7 @@ const defaultDataKeys = [
             data: 'salesData',
             date: 'date',
             value: 'totalSales',
+            magnitude: 'numberOfTransactions', // Added magnitude
         },
         labels: {
             title: 'Store Sales Over Time',
@@ -172,6 +180,7 @@ const defaultDataKeys = [
             data: 'fitnessData',
             date: 'date',
             value: 'stepsWalked',
+            magnitude: 'caloriesBurned', // Added magnitude
         },
         labels: {
             title: 'Daily Steps Walked Over Time',
@@ -185,6 +194,7 @@ const defaultDataKeys = [
             data: 'reservationData',
             date: 'date',
             value: 'numberOfReservations',
+            magnitude: 'averagePartySize', // Added magnitude
         },
         labels: {
             title: 'Restaurant Reservations Over Time',
@@ -198,6 +208,7 @@ const defaultDataKeys = [
             data: 'downloadData',
             date: 'date',
             value: 'downloads',
+            magnitude: 'activeUsers', // Added magnitude
         },
         labels: {
             title: 'App Downloads Over Time',
@@ -211,6 +222,7 @@ const defaultDataKeys = [
             data: 'reviewData',
             date: 'date',
             value: 'averageRating',
+            magnitude: 'reviewCount', // Added magnitude
         },
         labels: {
             title: 'Product Average Rating Over Time',
@@ -224,6 +236,7 @@ const defaultDataKeys = [
             data: 'stockPriceData',
             date: 'date',
             value: 'closingPrice',
+            magnitude: 'dailyVolume', // Added magnitude
         },
         labels: {
             title: 'Company Stock Prices Over Time',
@@ -237,6 +250,7 @@ const defaultDataKeys = [
             data: 'electricityUsageData',
             date: 'date',
             value: 'energyConsumed',
+            magnitude: 'peakDemand', // Added magnitude
         },
         labels: {
             title: 'Electricity Usage Over Time',
@@ -245,6 +259,7 @@ const defaultDataKeys = [
         },
     },
 ];
+
 
 // Seeded Random Number Generator Class
 
@@ -293,15 +308,12 @@ export function generateXyData(
     seed: number | null = null,
     usedIndices: Set<number>
 ): GeneratedData {
-    // Initialize seeded random number generator
     const generatedSeed = seed !== null ? seed : Math.floor(Math.random() * 2147483647);
     const randomGenerator = new SeededRandom(generatedSeed);
 
-    // Utility functions for random number generation
     const getRandomFloat = (): number => randomGenerator.nextFloat();
     const getRandomInt = (min: number, max: number): number => randomGenerator.nextInt(min, max);
 
-    // Function to get a unique random index for defaultDataKeys
     const getUniqueRandomIndex = (max: number): number => {
         let randomIndex: number;
         do {
@@ -311,7 +323,6 @@ export function generateXyData(
         return randomIndex;
     };
 
-    // Select a random but unique data configuration index
     const randomConfigIndex = getUniqueRandomIndex(defaultDataKeys.length - 1);
     const randomDataConfig = defaultDataKeys[randomConfigIndex];
 
@@ -329,6 +340,7 @@ export function generateXyData(
         const dataPoints: DataPoint[] = [];
 
         let currentValue = getRandomInt(config.valueRange.min, config.valueRange.max);
+        let currentMagnitude = getRandomInt(config.valueRange.min, config.valueRange.max); // Generate random magnitude
 
         let trendDirection = 0;
         switch (config.trendDirection) {
@@ -346,29 +358,13 @@ export function generateXyData(
         }
 
         for (let j = 0; j < numMonths; j++) {
-            let randomChange = 0;
-
-            if (config.trendDirection === null) {
-                randomChange = getRandomFloat() * variance * (getRandomFloat() < 0.5 ? -1 : 1);
-            } else {
-                randomChange = (getRandomFloat() * variance + 1) * trendDirection;
-            }
+            let randomChange = (getRandomFloat() * variance + 1) * trendDirection;
 
             currentValue += randomChange;
+            currentMagnitude += getRandomFloat() * variance; // Adjust magnitude with a random change
 
-            // Apply soft caps if enabled
-            if (config.softCap?.enable) {
-                const adjustmentRange = config.softCap.adjustmentRange || 5;
-                if (config.softCap.upperLimit !== undefined && currentValue > config.softCap.upperLimit) {
-                    currentValue -= getRandomFloat() * adjustmentRange;
-                }
-                if (config.softCap.lowerLimit !== undefined && currentValue < config.softCap.lowerLimit) {
-                    currentValue += getRandomFloat() * adjustmentRange;
-                }
-            }
-
-            // Ensure value stays within specified range
             currentValue = Math.max(config.valueRange.min, Math.min(config.valueRange.max, currentValue));
+            currentMagnitude = Math.max(config.valueRange.min, Math.min(config.valueRange.max, currentMagnitude)); // Keep magnitude within range
 
             const date = new Date(startDate);
             date.setMonth(startDate.getMonth() + j);
@@ -376,6 +372,7 @@ export function generateXyData(
             dataPoints.push({
                 [dataKeys.date]: date,
                 [dataKeys.value]: Math.round(currentValue),
+                [dataKeys.magnitude ?? 'magnitude']: Math.round(currentMagnitude), // Add magnitude to data points
             });
         }
 
@@ -394,6 +391,7 @@ export function generateXyData(
         features,
     };
 }
+
 
 // Generate Single Series Function
 
