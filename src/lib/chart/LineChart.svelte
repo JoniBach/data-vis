@@ -11,6 +11,8 @@
 	export let squash: boolean = false;
 	export let syncX: boolean = false;
 	export let syncY: boolean = false;
+	export let xType: string = 'number';
+	export let yType: string = 'date';
 
 	let chartContainer: HTMLElement;
 
@@ -28,7 +30,9 @@
 				false,
 				squash,
 				syncX,
-				syncY
+				syncY,
+				xType,
+				yType
 			);
 		}
 	}

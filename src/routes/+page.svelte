@@ -58,7 +58,18 @@
 </script>
 
 <main>
-	<LineChart {data} {dataKeys} {features} width={600} height={240} {squash} {syncX} {syncY} />
+	<LineChart
+		{data}
+		{dataKeys}
+		{features}
+		width={600}
+		height={240}
+		{squash}
+		{syncX}
+		{syncY}
+		yType={'number'}
+		xType={'date'}
+	/>
 
 	<code>
 		Seed: <input bind:value={seed} type="number" />
