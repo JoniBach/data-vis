@@ -308,6 +308,7 @@ const randomizeFeatures = (labels: LabelConfig): FeatureConfig[] => {
 // Updated function to generate XY data based on xType
 
 // Updated function to generate XY data based on xType
+// Updated function to generate XY data based on xType
 export function generateXyData(
     config: DataGenerationConfig,
     userDataKeys: DataKeys | null = null,
@@ -364,11 +365,13 @@ export function generateXyData(
         }
 
         for (let j = 0; j < numXPoints; j++) {
-            let randomChange = (getRandomFloat() * variance + 1) * trendDirection;
+            // Apply randomness and trend
+            let randomChange = (getRandomFloat() * variance) * trendDirection;
 
             currentValue += randomChange;
             currentMagnitude += getRandomFloat() * variance; // Adjust magnitude with a random change
 
+            // Keep values within the configured value range
             currentValue = Math.max(config.valueRange.min, Math.min(config.valueRange.max, currentValue));
             currentMagnitude = Math.max(config.valueRange.min, Math.min(config.valueRange.max, currentMagnitude)); // Keep magnitude within range
 
@@ -377,13 +380,14 @@ export function generateXyData(
             if (config.xType === 'date' || !config.xType) {
                 // If xType is 'date' or undefined, generate dates for X-axis
                 const date = new Date(startDate);
-                date.setMonth(startDate.getMonth() + j);
+                date.setMonth(startDate.getMonth() + j); // Increment date by one month
                 xKeyValue = date;
             } else if (config.xType === 'number') {
-                // If xType is 'number', generate sequential or random numbers for X-axis
-                xKeyValue = j + 1; // You can change this to getRandomInt(...) for more randomness
+                // If xType is 'number', generate sequential numbers for X-axis
+                xKeyValue = j + 1; // Sequential numbers, or use random if desired
             }
 
+            // Push data points with magnitude
             dataPoints.push({
                 [dataKeys.xKey]: xKeyValue,
                 [dataKeys.yKey]: Math.round(currentValue),
@@ -406,6 +410,7 @@ export function generateXyData(
         features,
     };
 }
+
 
 // Generate Single Series Function
 
