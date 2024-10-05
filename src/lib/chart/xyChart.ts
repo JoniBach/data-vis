@@ -112,7 +112,9 @@ function setupXYChart(
     dataKeys: DataKeys,
     dateDomain?: Date[],
     valueDomain?: [number, number],
-    isBarChart: boolean = false
+    isBarChart: boolean = false,
+    syncX: boolean = false, // Added syncX
+    syncY: boolean = false  // Added syncY
 ) {
     const margin = { top: 25, right: 30, bottom: 50, left: 50 };
     const chartWidth = width - margin.left - margin.right;
@@ -129,7 +131,11 @@ function setupXYChart(
     const dateDomainUsed = dateDomain || extractDateDomain(seriesData, dataKeys);
     const { dateScale, xScale, barWidth } = createScales({ isBarChart, dateDomainUsed, chartWidth, seriesData, dataKeys });
 
-    valueDomain = valueDomain || computeMergedValueDomain([seriesData], [dataKeys], [features.find(f => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']);
+    valueDomain = valueDomain || computeMergedValueDomain(
+        [seriesData],
+        [dataKeys],
+        [features.find(f => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']
+    );
     const valueScale = createInitialScale(d3.scaleLinear, [chartHeight, 0], valueDomain as [number, number]);
 
     const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(seriesData.map(d => d[dataKeys.name]));
@@ -147,6 +153,8 @@ function setupXYChart(
         chartWidth,
         dataKeys,
         barWidth,
+        syncX, // Passed down
+        syncY  // Passed down
     };
 
     return { createParameters, chartGroup };
@@ -202,7 +210,9 @@ export function createXYChartCore(
             dataKeys,
             domainDate,
             domainValue,
-            isBarChart
+            isBarChart,
+            syncX, // Passed down
+            syncY  // Passed down
         );
 
         if (createParameters) {
@@ -250,14 +260,17 @@ export function createSeriesXYChart(
     features: Feature[],
     dataKeys: DataKeys,
     dateDomain?: Date[],
-    valueDomain?: [number, number]
+    valueDomain?: [number, number],
+    syncX: boolean = false, // Added syncX
+    syncY: boolean = false  // Added syncY
 ) {
-    const { createParameters } = setupXYChart(container, seriesData, width, height, features, dataKeys, dateDomain, valueDomain);
+    const { createParameters } = setupXYChart(container, seriesData, width, height, features, dataKeys, dateDomain, valueDomain, false, syncX, syncY);
 
     if (createParameters) {
         createFeatures(createParameters, features);
     }
 }
+
 export function createXyChart(
     container: HTMLElement,
     seriesDataArray: any[][],
@@ -276,7 +289,6 @@ export function createXyChart(
         createSeperateXyCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY);
     }
 }
-
 
 // Utility function to check if a feature should be displayed
 function shouldShowFeature(features: Feature[], featureName: string): boolean {

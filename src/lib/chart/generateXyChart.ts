@@ -4,6 +4,7 @@ export interface DataGenerationConfig {
     seriesRange: { min: number; max: number };
     monthsRange: { min: number; max: number };
     valueRange: { min: number; max: number };
+    xType?: 'date' | 'number' | 'string'; // Added xType
     trendDirection?: 'up' | 'down' | 'random' | null; // Optional, controls the trend
     softCap?: SoftCapConfig;
     trendVariance?: number; // Controls the amount of randomness (e.g., 1 for smooth, 10 for high variance)
@@ -23,7 +24,6 @@ export interface DataKeys {
     yKey: string;
     magnitude?: string; // Add this new property
 }
-
 
 export interface LabelConfig {
     title: string;
@@ -54,7 +54,7 @@ export interface SeriesData {
 }
 
 export interface DataPoint {
-    [key: string]: Date | number;
+    [key: string]: Date | number | string;
 }
 
 export interface MultiSeriesResponse {
@@ -85,7 +85,11 @@ const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
         feature: 'point',
         hide: false,
     },
-    { feature: 'bubbles', hide: false, config: { minRadius: 5, maxRadius: 30 } },  // Adding bubbles feature
+    {
+        feature: 'bubbles',
+        hide: false,
+        config: { minRadius: 5, maxRadius: 30 }
+    },  // Adding bubbles feature
 
     // {
     //     feature: 'area',
@@ -120,7 +124,8 @@ const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
         config: labels,
     },
 ];
-const defaultDataKeys = [
+
+const defaultDataKeys: DefaultDataKeyEntry[] = [
     {
         dataKeys: {
             name: 'city',
@@ -263,7 +268,6 @@ const defaultDataKeys = [
     },
 ];
 
-
 // Seeded Random Number Generator Class
 
 class SeededRandom {
@@ -289,6 +293,23 @@ class SeededRandom {
     }
 }
 
+// Lorem Ipsum Words Array
+const LOREM_IPSUM_WORDS = [
+    "lorem", "ipsum", "dolor", "sit", "amet", "consectetur",
+    "adipiscing", "elit", "sed", "do", "eiusmod", "tempor",
+    "incididunt", "ut", "labore", "et", "dolore", "magna",
+    "aliqua", "ut", "enim", "ad", "minim", "veniam",
+    "quis", "nostrud", "exercitation", "ullamco", "laboris",
+    "nisi", "ut", "aliquip", "ex", "ea", "commodo",
+    "consequat", "duis", "aute", "irure", "dolor", "in",
+    "reprehenderit", "in", "voluptate", "velit", "esse",
+    "cillum", "dolore", "eu", "fugiat", "nulla", "pariatur",
+    "excepteur", "sint", "occaecat", "cupidatat", "non",
+    "proident", "sunt", "in", "culpa", "qui", "officia",
+    "deserunt", "mollit", "anim", "id", "est", "laborum",
+    // Add more words as needed to ensure a sufficient pool
+];
+
 // Randomize Features Function
 
 const randomizeFeatures = (labels: LabelConfig): FeatureConfig[] => {
@@ -305,10 +326,6 @@ const randomizeFeatures = (labels: LabelConfig): FeatureConfig[] => {
 
 // Generate XY Data Function
 
-// Updated function to generate XY data based on xType
-
-// Updated function to generate XY data based on xType
-// Updated function to generate XY data based on xType
 export function generateXyData(
     config: DataGenerationConfig,
     userDataKeys: DataKeys | null = null,
@@ -337,6 +354,22 @@ export function generateXyData(
 
     const numSeries = getRandomInt(config.seriesRange.min, config.seriesRange.max);
     const numXPoints = getRandomInt(config.monthsRange.min, config.monthsRange.max); // Number of points on the X-axis
+
+    // If xType is 'string', prepare the list of strings
+    let xStrings: string[] = [];
+    if (config.xType === 'string') {
+        if (numXPoints > LOREM_IPSUM_WORDS.length) {
+            console.warn(`Requested number of string x-axis points (${numXPoints}) exceeds available lorem ipsum words (${LOREM_IPSUM_WORDS.length}). Some words will be reused.`);
+        }
+
+        // Shuffle the LOREM_IPSUM_WORDS array
+        const shuffledWords = [...LOREM_IPSUM_WORDS].sort(() => randomGenerator.nextFloat() - 0.5);
+
+        // Select the required number of words, allowing reuse if necessary
+        for (let i = 0; i < numXPoints; i++) {
+            xStrings.push(LOREM_IPSUM_WORDS[i % LOREM_IPSUM_WORDS.length]);
+        }
+    }
 
     const seriesData: SeriesData[] = [];
     const startDate = new Date();
@@ -375,7 +408,7 @@ export function generateXyData(
             currentValue = Math.max(config.valueRange.min, Math.min(config.valueRange.max, currentValue));
             currentMagnitude = Math.max(config.valueRange.min, Math.min(config.valueRange.max, currentMagnitude)); // Keep magnitude within range
 
-            let xKeyValue: Date | number;
+            let xKeyValue: Date | number | string;
 
             if (config.xType === 'date' || !config.xType) {
                 // If xType is 'date' or undefined, generate dates for X-axis
@@ -385,6 +418,12 @@ export function generateXyData(
             } else if (config.xType === 'number') {
                 // If xType is 'number', generate sequential numbers for X-axis
                 xKeyValue = j + 1; // Sequential numbers, or use random if desired
+            } else if (config.xType === 'string') {
+                // If xType is 'string', use pre-generated strings
+                xKeyValue = xStrings[j];
+            } else {
+                // Fallback to number if xType is unrecognized
+                xKeyValue = j + 1;
             }
 
             // Push data points with magnitude
@@ -410,7 +449,6 @@ export function generateXyData(
         features,
     };
 }
-
 
 // Generate Single Series Function
 
