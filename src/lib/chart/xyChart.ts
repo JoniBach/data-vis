@@ -8,11 +8,8 @@ import { eventSystem } from './xy/utils/event.js';
 import { createInitialSVG, createInitialChartGroup, createInitialScale } from './xy/utils/initial.js';
 import { isValidSeriesData } from './xy/utils/validator.js';
 
-
-
-
-// (8/10): Good event handler but should include better type safety and error handling.
-eventSystem.on('tooltip', (chartTooltip, event, d, dataKeys: DataKeys) => {
+// DRY principle: Abstract repeated logic into reusable pure functions
+const handleTooltip = (chartTooltip, d, dataKeys) => {
     try {
         const dateStr = escapeHTML(d3.timeFormat("%b %Y")(d[dataKeys.xKey]));
         const valueStr = escapeHTML(d[dataKeys.yKey]);
@@ -22,58 +19,90 @@ eventSystem.on('tooltip', (chartTooltip, event, d, dataKeys: DataKeys) => {
     } catch (error) {
         console.error("Error in tooltip handler:", error);
     }
-});
+};
 
-// (7/10): Simple yet effective; could be extended for touch events and better device support.
-eventSystem.on('tooltipMove', (chartTooltip, event) => {
+const moveTooltip = (chartTooltip, event) => {
     chartTooltip.style("top", `${event.pageY - 10}px`)
         .style("left", `${event.pageX + 10}px`);
-});
+};
 
-// (7/10): Basic but functional; consider hiding tooltip gracefully with transitions.
-eventSystem.on('tooltipHide', (chartTooltip) => {
+const hideTooltip = (chartTooltip) => {
     chartTooltip.style("visibility", "hidden");
-});
+};
 
-// (9/10): Smart registry system for features, allowing extendability without modifying core logic.
+// Attach tooltip events with refactored functions
+eventSystem.on('tooltip', handleTooltip);
+eventSystem.on('tooltipMove', moveTooltip);
+eventSystem.on('tooltipHide', hideTooltip);
+
+// Registry system for features
 const featureRegistry: Record<string, FeatureFunction> = {
-    tooltip: () => null, // Tooltips can be safely ignored when hidden
+    tooltip: () => null,
     grid: createGrid,
     axis: createAxis,
     label: createLabel,
     area: (params) => createLineOrArea('area', params),
     line: (params) => createLineOrArea('line', params),
-    bubbles: createBubbles,  // New feature for bubble charts
+    bubbles: createBubbles,
     point: createPoints,
     bar: (params, config) => createBarsVariant(config.variant || 'grouped', params),
 };
 
+// Abstract feature creation
+const createFeature = (createParameters: CreateParams, feature: Feature) => {
+    if (feature.hide) return;
+    const featureFunction = featureRegistry[feature.feature];
+    if (!featureFunction) {
+        console.warn(`Feature function not found for feature: ${feature.feature}`);
+        return;
+    }
+    featureFunction(createParameters, feature.config);
+};
 
-// (8/10): Highly customizable feature creation, though error handling for unknown features could be more explicit.
+// Create features with DRY implementation
 function createFeatures(createParameters: CreateParams, features: Feature[]) {
-    features.forEach(({ feature, hide, config }) => {
-        const featureFunction = featureRegistry[feature];
-
-        // Skip the feature if it's hidden
-        if (hide) {
-            return;
-        }
-
-        // Check if the feature function exists in the registry
-        if (!featureFunction) {
-            console.warn(`Feature function not found for feature: ${feature}`);
-            return;
-        }
-
-        // Call the feature creation function with parameters and configuration
-        featureFunction(createParameters, config);
-    });
+    features.forEach((feature) => createFeature(createParameters, feature));
 }
 
+// DRY: Abstract scale creation logic
+const createScales = ({ isBarChart, dateDomainUsed, chartWidth, seriesData, dataKeys }: any) => {
+    let dateScale, xScale, barWidth = 0;
 
+    if (isBarChart) {
+        xScale = d3.scaleBand()
+            .domain(dateDomainUsed.map(d => d.getTime()))
+            .range([0, chartWidth])
+            .padding(0.1);
+        barWidth = xScale.bandwidth();
+    } else {
+        dateScale = d3.scaleTime()
+            .domain(d3.extent(dateDomainUsed) as [Date, Date])
+            .range([0, chartWidth]);
+    }
 
+    return { dateScale, xScale, barWidth };
+};
 
-// (9/10): Well-structured and flexible chart creator, though it has room for performance improvements in large datasets.
+// DRY: Abstract common chart setup logic
+const setupChart = (container, width, height) => {
+    d3.select(container).selectAll("*").remove();
+    return createInitialSVG({ container, width, height });
+};
+
+// DRY: Abstract domain calculations
+const calculateDomains = ({ syncX, syncY, seriesDataArray, dataKeysArray, featuresArray }) => {
+    let mergedDateDomain, mergedValueDomain;
+
+    if (syncX) mergedDateDomain = computeMergedDateDomain(seriesDataArray, dataKeysArray);
+    if (syncY) {
+        const variants = featuresArray.map(features => features.find(f => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped');
+        mergedValueDomain = computeMergedValueDomain(seriesDataArray, dataKeysArray, variants);
+    }
+
+    return { mergedDateDomain, mergedValueDomain };
+};
+
+// XY Chart creation with DRY principles applied
 export function createSeriesXYChart(
     container: HTMLElement,
     seriesData: any[],
@@ -89,61 +118,24 @@ export function createSeriesXYChart(
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
 
-        d3.select(container).selectAll("*").remove();
-
         if (!isValidSeriesData(seriesData, dataKeys)) {
             console.error("Invalid or no data provided for the chart.");
             return;
         }
 
-        const svg = createInitialSVG({ container, width, height });
+        const svg = setupChart(container, width, height);
         const chartGroup = createInitialChartGroup({ svg, margin });
-
         const isBarChart = features.some(feature => feature.feature === 'bar' && !feature.hide);
         const dateDomainUsed = dateDomain || extractDateDomain(seriesData, dataKeys);
+        const { dateScale, xScale, barWidth } = createScales({ isBarChart, dateDomainUsed, chartWidth, seriesData, dataKeys });
 
-        const { dateScale, xScale, barWidth } = createScales({
-            isBarChart,
-            dateDomainUsed,
-            chartWidth,
-            seriesData,
-            dataKeys
-        });
-
-        const barFeature = features.find(f => f.feature === 'bar' && !f.hide);
-        const barVariant = barFeature?.config?.variant || 'grouped';
-
-        valueDomain = valueDomain || computeMergedValueDomain([seriesData], [dataKeys], [barVariant]);
-
+        valueDomain = valueDomain || computeMergedValueDomain([seriesData], [dataKeys], [features.find(f => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']);
         const valueScale = createInitialScale(d3.scaleLinear, [chartHeight, 0], valueDomain as [number, number]);
 
-        const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
-            .domain(seriesData.map(d => d[dataKeys.name]));
+        const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(seriesData.map(d => d[dataKeys.name]));
+        const chartTooltip = createTooltip(container, shouldShowFeature(features, 'tooltip'), features.find(feature => feature.feature === 'tooltip')?.config);
 
-        const area = dateScale ? createLineOrArea('area', { colorScale, dateScale, valueScale, ...arguments[0] }) : undefined;
-        const line = dateScale ? createLineOrArea('line', { colorScale, dateScale, valueScale, ...arguments[0] }) : undefined;
-
-        const chartTooltip = createTooltip(
-            container,
-            shouldShowFeature(features, 'tooltip'),
-            features.find(feature => feature.feature === 'tooltip')?.config
-        );
-
-        const createParameters: CreateParams = {
-            seriesData,
-            chartGroup,
-            colorScale,
-            dateScale,
-            xScale,
-            valueScale,
-            area,
-            line,
-            chartTooltip,
-            chartHeight,
-            chartWidth,
-            dataKeys,
-            barWidth,
-        };
+        const createParameters: CreateParams = { seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, chartTooltip, chartHeight, chartWidth, dataKeys, barWidth };
 
         createFeatures(createParameters, features);
     } catch (error) {
@@ -151,32 +143,7 @@ export function createSeriesXYChart(
     }
 }
 
-// (8/10): Solid scaling logic, though barWidth calculation could be optimized for larger data sets.
-function createScales({ isBarChart, dateDomainUsed, chartWidth, seriesData, dataKeys }: any) {
-    let dateScale: d3.ScaleTime<number, number> | undefined;
-    let xScale: d3.ScaleBand<number> | undefined;
-    let barWidth = 0;
-
-    if (isBarChart) {
-        xScale = d3.scaleBand()
-            .domain(dateDomainUsed.map(d => d.getTime()))
-            .range([0, chartWidth])
-            .padding(0.1);
-        barWidth = xScale.bandwidth();
-    } else {
-        dateScale = d3.scaleTime()
-            .domain(d3.extent(dateDomainUsed) as [Date, Date])
-            .range([0, chartWidth]);
-    }
-
-    return { dateScale, xScale, barWidth };
-}
-// (8/10): Simple utility function to control feature display, could improve readability with better typing.
-function shouldShowFeature(features: Feature[], featureName: string): boolean {
-    return features.some(feature => feature.feature === featureName && !feature.hide);
-}
-
-// (8/10): Clean and logical, but lacks differentiation between merged and non-merged states.
+// Separate XY charts creation with DRY principle
 export function createSeperateXyCharts(
     container: HTMLElement,
     seriesDataArray: any[][],
@@ -186,56 +153,24 @@ export function createSeperateXyCharts(
     dataKeysArray: DataKeys[],
     squash: boolean = false,
     syncX: boolean = false,
-    syncY: boolean = false,
-    xType: AxisType = 'date',
-    yType: AxisType = 'date',
-
+    syncY: boolean = false
 ) {
     d3.select(container).selectAll("*").remove();
 
-    let mergedDateDomain: Date[] | undefined;
-    let mergedValueDomain: [number, number] | undefined;
+    const { mergedDateDomain, mergedValueDomain } = calculateDomains({ syncX, syncY, seriesDataArray, dataKeysArray, featuresArray });
 
-    if (syncX) {
-        mergedDateDomain = computeMergedDateDomain(seriesDataArray, dataKeysArray);
-    }
-
-    if (syncY) {
-        const variants = featuresArray.map(features => {
-            const barFeature = features.find(f => f.feature === 'bar' && !f.hide);
-            return barFeature?.config?.variant || 'grouped';
-        });
-
-        mergedValueDomain = computeMergedValueDomain(seriesDataArray, dataKeysArray, variants);
-    }
-
-    for (let i = 0; i < seriesDataArray.length; i++) {
+    seriesDataArray.forEach((seriesData, i) => {
         const features = featuresArray[i];
-        const seriesData = seriesDataArray[i];
         const dataKeys = dataKeysArray[i];
-
-        const dateDomain = syncX ? mergedDateDomain : undefined;
-        const valueDomain = syncY ? mergedValueDomain : undefined;
-
         const chartContainer = document.createElement('div');
         container.appendChild(chartContainer);
-
         const chartHeight = squash ? height / seriesDataArray.length : height;
 
-        createSeriesXYChart(
-            chartContainer,
-            seriesData,
-            width,
-            chartHeight,
-            features,
-            dataKeys,
-            dateDomain,
-            valueDomain
-        );
-    }
+        createSeriesXYChart(chartContainer, seriesData, width, chartHeight, features, dataKeys, syncX ? mergedDateDomain : undefined, syncY ? mergedValueDomain : undefined);
+    });
 }
 
-// (9/10): A well-designed function for merged multi-series line charts.
+// Merged XY charts creation with DRY principle
 export function createMergedXyCharts(
     container: HTMLElement,
     seriesDataArray: any[][],
@@ -245,108 +180,41 @@ export function createMergedXyCharts(
     dataKeysArray: DataKeys[],
     squash: boolean = false,
     syncX: boolean = false,
-    syncY: boolean = false,
-    xType: AxisType = 'date',
-    yType: AxisType = 'date'
-
+    syncY: boolean = false
 ) {
     try {
-        // Set up the margin and the chart dimensions
         const margin = { top: 25, right: 30, bottom: 50, left: 50 };
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
 
-        // Remove any existing content in the container
         d3.select(container).selectAll("*").remove();
 
-        // Compute the merged date domain (X-axis) if syncX is true
-        const dateDomain = syncX ? computeMergedDateDomain(seriesDataArray, dataKeysArray) : undefined;
-
-        // Compute the merged value domain (Y-axis) if syncY is true
-        const variants = featuresArray.map(features => {
-            const barFeature = features.find(f => f.feature === 'bar' && !f.hide);
-            return barFeature?.config?.variant || 'grouped';
-        });
-        const valueDomain = syncY ? computeMergedValueDomain(seriesDataArray, dataKeysArray, variants) : undefined;
-
-        // Create an SVG for the merged chart
-        const svg = createInitialSVG({ container, width, height });
+        const { mergedDateDomain, mergedValueDomain } = calculateDomains({ syncX, syncY, seriesDataArray, dataKeysArray, featuresArray });
+        const svg = setupChart(container, width, height);
         const chartGroup = createInitialChartGroup({ svg, margin });
-
-        // We need to compute the scales for the merged chart
         const isBarChart = featuresArray.some(features => features.some(f => f.feature === 'bar' && !f.hide));
+
         const { dateScale, xScale, barWidth } = createScales({
             isBarChart,
-            dateDomainUsed: dateDomain || extractDateDomain(seriesDataArray[0], dataKeysArray[0]),
+            dateDomainUsed: mergedDateDomain || extractDateDomain(seriesDataArray[0], dataKeysArray[0]),
             chartWidth,
-            seriesData: seriesDataArray[0], // The first series to determine the domain
+            seriesData: seriesDataArray[0],
             dataKeys: dataKeysArray[0],
         });
 
-        // Set up the value scale (Y-axis) for the merged chart
-        const finalValueDomain = valueDomain || computeMergedValueDomain(seriesDataArray, dataKeysArray, variants);
-        const valueScale = createInitialScale(d3.scaleLinear, [chartHeight, 0], finalValueDomain as [number, number]);
+        const valueDomain = mergedValueDomain || computeMergedValueDomain(seriesDataArray, dataKeysArray, featuresArray.map(features => features.find(f => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped'));
+        const valueScale = createInitialScale(d3.scaleLinear, [chartHeight, 0], valueDomain as [number, number]);
 
-        // Define the color scale for multiple series
-        const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
-            .domain(seriesDataArray.flatMap(series => series.map(d => d[dataKeysArray[0].name])));
+        const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(seriesDataArray.flatMap(series => series.map(d => d[dataKeysArray[0].name])));
 
-        // Set up tooltip if needed
-        const chartTooltip = createTooltip(
-            container,
-            featuresArray.some(features => shouldShowFeature(features, 'tooltip')),
-            featuresArray.find(features => features.some(feature => feature.feature === 'tooltip'))?.[0].config
-        );
+        const chartTooltip = createTooltip(container, featuresArray.some(features => shouldShowFeature(features, 'tooltip')), featuresArray.find(features => features.some(f => f.feature === 'tooltip'))?.[0].config);
 
-        // Now, we need to handle each seriesDataArray and merge it into the same SVG.
         seriesDataArray.forEach((seriesData, i) => {
             const dataKeys = dataKeysArray[i];
             const features = featuresArray[i];
 
-            const area = dateScale ? createLineOrArea('area', {
-                seriesData,
-                chartGroup,
-                colorScale,
-                dateScale,
-                valueScale,
-                chartTooltip,
-                chartHeight,
-                chartWidth,
-                dataKeys,
-                barWidth,
-            }) : undefined;
+            const createParameters: CreateParams = { seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, chartTooltip, chartHeight, chartWidth, dataKeys, barWidth };
 
-            const line = dateScale ? createLineOrArea('line', {
-                seriesData,
-                chartGroup,
-                colorScale,
-                dateScale,
-                valueScale,
-                chartTooltip,
-                chartHeight,
-                chartWidth,
-                dataKeys,
-                barWidth,
-            }) : undefined;
-
-            // Create the parameters for the current series
-            const createParameters: CreateParams = {
-                seriesData,
-                chartGroup,
-                colorScale,
-                dateScale,
-                xScale,
-                valueScale,
-                area,
-                line,
-                chartTooltip,
-                chartHeight,
-                chartWidth,
-                dataKeys,
-                barWidth,
-            };
-
-            // Create features (axes, lines, bars, grid, etc.) for the current series
             createFeatures(createParameters, features);
         });
 
@@ -355,8 +223,7 @@ export function createMergedXyCharts(
     }
 }
 
-
-// (7/10): Solid chart creation but lacks clear differentiation between merged and non-merged variants.
+// Unified XY chart creation function with DRY principle
 export function createXyChart(
     container: HTMLElement,
     seriesDataArray: any[][],
@@ -367,13 +234,16 @@ export function createXyChart(
     merge: boolean = false,
     squash: boolean = false,
     syncX: boolean = false,
-    syncY: boolean = false,
-    xType: AxisType = 'date',
-    yType: AxisType = 'date'
+    syncY: boolean = false
 ) {
     if (merge) {
-        createMergedXyCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY, xType, yType);
+        createMergedXyCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY);
     } else {
-        createSeperateXyCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY, xType, yType);
+        createSeperateXyCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY);
     }
+}
+
+// Utility function to check if a feature should be displayed
+function shouldShowFeature(features: Feature[], featureName: string): boolean {
+    return features.some(feature => feature.feature === featureName && !feature.hide);
 }
