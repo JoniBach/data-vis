@@ -851,7 +851,7 @@ function shouldShowFeature(features: Feature[], featureName: string): boolean {
 }
 
 // (8/10): Clean and logical, but lacks differentiation between merged and non-merged states.
-export function createSeperateLineCharts(
+export function createSeperateXyCharts(
     container: HTMLElement,
     seriesDataArray: any[][],
     width: number = 500,
@@ -910,7 +910,7 @@ export function createSeperateLineCharts(
 }
 
 // (9/10): A well-designed function for merged multi-series line charts.
-export function createMergedLineCharts(
+export function createMergedXyCharts(
     container: HTMLElement,
     seriesDataArray: any[][],
     width: number = 500,
@@ -1031,7 +1031,7 @@ export function createMergedLineCharts(
 
 
 // (7/10): Solid chart creation but lacks clear differentiation between merged and non-merged variants.
-export function createLineChart(
+export function createXyChart(
     container: HTMLElement,
     seriesDataArray: any[][],
     width: number = 500,
@@ -1046,8 +1046,8 @@ export function createLineChart(
     yType: AxisType = 'date'
 ) {
     if (merge) {
-        createMergedLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY, xType, yType);
+        createMergedXyCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY, xType, yType);
     } else {
-        createSeperateLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY, xType, yType);
+        createSeperateXyCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY, xType, yType);
     }
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { generateMultiSeriesData } from '$lib/chart/generateLineChart.js';
-	import { LineChart } from '$lib/index.js'; // $lib is the alias for 'src/lib'
+	import { generateMultiSeriesData } from '$lib/chart/generateXyChart.js';
+	import { XyChart } from '$lib/index.js'; // $lib is the alias for 'src/lib'
 	import type { DataGenerationConfig } from '$lib/index.js';
 	import { onMount } from 'svelte';
 
@@ -59,7 +59,7 @@
 </script>
 
 <main>
-	<LineChart
+	<XyChart
 		{data}
 		{dataKeys}
 		{features}

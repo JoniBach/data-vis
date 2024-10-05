@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { createLineChart, type AxisType, type DataKeys, type SeriesData } from './lineChart.js';
+	import { createXyChart, type AxisType, type DataKeys, type SeriesData } from './xyChart.js';
 
 	// Props passed to the component
 	export let data: SeriesData[];
@@ -20,7 +20,7 @@
 	function renderChart() {
 		if (data && chartContainer) {
 			chartContainer.innerHTML = ''; // Clear previous chart
-			createLineChart(
+			createXyChart(
 				chartContainer,
 				data,
 				width,
