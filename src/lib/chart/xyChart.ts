@@ -65,7 +65,7 @@ function createFeatures(createParameters: CreateParams, features: Feature[]) {
 }
 
 // DRY: Abstract scale creation logic
-const createScales = ({ isBarChart, dateDomainUsed, chartWidth, seriesData, dataKeys }: any) => {
+const createScales = ({ isBarChart, dateDomainUsed, chartWidth, seriesData, dataKeys, xType, yType }: any) => {
     let dateScale, xScale, barWidth = 0;
 
     if (isBarChart) {
@@ -75,9 +75,15 @@ const createScales = ({ isBarChart, dateDomainUsed, chartWidth, seriesData, data
             .padding(0.1);
         barWidth = xScale.bandwidth();
     } else {
-        dateScale = d3.scaleTime()
-            .domain(d3.extent(dateDomainUsed) as [Date, Date])
-            .range([0, chartWidth]);
+        if (xType === 'date') {
+            dateScale = d3.scaleTime()
+                .domain(d3.extent(dateDomainUsed) as [Date, Date])
+                .range([0, chartWidth]);
+        } else {
+            dateScale = d3.scaleLinear()
+                .domain(d3.extent(seriesData, d => d[dataKeys.xKey]) as [number, number])
+                .range([0, chartWidth]);
+        }
     }
 
     return { dateScale, xScale, barWidth };
@@ -114,7 +120,9 @@ function setupXYChart(
     valueDomain?: [number, number],
     isBarChart: boolean = false,
     syncX: boolean = false, // Added syncX
-    syncY: boolean = false  // Added syncY
+    syncY: boolean = false, // Added syncY
+    xType: AxisType = 'number',
+    yType: AxisType = 'number'
 ) {
     const margin = { top: 25, right: 30, bottom: 50, left: 50 };
     const chartWidth = width - margin.left - margin.right;
@@ -129,7 +137,7 @@ function setupXYChart(
     const chartGroup = createInitialChartGroup({ svg, margin });
 
     const dateDomainUsed = dateDomain || extractDateDomain(seriesData, dataKeys);
-    const { dateScale, xScale, barWidth } = createScales({ isBarChart, dateDomainUsed, chartWidth, seriesData, dataKeys });
+    const { dateScale, xScale, barWidth } = createScales({ isBarChart, dateDomainUsed, chartWidth, seriesData, dataKeys, xType, yType });
 
     valueDomain = valueDomain || computeMergedValueDomain(
         [seriesData],
@@ -154,7 +162,9 @@ function setupXYChart(
         dataKeys,
         barWidth,
         syncX, // Passed down
-        syncY  // Passed down
+        syncY,  // Passed down
+        xType,  // Passed down
+        yType   // Passed down
     };
 
     return { createParameters, chartGroup };
@@ -173,7 +183,9 @@ export function createXYChartCore(
     squash: boolean = false,
     syncX: boolean = false,
     syncY: boolean = false,
-    merge: boolean = false
+    merge: boolean = false,
+    xType: AxisType = 'number',
+    yType: AxisType = 'number'
 ) {
     d3.select(container).selectAll("*").remove();
 
@@ -212,7 +224,9 @@ export function createXYChartCore(
             domainValue,
             isBarChart,
             syncX, // Passed down
-            syncY  // Passed down
+            syncY, // Passed down
+            xType, // Passed down
+            yType  // Passed down
         );
 
         if (createParameters) {
@@ -231,9 +245,11 @@ export function createSeperateXyCharts(
     dataKeysArray: DataKeys[],
     squash: boolean = false,
     syncX: boolean = false,
-    syncY: boolean = false
+    syncY: boolean = false,
+    xType: AxisType = 'number',
+    yType: AxisType = 'number'
 ) {
-    createXYChartCore(container, seriesDataArray, width, height, featuresArray, dataKeysArray, undefined, undefined, squash, syncX, syncY, false);
+    createXYChartCore(container, seriesDataArray, width, height, featuresArray, dataKeysArray, undefined, undefined, squash, syncX, syncY, false, xType, yType);
 }
 
 // Wrapper for merged charts using the unified function
@@ -246,9 +262,11 @@ export function createMergedXyCharts(
     dataKeysArray: DataKeys[],
     squash: boolean = false,
     syncX: boolean = false,
-    syncY: boolean = false
+    syncY: boolean = false,
+    xType: AxisType = 'number',
+    yType: AxisType = 'number'
 ) {
-    createXYChartCore(container, seriesDataArray, width, height, featuresArray, dataKeysArray, undefined, undefined, squash, syncX, syncY, true);
+    createXYChartCore(container, seriesDataArray, width, height, featuresArray, dataKeysArray, undefined, undefined, squash, syncX, syncY, true, xType, yType);
 }
 
 // Original createSeriesXYChart refactored to use the setup function
@@ -262,9 +280,11 @@ export function createSeriesXYChart(
     dateDomain?: Date[],
     valueDomain?: [number, number],
     syncX: boolean = false, // Added syncX
-    syncY: boolean = false  // Added syncY
+    syncY: boolean = false, // Added syncY
+    xType: AxisType = 'number',
+    yType: AxisType = 'number'
 ) {
-    const { createParameters } = setupXYChart(container, seriesData, width, height, features, dataKeys, dateDomain, valueDomain, false, syncX, syncY);
+    const { createParameters } = setupXYChart(container, seriesData, width, height, features, dataKeys, dateDomain, valueDomain, false, syncX, syncY, xType, yType);
 
     if (createParameters) {
         createFeatures(createParameters, features);
@@ -281,12 +301,14 @@ export function createXyChart(
     merge: boolean = false,
     squash: boolean = false,
     syncX: boolean = false,
-    syncY: boolean = false
+    syncY: boolean = false,
+    xType: AxisType = 'number',
+    yType: AxisType = 'number'
 ) {
     if (merge) {
-        createMergedXyCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY);
+        createMergedXyCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY, xType, yType);
     } else {
-        createSeperateXyCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY);
+        createSeperateXyCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY, xType, yType);
     }
 }
 
