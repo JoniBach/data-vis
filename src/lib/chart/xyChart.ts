@@ -102,48 +102,116 @@ const calculateDomains = ({ syncX, syncY, seriesDataArray, dataKeysArray, featur
     return { mergedDateDomain, mergedValueDomain };
 };
 
-// XY Chart creation with DRY principles applied
-export function createSeriesXYChart(
+// Common setup logic for XY charts
+function setupXYChart(
     container: HTMLElement,
     seriesData: any[],
-    width: number = 500,
-    height: number = 300,
+    width: number,
+    height: number,
     features: Feature[],
     dataKeys: DataKeys,
     dateDomain?: Date[],
-    valueDomain?: [number, number]
+    valueDomain?: [number, number],
+    isBarChart: boolean = false
 ) {
-    try {
-        const margin = { top: 25, right: 30, bottom: 50, left: 50 };
-        const chartWidth = width - margin.left - margin.right;
-        const chartHeight = height - margin.top - margin.bottom;
+    const margin = { top: 25, right: 30, bottom: 50, left: 50 };
+    const chartWidth = width - margin.left - margin.right;
+    const chartHeight = height - margin.top - margin.bottom;
 
-        if (!isValidSeriesData(seriesData, dataKeys)) {
-            console.error("Invalid or no data provided for the chart.");
-            return;
-        }
-
-        const svg = setupChart(container, width, height);
-        const chartGroup = createInitialChartGroup({ svg, margin });
-        const isBarChart = features.some(feature => feature.feature === 'bar' && !feature.hide);
-        const dateDomainUsed = dateDomain || extractDateDomain(seriesData, dataKeys);
-        const { dateScale, xScale, barWidth } = createScales({ isBarChart, dateDomainUsed, chartWidth, seriesData, dataKeys });
-
-        valueDomain = valueDomain || computeMergedValueDomain([seriesData], [dataKeys], [features.find(f => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']);
-        const valueScale = createInitialScale(d3.scaleLinear, [chartHeight, 0], valueDomain as [number, number]);
-
-        const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(seriesData.map(d => d[dataKeys.name]));
-        const chartTooltip = createTooltip(container, shouldShowFeature(features, 'tooltip'), features.find(feature => feature.feature === 'tooltip')?.config);
-
-        const createParameters: CreateParams = { seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, chartTooltip, chartHeight, chartWidth, dataKeys, barWidth };
-
-        createFeatures(createParameters, features);
-    } catch (error) {
-        console.error("Error creating chart:", error);
+    if (!isValidSeriesData(seriesData, dataKeys)) {
+        console.error("Invalid or no data provided for the chart.");
+        return null;
     }
+
+    const svg = setupChart(container, width, height);
+    const chartGroup = createInitialChartGroup({ svg, margin });
+
+    const dateDomainUsed = dateDomain || extractDateDomain(seriesData, dataKeys);
+    const { dateScale, xScale, barWidth } = createScales({ isBarChart, dateDomainUsed, chartWidth, seriesData, dataKeys });
+
+    valueDomain = valueDomain || computeMergedValueDomain([seriesData], [dataKeys], [features.find(f => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']);
+    const valueScale = createInitialScale(d3.scaleLinear, [chartHeight, 0], valueDomain as [number, number]);
+
+    const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(seriesData.map(d => d[dataKeys.name]));
+    const chartTooltip = createTooltip(container, shouldShowFeature(features, 'tooltip'), features.find(feature => feature.feature === 'tooltip')?.config);
+
+    const createParameters: CreateParams = {
+        seriesData,
+        chartGroup,
+        colorScale,
+        dateScale,
+        xScale,
+        valueScale,
+        chartTooltip,
+        chartHeight,
+        chartWidth,
+        dataKeys,
+        barWidth,
+    };
+
+    return { createParameters, chartGroup };
 }
 
-// Separate XY charts creation with DRY principle
+// Unified function for creating charts
+export function createXYChartCore(
+    container: HTMLElement,
+    seriesDataArray: any[][],
+    width: number,
+    height: number,
+    featuresArray: Feature[][],
+    dataKeysArray: DataKeys[],
+    dateDomain?: Date[],
+    valueDomain?: [number, number],
+    squash: boolean = false,
+    syncX: boolean = false,
+    syncY: boolean = false,
+    merge: boolean = false
+) {
+    d3.select(container).selectAll("*").remove();
+
+    const { mergedDateDomain, mergedValueDomain } = calculateDomains({
+        syncX,
+        syncY,
+        seriesDataArray,
+        dataKeysArray,
+        featuresArray,
+    });
+
+    const isBarChart = featuresArray.some(features => features.some(f => f.feature === 'bar' && !f.hide));
+
+    // Loop through each series to generate either separate or merged charts
+    seriesDataArray.forEach((seriesData, i) => {
+        const features = featuresArray[i];
+        const dataKeys = dataKeysArray[i];
+
+        const chartContainer = merge ? container : document.createElement('div');
+        if (!merge) {
+            container.appendChild(chartContainer);
+        }
+
+        const chartHeight = squash ? height / seriesDataArray.length : height;
+        const domainDate = merge && syncX ? mergedDateDomain : dateDomain;
+        const domainValue = merge && syncY ? mergedValueDomain : valueDomain;
+
+        const { createParameters } = setupXYChart(
+            chartContainer,
+            seriesData,
+            width,
+            chartHeight,
+            features,
+            dataKeys,
+            domainDate,
+            domainValue,
+            isBarChart
+        );
+
+        if (createParameters) {
+            createFeatures(createParameters, features);
+        }
+    });
+}
+
+// Wrapper for separate charts using the unified function
 export function createSeperateXyCharts(
     container: HTMLElement,
     seriesDataArray: any[][],
@@ -155,22 +223,10 @@ export function createSeperateXyCharts(
     syncX: boolean = false,
     syncY: boolean = false
 ) {
-    d3.select(container).selectAll("*").remove();
-
-    const { mergedDateDomain, mergedValueDomain } = calculateDomains({ syncX, syncY, seriesDataArray, dataKeysArray, featuresArray });
-
-    seriesDataArray.forEach((seriesData, i) => {
-        const features = featuresArray[i];
-        const dataKeys = dataKeysArray[i];
-        const chartContainer = document.createElement('div');
-        container.appendChild(chartContainer);
-        const chartHeight = squash ? height / seriesDataArray.length : height;
-
-        createSeriesXYChart(chartContainer, seriesData, width, chartHeight, features, dataKeys, syncX ? mergedDateDomain : undefined, syncY ? mergedValueDomain : undefined);
-    });
+    createXYChartCore(container, seriesDataArray, width, height, featuresArray, dataKeysArray, undefined, undefined, squash, syncX, syncY, false);
 }
 
-// Merged XY charts creation with DRY principle
+// Wrapper for merged charts using the unified function
 export function createMergedXyCharts(
     container: HTMLElement,
     seriesDataArray: any[][],
@@ -182,48 +238,26 @@ export function createMergedXyCharts(
     syncX: boolean = false,
     syncY: boolean = false
 ) {
-    try {
-        const margin = { top: 25, right: 30, bottom: 50, left: 50 };
-        const chartWidth = width - margin.left - margin.right;
-        const chartHeight = height - margin.top - margin.bottom;
-
-        d3.select(container).selectAll("*").remove();
-
-        const { mergedDateDomain, mergedValueDomain } = calculateDomains({ syncX, syncY, seriesDataArray, dataKeysArray, featuresArray });
-        const svg = setupChart(container, width, height);
-        const chartGroup = createInitialChartGroup({ svg, margin });
-        const isBarChart = featuresArray.some(features => features.some(f => f.feature === 'bar' && !f.hide));
-
-        const { dateScale, xScale, barWidth } = createScales({
-            isBarChart,
-            dateDomainUsed: mergedDateDomain || extractDateDomain(seriesDataArray[0], dataKeysArray[0]),
-            chartWidth,
-            seriesData: seriesDataArray[0],
-            dataKeys: dataKeysArray[0],
-        });
-
-        const valueDomain = mergedValueDomain || computeMergedValueDomain(seriesDataArray, dataKeysArray, featuresArray.map(features => features.find(f => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped'));
-        const valueScale = createInitialScale(d3.scaleLinear, [chartHeight, 0], valueDomain as [number, number]);
-
-        const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(seriesDataArray.flatMap(series => series.map(d => d[dataKeysArray[0].name])));
-
-        const chartTooltip = createTooltip(container, featuresArray.some(features => shouldShowFeature(features, 'tooltip')), featuresArray.find(features => features.some(f => f.feature === 'tooltip'))?.[0].config);
-
-        seriesDataArray.forEach((seriesData, i) => {
-            const dataKeys = dataKeysArray[i];
-            const features = featuresArray[i];
-
-            const createParameters: CreateParams = { seriesData, chartGroup, colorScale, dateScale, xScale, valueScale, chartTooltip, chartHeight, chartWidth, dataKeys, barWidth };
-
-            createFeatures(createParameters, features);
-        });
-
-    } catch (error) {
-        console.error("Error creating merged chart:", error);
-    }
+    createXYChartCore(container, seriesDataArray, width, height, featuresArray, dataKeysArray, undefined, undefined, squash, syncX, syncY, true);
 }
 
-// Unified XY chart creation function with DRY principle
+// Original createSeriesXYChart refactored to use the setup function
+export function createSeriesXYChart(
+    container: HTMLElement,
+    seriesData: any[],
+    width: number = 500,
+    height: number = 300,
+    features: Feature[],
+    dataKeys: DataKeys,
+    dateDomain?: Date[],
+    valueDomain?: [number, number]
+) {
+    const { createParameters } = setupXYChart(container, seriesData, width, height, features, dataKeys, dateDomain, valueDomain);
+
+    if (createParameters) {
+        createFeatures(createParameters, features);
+    }
+}
 export function createXyChart(
     container: HTMLElement,
     seriesDataArray: any[][],
@@ -242,6 +276,7 @@ export function createXyChart(
         createSeperateXyCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY);
     }
 }
+
 
 // Utility function to check if a feature should be displayed
 function shouldShowFeature(features: Feature[], featureName: string): boolean {
