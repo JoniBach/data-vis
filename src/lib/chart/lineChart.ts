@@ -35,6 +35,9 @@ export interface DataKeys {
     value: string;
 }
 
+export type AxisType = 'date' | 'string' | 'number'
+
+
 type FeatureFunction = (params: CreateParams, config?: any) => void;
 
 export interface CreateParams {
@@ -857,7 +860,10 @@ export function createSeperateLineCharts(
     dataKeysArray: DataKeys[],
     squash: boolean = false,
     syncX: boolean = false,
-    syncY: boolean = false
+    syncY: boolean = false,
+    xType: AxisType = 'date',
+    yType: AxisType = 'date',
+
 ) {
     d3.select(container).selectAll("*").remove();
 
@@ -913,7 +919,10 @@ export function createMergedLineCharts(
     dataKeysArray: DataKeys[],
     squash: boolean = false,
     syncX: boolean = false,
-    syncY: boolean = false
+    syncY: boolean = false,
+    xType: AxisType = 'date',
+    yType: AxisType = 'date'
+
 ) {
     try {
         // Set up the margin and the chart dimensions
@@ -1032,11 +1041,13 @@ export function createLineChart(
     merge: boolean = false,
     squash: boolean = false,
     syncX: boolean = false,
-    syncY: boolean = false
+    syncY: boolean = false,
+    xType: AxisType = 'date',
+    yType: AxisType = 'date'
 ) {
     if (merge) {
-        createMergedLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY);
+        createMergedLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY, xType, yType);
     } else {
-        createSeperateLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY);
+        createSeperateLineCharts(container, seriesDataArray, width, height, featuresArray, dataKeysArray, squash, syncX, syncY, xType, yType);
     }
 }
