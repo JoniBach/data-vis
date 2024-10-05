@@ -16,7 +16,8 @@
 			upperLimit: 95,
 			lowerLimit: 25,
 			adjustmentRange: 5
-		}
+		},
+		xType: 'date'
 	};
 	const squash = false;
 	const syncX = true;
