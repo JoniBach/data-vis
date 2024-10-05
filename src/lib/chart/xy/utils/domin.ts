@@ -1,6 +1,49 @@
 import type { DataKeys } from "./types.js";
 
-// (7/10): Important domain calculation, but could use performance optimization for large datasets.
+// Utility function to find unique and sorted dates
+const getUniqueSortedDates = (dates: Date[]): Date[] => {
+    return Array.from(new Set(dates.map(date => date.getTime()))).map(time => new Date(time)).sort((a, b) => a.getTime() - b.getTime());
+};
+
+// Utility function to find the data point by date
+const findDataPointByDate = (series: any, dataKeys: DataKeys, date: number) => {
+    return series[dataKeys.data].find((d: any) => d[dataKeys.xKey].getTime() === date);
+};
+
+// DRY: Abstract calculation of min/max values for stacked and non-stacked variants
+const calculateMinMaxForDate = (seriesDataArray: any[][], dataKeysArray: DataKeys[], variants: string[], date: number) => {
+    let dateMaxPositive = -Infinity;
+    let dateMinNegative = Infinity;
+
+    seriesDataArray.forEach((seriesData, i) => {
+        const variant = variants[i];
+        const dataKeys = dataKeysArray[i];
+        let chartPositive = 0;
+        let chartNegative = 0;
+
+        seriesData.forEach(series => {
+            const dataPoint = findDataPointByDate(series, dataKeys, date);
+            if (dataPoint) {
+                const value = dataPoint[dataKeys.yKey];
+                if (variant === 'stacked') {
+                    value >= 0 ? chartPositive += value : chartNegative += value;
+                } else {
+                    if (value > dateMaxPositive) dateMaxPositive = value;
+                    if (value < dateMinNegative) dateMinNegative = value;
+                }
+            }
+        });
+
+        if (variant === 'stacked') {
+            if (chartPositive > dateMaxPositive) dateMaxPositive = chartPositive;
+            if (chartNegative < dateMinNegative) dateMinNegative = chartNegative;
+        }
+    });
+
+    return { dateMaxPositive, dateMinNegative };
+};
+
+// Optimized: Merged value domain calculation
 export function computeMergedValueDomain(
     seriesDataArray: any[][],
     dataKeysArray: DataKeys[],
@@ -9,85 +52,32 @@ export function computeMergedValueDomain(
     let minValue = Infinity;
     let maxValue = -Infinity;
 
-    const allDatesSet = new Set<number>();
-    for (let i = 0; i < seriesDataArray.length; i++) {
-        const seriesData = seriesDataArray[i];
-        const dataKeys = dataKeysArray[i];
-        seriesData.forEach(series => {
-            series[dataKeys.data].forEach((d: any) => {
-                allDatesSet.add(d[dataKeys.xKey].getTime());
-            });
-        });
-    }
-    const allDates = Array.from(allDatesSet);
+    // Collect all unique dates across series
+    const allDates = getUniqueSortedDates(
+        seriesDataArray.flatMap((seriesData, i) =>
+            seriesData.flatMap(series => series[dataKeysArray[i].data].map((d: any) => d[dataKeysArray[i].xKey]))
+        )
+    );
 
+    // Loop through each unique date and calculate min/max values
     allDates.forEach(date => {
-        let dateMaxPositive = -Infinity;
-        let dateMinNegative = Infinity;
-
-        for (let i = 0; i < seriesDataArray.length; i++) {
-            const variant = variants[i];
-            const seriesData = seriesDataArray[i];
-            const dataKeys = dataKeysArray[i];
-
-            if (variant === 'stacked') {
-                let chartPositive = 0;
-                let chartNegative = 0;
-
-                seriesData.forEach(series => {
-                    const dataPoint = series[dataKeys.data].find((d: any) => d[dataKeys.xKey].getTime() === date);
-                    if (dataPoint) {
-                        const value = dataPoint[dataKeys.yKey];
-                        if (value >= 0) {
-                            chartPositive += value;
-                        } else {
-                            chartNegative += value;
-                        }
-                    }
-                });
-
-                if (chartPositive > dateMaxPositive) dateMaxPositive = chartPositive;
-                if (chartNegative < dateMinNegative) dateMinNegative = chartNegative;
-            } else {
-                seriesData.forEach(series => {
-                    const dataPoint = series[dataKeys.data].find((d: any) => d[dataKeys.xKey].getTime() === date);
-                    if (dataPoint) {
-                        const value = dataPoint[dataKeys.yKey];
-                        if (value > dateMaxPositive) dateMaxPositive = value;
-                        if (value < dateMinNegative) dateMinNegative = value;
-                    }
-                });
-            }
-        }
-
+        const { dateMaxPositive, dateMinNegative } = calculateMinMaxForDate(seriesDataArray, dataKeysArray, variants, date.getTime());
         if (dateMaxPositive > maxValue) maxValue = dateMaxPositive;
         if (dateMinNegative < minValue) minValue = dateMinNegative;
     });
 
-    minValue = Math.min(minValue, 0);
-    maxValue = Math.max(maxValue, 0);
-
-    return [minValue, maxValue];
+    return [Math.min(minValue, 0), Math.max(maxValue, 0)];
 }
 
-// (7/10): Date merging logic is functional but could benefit from optimization in large datasets.
+// Optimized: Merged date domain calculation
 export function computeMergedDateDomain(seriesDataArray: any[][], dataKeysArray: DataKeys[]): Date[] {
-    const allDates: Date[] = [];
-    for (let i = 0; i < seriesDataArray.length; i++) {
-        const seriesData = seriesDataArray[i];
-        const dataKeys = dataKeysArray[i];
-        seriesData.forEach(series => {
-            series[dataKeys.data].forEach((d: any) => {
-                allDates.push(d[dataKeys.xKey]);
-            });
-        });
-    }
-    const uniqueDates = Array.from(new Set(allDates.map(date => date.getTime()))).map(time => new Date(time));
-    uniqueDates.sort((a, b) => a.getTime() - b.getTime());
-    return uniqueDates;
+    const allDates = seriesDataArray.flatMap((seriesData, i) =>
+        seriesData.flatMap(series => series[dataKeysArray[i].data].map((d: any) => d[dataKeysArray[i].xKey]))
+    );
+    return getUniqueSortedDates(allDates);
 }
 
-// (7/10): Efficient for small datasets but could be slow with large data arrays.
+// Optimized: Extract date domain from a single series
 export function extractDateDomain(seriesData: any[], dataKeys: DataKeys): Date[] {
     return seriesData.flatMap(series => series[dataKeys.data].map((d: any) => d[dataKeys.xKey]));
 }
