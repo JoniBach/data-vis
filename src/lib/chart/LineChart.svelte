@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { createLineChart, type DataKeys, type SeriesData } from './lineChart.js';
+	import { createLineChart, type AxisType, type DataKeys, type SeriesData } from './lineChart.js';
 
 	// Props passed to the component
 	export let data: SeriesData[];
@@ -11,8 +11,8 @@
 	export let squash: boolean = false;
 	export let syncX: boolean = false;
 	export let syncY: boolean = false;
-	export let xType: string = 'number';
-	export let yType: string = 'date';
+	export let xType: AxisType = 'number';
+	export let yType: AxisType = 'date';
 
 	let chartContainer: HTMLElement;
 
