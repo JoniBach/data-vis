@@ -88,8 +88,8 @@ const featureRegistry: Record<string, FeatureFunction> = {
 };
 
 // Create Features Abstraction
-const createFeatures = (createParameters: CreateParams, features: Feature[]): void => {
-	features.forEach(({ feature, hide, config }) => {
+const createFeatures = (createParameters: CreateParams, chartFeatures: Feature[]): void => {
+	chartFeatures.forEach(({ feature, hide, config }) => {
 		if (hide) return;
 		const featureFunction = featureRegistry[feature];
 		if (featureFunction) {
@@ -155,22 +155,22 @@ const calculateDomains = ({
 	syncY,
 	data,
 	dataKeysArray,
-	featuresArray
+	features
 }: {
 	syncX: boolean;
 	syncY: boolean;
 	data: any[];
 	dataKeysArray: DataKeys[];
-	featuresArray: Feature[][];
+	features: Feature[][];
 }) => {
 	const mergedDateDomain = syncX ? computeMergedDateDomain(data, dataKeysArray) : undefined;
 	const mergedValueDomain = syncY
 		? computeMergedValueDomain(
 				data,
 				dataKeysArray,
-				featuresArray.map(
-					(features) =>
-						features.find((f) => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped'
+				features.map(
+					(chartFeatures) =>
+						chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped'
 				)
 			)
 		: undefined;
@@ -182,7 +182,7 @@ const setupXYChart = (
 	container: HTMLElement,
 	seriesData: any[],
 	height: number,
-	features: Feature[],
+	chartFeatures: Feature[],
 	dataKeys: DataKeys,
 	dateDomain: any[],
 	valueDomain: any[],
@@ -228,7 +228,7 @@ const setupXYChart = (
 		computeMergedValueDomain(
 			[seriesData],
 			[dataKeys],
-			[features.find((f) => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']
+			[chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']
 		);
 	const valueScale = createInitialScale(
 		d3.scaleLinear,
@@ -241,8 +241,8 @@ const setupXYChart = (
 		.domain(seriesData.map((d) => d[dataKeys.name]));
 	const chartTooltip = createTooltip(
 		container,
-		shouldShowFeature(features, 'tooltip'),
-		features.find((feature) => feature.feature === 'tooltip')?.config
+		shouldShowFeature(chartFeatures, 'tooltip'),
+		chartFeatures.find((feature) => feature.feature === 'tooltip')?.config
 	);
 
 	return {
@@ -267,7 +267,7 @@ const setupXYChart = (
 const createXYChartCore = (
 	container: HTMLElement,
 	data: any[][],
-	featuresArray: Feature[][],
+	features: Feature[][],
 	dataKeysArray: DataKeys[],
 	config: ChartConfig,
 	dateDomain: any[],
@@ -282,15 +282,15 @@ const createXYChartCore = (
 		syncY,
 		data,
 		dataKeysArray,
-		featuresArray
+		features
 	});
 
-	const isBarChart = featuresArray.some((features) =>
-		features.some((f) => f.feature === 'bar' && !f.hide)
+	const isBarChart = features.some((chartFeatures) =>
+		chartFeatures.some((f) => f.feature === 'bar' && !f.hide)
 	);
 
 	data.forEach((seriesData, i) => {
-		const features = featuresArray[i];
+		const chartFeatures = features[i];
 		const dataKeys = dataKeysArray[i];
 
 		const chartContainer = merge ? container : document.createElement('div');
@@ -304,7 +304,7 @@ const createXYChartCore = (
 			chartContainer,
 			seriesData,
 			chartHeight,
-			features,
+			chartFeatures,
 			dataKeys,
 			domainDate,
 			domainValue,
@@ -313,7 +313,7 @@ const createXYChartCore = (
 		);
 
 		if (createParameters) {
-			createFeatures(createParameters, features);
+			createFeatures(createParameters, chartFeatures);
 		}
 	});
 };
@@ -322,34 +322,34 @@ const createXYChartCore = (
 export const createSeperateXyCharts = (
 	container: HTMLElement,
 	data: any[][],
-	featuresArray: Feature[][],
+	features: Feature[][],
 	dataKeysArray: DataKeys[],
 	config: ChartConfig
 ) => {
-	createXYChartCore(container, data, featuresArray, dataKeysArray, config, undefined, false);
+	createXYChartCore(container, data, features, dataKeysArray, config, undefined, false);
 };
 
 export const createMergedXyCharts = (
 	container: HTMLElement,
 	data: any[][],
-	featuresArray: Feature[][],
+	features: Feature[][],
 	dataKeysArray: DataKeys[],
 	config: ChartConfig
 ) => {
-	createXYChartCore(container, data, featuresArray, dataKeysArray, config, undefined, true);
+	createXYChartCore(container, data, features, dataKeysArray, config, undefined, true);
 };
 
 export const createXyChart = (
 	container: HTMLElement,
 	data: any[][],
-	featuresArray: Feature[][],
+	features: Feature[][],
 	dataKeysArray: DataKeys[],
 	config: ChartConfig
 ) =>
 	config.merge
-		? createMergedXyCharts(container, data, featuresArray, dataKeysArray, config)
-		: createSeperateXyCharts(container, data, featuresArray, dataKeysArray, config);
+		? createMergedXyCharts(container, data, features, dataKeysArray, config)
+		: createSeperateXyCharts(container, data, features, dataKeysArray, config);
 
 // Feature Display Utility
-const shouldShowFeature = (features: Feature[], featureName: string): boolean =>
-	features.some(({ feature, hide }) => feature === featureName && !hide);
+const shouldShowFeature = (chartFeatures: Feature[], featureName: string): boolean =>
+	chartFeatures.some(({ feature, hide }) => feature === featureName && !hide);
