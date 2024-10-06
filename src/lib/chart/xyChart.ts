@@ -19,7 +19,8 @@ import type {
 	AxisType,
 	Feature,
 	DataKeys,
-	ChartConfig
+	ChartConfig,
+	CreateChartProps
 } from './xy/utils/types.js';
 import { eventSystem } from './xy/utils/event.js';
 import {
@@ -71,7 +72,9 @@ const attachTooltipEvents = (): void => {
 	eventSystem.on('tooltipHide', hideTooltip);
 };
 
-attachTooltipEvents();
+// Feature Display Utility
+const shouldShowFeature = (chartFeatures: Feature[], featureName: string): boolean =>
+	chartFeatures.some(({ feature, hide }) => feature === featureName && !hide);
 
 // Feature Registry
 const featureRegistry: Record<string, FeatureFunction> = {
@@ -102,12 +105,8 @@ const createFeatures = (createParameters: CreateParams, chartFeatures: Feature[]
 
 // Scales Creation
 const createScales = ({
-	isBarChart,
 	dateDomainUsed,
-	chartWidth,
-	seriesData,
-	dataKeys,
-	xType
+	chartWidth
 }: {
 	isBarChart: boolean;
 	dateDomainUsed: any[];
@@ -117,26 +116,8 @@ const createScales = ({
 	xType: AxisType;
 }) => {
 	let xScale;
-	// if (isBarChart) {
 	xScale = d3.scaleBand().domain(dateDomainUsed).range([0, chartWidth]).padding(0.1);
 	return { xScale, barWidth: xScale.bandwidth() };
-	// }
-
-	// if (xType === 'date' && dateDomainUsed?.length > 0) {
-	//     xScale = d3.scaleTime()
-	//         .domain(d3.extent(dateDomainUsed, d => new Date(d)) as [Date, Date])
-	//         .range([0, chartWidth]);
-	// } else if (seriesData?.length > 0) {
-	//     xScale = d3.scaleLinear()
-	//         .domain(d3.extent(seriesData, d => +d[dataKeys.xKey]) as [number, number])
-	//         .range([0, chartWidth]);
-	// } else {
-	//     xScale = d3.scaleLinear()
-	//         .domain([0, 1])
-	//         .range([0, chartWidth]);
-	// }
-
-	// return { xScale, barWidth: 0 };
 };
 
 // Chart Setup
@@ -189,16 +170,7 @@ const setupXYChart = (
 	isBarChart: boolean,
 	config: ChartConfig
 ) => {
-	const {
-		width,
-		// height,
-		squash,
-		syncX,
-		syncY,
-		yType,
-		xType,
-		margin
-	} = config;
+	const { width, xType, margin } = config;
 
 	console.log(config);
 
@@ -264,7 +236,7 @@ const setupXYChart = (
 };
 
 // Unified Chart Creation
-const createXYChartCore = (props, dateDomain: any[], valueDomain: any[]) => {
+const createXYChartCore = (props: CreateChartProps, dateDomain: any[], valueDomain: any[]) => {
 	const { container, data, dataKeysArray, features, config } = props;
 	const { height, squash, syncX, syncY, merge } = config;
 
@@ -312,17 +284,15 @@ const createXYChartCore = (props, dateDomain: any[], valueDomain: any[]) => {
 };
 
 // Chart Creation Wrappers
-export const createSeperateXyCharts = (props) => {
+export const createSeperateXyCharts = (props: CreateChartProps) => {
 	createXYChartCore(props, undefined, false);
 };
 
-export const createMergedXyCharts = (props) => {
+export const createMergedXyCharts = (props: CreateChartProps) => {
 	createXYChartCore(props, undefined, true);
 };
 
-export const createXyChart = (props) =>
+export const createXyChart = (props: CreateChartProps) =>
 	props.config.merge ? createMergedXyCharts(props) : createSeperateXyCharts(props);
 
-// Feature Display Utility
-const shouldShowFeature = (chartFeatures: Feature[], featureName: string): boolean =>
-	chartFeatures.some(({ feature, hide }) => feature === featureName && !hide);
+attachTooltipEvents();

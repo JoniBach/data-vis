@@ -4,7 +4,17 @@
 	import type { DataGenerationConfig } from '$lib/index.js';
 	import { onMount } from 'svelte';
 
-	const xType = 'date';
+	const chartConfig = {
+		width: 600,
+		height: 240,
+		squash: false,
+		syncX: true,
+		syncY: true,
+		yType: 'number',
+		xType: 'date',
+		margin: { top: 25, right: 30, bottom: 50, left: 50 },
+		merge: false
+	};
 
 	// Example usage with trendVariance configuration:
 	const config: DataGenerationConfig = {
@@ -19,12 +29,9 @@
 			lowerLimit: 25,
 			adjustmentRange: 5
 		},
-		xType: xType,
+		xType: chartConfig.xType,
 		xConsistency: false
 	};
-	const squash = false;
-	const syncX = true;
-	const syncY = true;
 
 	$: seed = null; // Initialize the seed value
 	$: data = [];
@@ -59,18 +66,6 @@
 
 	// Watch for changes in seed input and regenerate data
 	$: seed, generateData(); // Re-run data generation when seed changes
-
-	const chartConfig = {
-		width: 600,
-		height: 240,
-		squash: false,
-		syncX: true,
-		syncY: true,
-		yType: 'number',
-		xType: xType,
-		margin: { top: 25, right: 30, bottom: 50, left: 50 },
-		merge: false
-	};
 </script>
 
 <main>
