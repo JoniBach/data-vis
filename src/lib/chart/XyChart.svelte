@@ -28,7 +28,7 @@
 	function renderChart() {
 		if (data && container) {
 			container.innerHTML = ''; // Clear previous chart
-			createXyChart(container, data, features, dataKeysArray, config);
+			createXyChart({ container, data, features, dataKeysArray, config });
 		}
 	}
 

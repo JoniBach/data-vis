@@ -264,15 +264,8 @@ const setupXYChart = (
 };
 
 // Unified Chart Creation
-const createXYChartCore = (
-	container: HTMLElement,
-	data: any[][],
-	features: Feature[][],
-	dataKeysArray: DataKeys[],
-	config: ChartConfig,
-	dateDomain: any[],
-	valueDomain: any[]
-) => {
+const createXYChartCore = (props, dateDomain: any[], valueDomain: any[]) => {
+	const { container, data, dataKeysArray, features, config } = props;
 	const { height, squash, syncX, syncY, merge } = config;
 
 	d3.select(container).selectAll('*').remove();
@@ -319,36 +312,16 @@ const createXYChartCore = (
 };
 
 // Chart Creation Wrappers
-export const createSeperateXyCharts = (
-	container: HTMLElement,
-	data: any[][],
-	features: Feature[][],
-	dataKeysArray: DataKeys[],
-	config: ChartConfig
-) => {
-	createXYChartCore(container, data, features, dataKeysArray, config, undefined, false);
+export const createSeperateXyCharts = (props) => {
+	createXYChartCore(props, undefined, false);
 };
 
-export const createMergedXyCharts = (
-	container: HTMLElement,
-	data: any[][],
-	features: Feature[][],
-	dataKeysArray: DataKeys[],
-	config: ChartConfig
-) => {
-	createXYChartCore(container, data, features, dataKeysArray, config, undefined, true);
+export const createMergedXyCharts = (props) => {
+	createXYChartCore(props, undefined, true);
 };
 
-export const createXyChart = (
-	container: HTMLElement,
-	data: any[][],
-	features: Feature[][],
-	dataKeysArray: DataKeys[],
-	config: ChartConfig
-) =>
-	config.merge
-		? createMergedXyCharts(container, data, features, dataKeysArray, config)
-		: createSeperateXyCharts(container, data, features, dataKeysArray, config);
+export const createXyChart = (props) =>
+	props.config.merge ? createMergedXyCharts(props) : createSeperateXyCharts(props);
 
 // Feature Display Utility
 const shouldShowFeature = (chartFeatures: Feature[], featureName: string): boolean =>
