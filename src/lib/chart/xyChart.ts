@@ -25,7 +25,6 @@ import { eventSystem } from './xy/utils/event.js';
 import { createInitialSVG, createInitialScale } from './xy/utils/initial.js';
 import { isValidSeriesData } from './xy/utils/validator.js';
 
-// DRY Principle: Tooltip Handling
 const handleTooltipShow = (
 	chartTooltip: d3.Selection<HTMLElement, unknown, null, undefined>,
 	d: any,
@@ -60,18 +59,15 @@ const handleTooltipHide = (chartTooltip: d3.Selection<HTMLElement, unknown, null
 	chartTooltip.style('visibility', 'hidden');
 };
 
-// Event Handlers
 const initializeEventHandlers = (): void => {
 	eventSystem.on('tooltip', handleTooltipShow);
 	eventSystem.on('tooltipMove', handleTooltipMove);
 	eventSystem.on('tooltipHide', handleTooltipHide);
 };
 
-// Feature Display Utility
 const shouldRenderFeature = (chartFeatures: Feature[], featureName: string): boolean =>
 	chartFeatures.some(({ feature, hide }) => feature === featureName && !hide);
 
-// Feature Registry
 const featureRegistry: Record<string, FeatureFunction> = {
 	tooltip: () => null,
 	grid: createGrid,
@@ -93,7 +89,6 @@ const renderFeatures = (createParams: CreateParams, chartFeatures: Feature[]): v
 		if (featureFunction) {
 			const selection = featureFunction(createParams, config);
 			if (selection && selection.on) {
-				// Attach tooltip event handlers to relevant chart elements
 				if (feature === 'point' || feature === 'bubbles' || feature === 'bar') {
 					selection
 						.on('mouseover', (event, d) => {
@@ -113,7 +108,6 @@ const renderFeatures = (createParams: CreateParams, chartFeatures: Feature[]): v
 	});
 };
 
-// Scale Creation
 const initializeScales = ({
 	dateDomainUsed,
 	chartWidth
@@ -130,7 +124,6 @@ const initializeScales = ({
 	return { xScale, barWidth: xScale.bandwidth() };
 };
 
-// Chart Setup
 const initializeChart = (
 	container: HTMLElement,
 	width: number,
@@ -140,7 +133,6 @@ const initializeChart = (
 	return createInitialSVG({ container, width, height });
 };
 
-// Domain Calculations
 const computeDomains = ({
 	syncX,
 	syncY,
@@ -168,7 +160,6 @@ const computeDomains = ({
 	return { mergedDateDomain, mergedValueDomain };
 };
 
-// XY Chart Setup and Feature Rendering
 const setupAndRenderChart = ({
 	chartContainer,
 	seriesData,
@@ -191,7 +182,6 @@ const setupAndRenderChart = ({
 		return null;
 	}
 
-	// If merged, do not create a new SVG, just create a new group
 	const svg = merge
 		? d3.select(chartContainer).select('svg').empty()
 			? initializeChart(chartContainer, width, height)
@@ -252,12 +242,10 @@ const setupAndRenderChart = ({
 	};
 };
 
-// Unified Chart Creation
 export const initializeXyChart = (props: CreateChartProps) => {
 	const { container, data, dataKeysArray, features, config } = props;
 	const { height, squash, syncX, syncY, merge } = config;
 
-	// Clear only if not merging, otherwise retain the existing SVG and append to it
 	if (!merge) {
 		d3.select(container).selectAll('*').remove();
 	}
