@@ -20,13 +20,13 @@
 		merge: false
 	};
 
-	let chartContainer: HTMLElement;
+	let container: HTMLElement;
 
 	// Function to render the chart
 	function renderChart() {
-		if (data && chartContainer) {
-			chartContainer.innerHTML = ''; // Clear previous chart
-			createXyChart(chartContainer, data, features, dataKeys, config);
+		if (data && container) {
+			container.innerHTML = ''; // Clear previous chart
+			createXyChart(container, data, features, dataKeys, config);
 		}
 	}
 
@@ -37,10 +37,10 @@
 
 	// Reactive statement: re-render the chart when data, width, height, features, or dataKeys change
 
-	$: chartContainer, data, features, dataKeys, config, renderChart(); // This will trigger the chart update when any dependency changes
+	$: container, data, features, dataKeys, config, renderChart(); // This will trigger the chart update when any dependency changes
 </script>
 
-<div bind:this={chartContainer} class="chart-container"></div>
+<div bind:this={container} class="chart-container"></div>
 
 <style>
 	.chart-container {
