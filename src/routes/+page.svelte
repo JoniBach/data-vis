@@ -11,9 +11,13 @@
 		syncX: true,
 		syncY: true,
 		yType: 'number',
-		xType: 'string',
-		margin: { top: 25, right: 30, bottom: 50, left: 50 },
-		merge: false
+
+		// xType: 'string',
+		// xType: 'number',
+		xType: 'date',
+		merge: false,
+		// merge: false
+		margin: { top: 25, right: 30, bottom: 50, left: 50 }
 	};
 
 	// Example usage with trendVariance configuration:

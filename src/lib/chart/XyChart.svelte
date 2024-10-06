@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { createXyChart } from './xyChart.js';
+	import { initializeXyChart } from './xyChart.js';
 	import type { ChartConfig, DataKeys, SeriesData } from './xy/utils/types.js';
 
 	// Props passed to the component
@@ -26,7 +26,7 @@
 	function renderChart() {
 		if (data && container) {
 			container.innerHTML = ''; // Clear previous chart
-			createXyChart({ container, data, features, dataKeysArray: dataKeys, config });
+			initializeXyChart({ container, data, features, dataKeysArray: dataKeys, config });
 		}
 	}
 

@@ -12,7 +12,7 @@ import {
 	computeMergedValueDomain,
 	computeMergedDateDomain,
 	extractDateDomain
-} from './xy/utils/domin.js';
+} from './xy/utils/domain.js';
 import type {
 	FeatureFunction,
 	CreateParams,
@@ -26,7 +26,7 @@ import { createInitialSVG, createInitialScale } from './xy/utils/initial.js';
 import { isValidSeriesData } from './xy/utils/validator.js';
 
 // DRY Principle: Tooltip Handling
-const handleTooltip = (
+const handleTooltipShow = (
 	chartTooltip: d3.Selection<HTMLElement, unknown, null, undefined>,
 	d: any,
 	dataKeys: DataKeys
@@ -49,26 +49,26 @@ const handleTooltip = (
 	}
 };
 
-const moveTooltip = (
+const handleTooltipMove = (
 	chartTooltip: d3.Selection<HTMLElement, unknown, null, undefined>,
 	event: MouseEvent
 ) => {
 	chartTooltip.style('top', `${event.pageY - 10}px`).style('left', `${event.pageX + 10}px`);
 };
 
-const hideTooltip = (chartTooltip: d3.Selection<HTMLElement, unknown, null, undefined>) => {
+const handleTooltipHide = (chartTooltip: d3.Selection<HTMLElement, unknown, null, undefined>) => {
 	chartTooltip.style('visibility', 'hidden');
 };
 
 // Event Handlers
-const attachTooltipEvents = (): void => {
-	eventSystem.on('tooltip', handleTooltip);
-	eventSystem.on('tooltipMove', moveTooltip);
-	eventSystem.on('tooltipHide', hideTooltip);
+const initializeEventHandlers = (): void => {
+	eventSystem.on('tooltipShow', handleTooltipShow);
+	eventSystem.on('tooltipMove', handleTooltipMove);
+	eventSystem.on('tooltipHide', handleTooltipHide);
 };
 
 // Feature Display Utility
-const shouldShowFeature = (chartFeatures: Feature[], featureName: string): boolean =>
+const shouldRenderFeature = (chartFeatures: Feature[], featureName: string): boolean =>
 	chartFeatures.some(({ feature, hide }) => feature === featureName && !hide);
 
 // Feature Registry
@@ -85,21 +85,41 @@ const featureRegistry: Record<string, FeatureFunction> = {
 		createBarsVariant(config?.variant || 'grouped', params)
 };
 
-// Create Features Abstraction
-const createFeatures = (createParameters: CreateParams, chartFeatures: Feature[]): void => {
+// Render Features Abstraction
+const renderFeatures = (createParams: CreateParams, chartFeatures: Feature[]): void => {
 	chartFeatures.forEach(({ feature, hide, config }) => {
 		if (hide) return;
 		const featureFunction = featureRegistry[feature];
 		if (featureFunction) {
-			featureFunction(createParameters, config);
+			const selection = featureFunction(createParams, config);
+			if (selection && selection.on) {
+				// Attach tooltip event handlers to relevant chart elements
+				if (feature === 'point' || feature === 'bubbles' || feature === 'bar') {
+					selection
+						.on('mouseover', (event, d) => {
+							eventSystem.trigger(
+								'tooltipShow',
+								createParams.chartTooltip,
+								d,
+								createParams.dataKeys
+							);
+						})
+						.on('mousemove', (event) => {
+							eventSystem.trigger('tooltipMove', createParams.chartTooltip, event);
+						})
+						.on('mouseout', () => {
+							eventSystem.trigger('tooltipHide', createParams.chartTooltip);
+						});
+				}
+			}
 		} else {
 			console.warn(`Feature function not found for feature: ${feature}`);
 		}
 	});
 };
 
-// Scales Creation
-const createScales = ({
+// Scale Creation
+const initializeScales = ({
 	dateDomainUsed,
 	chartWidth
 }: {
@@ -116,7 +136,7 @@ const createScales = ({
 };
 
 // Chart Setup
-const setupChart = (
+const initializeChart = (
 	container: HTMLElement,
 	width: number,
 	height: number
@@ -126,7 +146,7 @@ const setupChart = (
 };
 
 // Domain Calculations
-const calculateDomains = ({
+const computeDomains = ({
 	syncX,
 	syncY,
 	data,
@@ -153,8 +173,8 @@ const calculateDomains = ({
 	return { mergedDateDomain, mergedValueDomain };
 };
 
-// XY Chart Setup and Feature Creation
-const setupXYChart = ({
+// XY Chart Setup and Feature Rendering
+const setupAndRenderChart = ({
 	chartContainer,
 	seriesData,
 	height,
@@ -178,13 +198,15 @@ const setupXYChart = ({
 
 	// If merged, do not create a new SVG, just create a new group
 	const svg = merge
-		? d3.select(chartContainer).select('svg')
-		: setupChart(chartContainer, width, height);
+		? d3.select(chartContainer).select('svg').empty()
+			? initializeChart(chartContainer, width, height)
+			: d3.select(chartContainer).select('svg')
+		: initializeChart(chartContainer, width, height);
 
 	const chartGroup = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
 	const dateDomainUsed = dateDomain || extractDateDomain(seriesData, dataKeys);
-	const { xScale, barWidth } = createScales({
+	const { xScale, barWidth } = initializeScales({
 		isBarChart,
 		dateDomainUsed,
 		chartWidth,
@@ -213,12 +235,12 @@ const setupXYChart = ({
 
 	const chartTooltip = createTooltip(
 		chartContainer,
-		shouldShowFeature(chartFeatures, 'tooltip'),
+		shouldRenderFeature(chartFeatures, 'tooltip'),
 		chartFeatures.find((feature) => feature.feature === 'tooltip')?.config
 	);
 
 	return {
-		createParameters: {
+		createParams: {
 			seriesData,
 			chartGroup,
 			colorScale,
@@ -236,7 +258,7 @@ const setupXYChart = ({
 };
 
 // Unified Chart Creation
-export const createXyChart = (props: CreateChartProps) => {
+export const initializeXyChart = (props: CreateChartProps) => {
 	const { container, data, dataKeysArray, features, config } = props;
 	const { height, squash, syncX, syncY, merge } = config;
 
@@ -245,7 +267,7 @@ export const createXyChart = (props: CreateChartProps) => {
 		d3.select(container).selectAll('*').remove();
 	}
 
-	const { mergedDateDomain, mergedValueDomain } = calculateDomains({
+	const { mergedDateDomain, mergedValueDomain } = computeDomains({
 		syncX,
 		syncY,
 		data,
@@ -256,12 +278,6 @@ export const createXyChart = (props: CreateChartProps) => {
 	const isBarChart = features.some((chartFeatures) =>
 		chartFeatures.some((f) => f.feature === 'bar' && !f.hide)
 	);
-
-	const svg = merge
-		? d3.select(container).select('svg').empty()
-			? setupChart(container, config.width, height)
-			: d3.select(container).select('svg')
-		: null;
 
 	data.forEach((seriesData, i) => {
 		const chartFeatures = features[i];
@@ -274,23 +290,23 @@ export const createXyChart = (props: CreateChartProps) => {
 		const dateDomain = syncX ? mergedDateDomain : undefined;
 		const domainValue = syncY ? mergedValueDomain : undefined;
 
-		const { createParameters } = setupXYChart({
+		const { createParams } = setupAndRenderChart({
 			chartContainer,
 			seriesData,
 			height: chartHeight,
 			chartFeatures,
 			dataKeys,
 			dateDomain,
-			domainValue,
+			valueDomain: domainValue,
 			isBarChart,
 			config,
 			merge
 		});
 
-		if (createParameters) {
-			createFeatures(createParameters, chartFeatures);
+		if (createParams) {
+			renderFeatures(createParams, chartFeatures);
 		}
 	});
 };
 
-attachTooltipEvents();
+initializeEventHandlers();
