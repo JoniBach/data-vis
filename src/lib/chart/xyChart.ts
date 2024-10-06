@@ -223,8 +223,8 @@ const createXYChartCore = (container: HTMLElement, seriesDataArray: any[][], wid
         if (!merge) container.appendChild(chartContainer);
 
         const chartHeight = squash ? height / seriesDataArray.length : height;
-        const domainDate = merge && syncX ? mergedDateDomain : dateDomain;
-        const domainValue = merge && syncY ? mergedValueDomain : valueDomain;
+        const domainDate = syncX ? mergedDateDomain : dateDomain;
+        const domainValue = syncY ? mergedValueDomain : valueDomain;
 
         const { createParameters } = setupXYChart(chartContainer, seriesData, width, chartHeight, features, dataKeys, domainDate, domainValue, isBarChart, syncX, syncY, xType, yType);
 
