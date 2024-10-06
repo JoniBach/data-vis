@@ -4,7 +4,7 @@
 	import type { DataGenerationConfig } from '$lib/index.js';
 	import { onMount } from 'svelte';
 
-	const chartConfig = {
+	const config = {
 		width: 600,
 		height: 240,
 		squash: false,
@@ -17,7 +17,7 @@
 	};
 
 	// Example usage with trendVariance configuration:
-	const config: DataGenerationConfig = {
+	const dataConfig: DataGenerationConfig = {
 		seriesRange: { min: 2, max: 4 },
 		xRange: { min: 4, max: 8 },
 		yRange: { min: 20, max: 90 },
@@ -29,7 +29,7 @@
 			lowerLimit: 25,
 			adjustmentRange: 5
 		},
-		xType: chartConfig.xType,
+		xType: config.xType,
 		xConsistency: false
 	};
 
@@ -40,7 +40,7 @@
 
 	// Generate data initially using the seed
 	function generateData() {
-		const generated = generateMultiSeriesData(config, null, seed);
+		const generated = generateMultiSeriesData(dataConfig, null, seed);
 		data = generated.data;
 		dataKeys = generated.dataKeys;
 		features = generated.features;
@@ -69,7 +69,7 @@
 </script>
 
 <main>
-	<XyChart {data} {dataKeys} {features} config={chartConfig} />
+	<XyChart {data} {dataKeys} {features} {config} />
 
 	<code>
 		Seed: <input bind:value={seed} type="number" />
