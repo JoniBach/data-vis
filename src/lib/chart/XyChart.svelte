@@ -8,8 +8,6 @@
 	export let features: any[] = [];
 	export let dataKeys: DataKeys;
 
-	$: dataKeysArray = dataKeys;
-
 	export let config: ChartConfig = {
 		width: '500',
 		height: '300',
@@ -28,7 +26,7 @@
 	function renderChart() {
 		if (data && container) {
 			container.innerHTML = ''; // Clear previous chart
-			createXyChart({ container, data, features, dataKeysArray, config });
+			createXyChart({ container, data, features, dataKeysArray: dataKeys, config });
 		}
 	}
 
