@@ -13,10 +13,10 @@
 		yType: 'number',
 
 		// xType: 'string',
-		// xType: 'number',
-		xType: 'date',
+		xType: 'number',
+		// xType: 'date',
+		// merge: false,
 		merge: false,
-		// merge: false
 		margin: { top: 25, right: 30, bottom: 50, left: 50 }
 	};
 

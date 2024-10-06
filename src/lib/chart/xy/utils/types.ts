@@ -97,3 +97,20 @@ export interface ListenerMap {
 	tooltipMove: TooltipListener;
 	tooltipHide: (chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>) => void;
 }
+
+export interface SetupChartParams {
+	chartContainer: HTMLElement;
+	seriesData: any[];
+	height: number;
+	chartFeatures: any[];
+	dataKeys: types.DataKeys;
+	dateDomain?: (Date | number | string)[];
+	valueDomain?: [number, number];
+	isBarChart: boolean;
+	config: types.ChartConfig;
+	merge: boolean;
+}
+export interface setupAndRenderChartRes {
+	createParams: types.CreateParams;
+	chartGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
+}
