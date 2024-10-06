@@ -62,7 +62,7 @@ const handleTooltipHide = (chartTooltip: d3.Selection<HTMLElement, unknown, null
 
 // Event Handlers
 const initializeEventHandlers = (): void => {
-	eventSystem.on('tooltipShow', handleTooltipShow);
+	eventSystem.on('tooltip', handleTooltipShow);
 	eventSystem.on('tooltipMove', handleTooltipMove);
 	eventSystem.on('tooltipHide', handleTooltipHide);
 };
@@ -97,12 +97,7 @@ const renderFeatures = (createParams: CreateParams, chartFeatures: Feature[]): v
 				if (feature === 'point' || feature === 'bubbles' || feature === 'bar') {
 					selection
 						.on('mouseover', (event, d) => {
-							eventSystem.trigger(
-								'tooltipShow',
-								createParams.chartTooltip,
-								d,
-								createParams.dataKeys
-							);
+							eventSystem.trigger('tooltip', createParams.chartTooltip, d, createParams.dataKeys);
 						})
 						.on('mousemove', (event) => {
 							eventSystem.trigger('tooltipMove', createParams.chartTooltip, event);
