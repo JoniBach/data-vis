@@ -67,10 +67,7 @@ export interface MultiSeriesResponse {
 // Default Features Function
 
 const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
-    {
-        feature: 'line',
-        hide: false,
-    },
+
     {
         feature: 'bar',
         hide: false,
@@ -80,6 +77,10 @@ const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
             // variant: 'stacked',
             // variant: 'grouped',
         },
+    },
+    {
+        feature: 'line',
+        hide: false,
     },
     {
         feature: 'point',

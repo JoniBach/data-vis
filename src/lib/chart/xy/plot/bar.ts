@@ -57,10 +57,11 @@ export function createErrorBars(
     const { xScale, valueScale, colorScale } = params;
 
     try {
-        const seriesScale = d3.scaleBand()
+        // Only define seriesScale if xScale has a bandwidth function (scaleBand)
+        const seriesScale = xScale.bandwidth ? d3.scaleBand()
             .domain(seriesData.map(d => d[dataKeys.name]))
             .range([0, xScale.bandwidth()])
-            .padding(0.05);
+            .padding(0.05) : null;
 
         const magnitudeScale = d3.scaleLinear()
             .domain([d3.min(seriesData, series => d3.min(series[dataKeys.data], d => d[dataKeys.magnitude])) || 0,
@@ -75,10 +76,10 @@ export function createErrorBars(
 
             bars.each((d, i, nodes) => {
                 const bar = d3.select(nodes[i]);
-                const xPos = getXPosition(xScale, d[dataKeys.xKey]) + seriesScale(series[dataKeys.name])!;
+                const xPos = getXPosition(xScale, d[dataKeys.xKey]) + (seriesScale ? seriesScale(series[dataKeys.name])! : 0);
                 const yPos = valueScale(d[dataKeys.yKey]);
                 const height = chartHeight - valueScale(d[dataKeys.yKey]);
-                const width = seriesScale.bandwidth();
+                const width = seriesScale ? seriesScale.bandwidth() : 10;  // Fallback width if not scaleBand
                 const fillColor = colorScale(series[dataKeys.name]);
 
                 createBar(bar, d, xPos, yPos, height, width, fillColor, fillOpacity, params.chartTooltip, dataKeys);
@@ -89,6 +90,7 @@ export function createErrorBars(
         console.error('Error generating error bars:', error);
     }
 }
+
 
 // Helper function to add error bars (lines and caps)
 function addErrorBars(barsGroup: any, xPos: number, width: number, yPos: number, errorMagnitude: number) {
@@ -122,7 +124,6 @@ function addErrorBars(barsGroup: any, xPos: number, width: number, yPos: number,
         .attr('stroke-width', 1.5);
 }
 
-// Function to create stacked bars
 export function createStackedBars(
     seriesData: any[],
     barsGroup: any,
@@ -148,9 +149,10 @@ export function createStackedBars(
                 const xPos = getXPosition(xScale, d.data[dataKeys.xKey]);
                 const yPos = valueScale(d[1]);
                 const height = Math.abs(valueScale(d[0]) - valueScale(d[1]));
+                const width = xScale.bandwidth ? xScale.bandwidth() : 10;  // Fallback width if not scaleBand
                 const fillColor = colorScale(seriesName);
 
-                createBar(bar, d, xPos, yPos, height, xScale.bandwidth(), fillColor, fillOpacity, params.chartTooltip, dataKeys);
+                createBar(bar, d, xPos, yPos, height, width, fillColor, fillOpacity, params.chartTooltip, dataKeys);
             });
         });
     } catch (error) {
@@ -158,7 +160,6 @@ export function createStackedBars(
     }
 }
 
-// Function to create grouped or overlapped bars
 export function createNonStackedBars(
     type: 'grouped' | 'overlapped',
     seriesData: any[],
@@ -171,10 +172,11 @@ export function createNonStackedBars(
     const { xScale, valueScale, colorScale } = params;
 
     try {
-        const seriesScale = d3.scaleBand()
+        // Check if xScale has a bandwidth method (i.e., it's a scaleBand)
+        const seriesScale = xScale.bandwidth ? d3.scaleBand()
             .domain(seriesData.map(d => d[dataKeys.name]))
             .range([0, xScale.bandwidth()])
-            .padding(0.05);
+            .padding(0.05) : null;
 
         seriesData.forEach(series => {
             const bars = barsGroup.selectAll(`rect.${series[dataKeys.name].replace(/\s+/g, '-')}`)
@@ -184,10 +186,10 @@ export function createNonStackedBars(
 
             bars.each((d, i, nodes) => {
                 const bar = d3.select(nodes[i]);
-                const xPos = getXPosition(xScale, d[dataKeys.xKey]) + (type === 'grouped' ? seriesScale(series[dataKeys.name])! : 0);
+                const xPos = getXPosition(xScale, d[dataKeys.xKey]) + (type === 'grouped' && seriesScale ? seriesScale(series[dataKeys.name])! : 0);
                 const yPos = valueScale(d[dataKeys.yKey]);
                 const height = chartHeight - valueScale(d[dataKeys.yKey]);
-                const width = type === 'grouped' ? seriesScale.bandwidth() : xScale.bandwidth();
+                const width = seriesScale ? seriesScale.bandwidth() : (xScale.bandwidth ? xScale.bandwidth() : 10);  // Fallback width
                 const fillColor = colorScale(series[dataKeys.name]);
 
                 createBar(bar, d, xPos, yPos, height, width, fillColor, fillOpacity, params.chartTooltip, dataKeys);
@@ -197,6 +199,7 @@ export function createNonStackedBars(
         console.error('Error generating bars for grouped or overlapped variant:', error);
     }
 }
+
 
 // General function to create a bar with tooltip
 export function createBar(

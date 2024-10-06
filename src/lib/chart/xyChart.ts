@@ -89,25 +89,27 @@ const createScales = ({ isBarChart, dateDomainUsed, chartWidth, seriesData, data
     let dateScale, xScale, barWidth = 0;
 
     if (isBarChart) {
+        // Assuming 'dateDomainUsed' contains non-Date values like strings or numbers for bar charts
         xScale = d3.scaleBand()
-            .domain(dateDomainUsed.map(d => d.getTime()))
+            .domain(dateDomainUsed) // Use the values directly without assuming they're Date objects
             .range([0, chartWidth])
             .padding(0.1);
         barWidth = xScale.bandwidth();
     } else {
         if (xType === 'date') {
             dateScale = d3.scaleTime()
-                .domain(d3.extent(dateDomainUsed) as [Date, Date])
+                .domain(d3.extent(dateDomainUsed, d => new Date(d)) as [Date, Date]) // Ensure 'dateDomainUsed' is processed as Date objects
                 .range([0, chartWidth]);
         } else {
             dateScale = d3.scaleLinear()
-                .domain(d3.extent(seriesData, d => d[dataKeys.xKey]) as [number, number])
+                .domain(d3.extent(seriesData, d => +d[dataKeys.xKey]) as [number, number]) // Ensure numeric values are parsed
                 .range([0, chartWidth]);
         }
     }
 
     return { dateScale, xScale, barWidth };
 };
+
 
 // DRY: Abstract common chart setup logic
 const setupChart = (container, width, height) => {
