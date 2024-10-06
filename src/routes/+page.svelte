@@ -58,6 +58,16 @@
 
 	// Watch for changes in seed input and regenerate data
 	$: seed, generateData(); // Re-run data generation when seed changes
+
+	const chartConfig = {
+		width: 600,
+		height: 240,
+		squash: false,
+		syncX: true,
+		syncY: true,
+		yType: 'number',
+		xType: xType
+	};
 </script>
 
 <main>
@@ -72,6 +82,7 @@
 		{syncY}
 		yType={'number'}
 		{xType}
+		config={chartConfig}
 	/>
 
 	<code>

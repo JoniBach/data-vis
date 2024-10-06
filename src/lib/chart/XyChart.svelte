@@ -13,6 +13,23 @@
 	export let syncY: boolean = false;
 	export let xType: AxisType = 'number';
 	export let yType: AxisType = 'date';
+	export let config: {
+		width: string;
+		height: string;
+		squash: boolean;
+		syncX: boolean;
+		syncY: boolean;
+		yType: string;
+		xType: string;
+	} = {
+		width: '500',
+		height: '300',
+		squash: false,
+		syncX: false,
+		syncY: false,
+		yType: 'date',
+		xType: 'number'
+	};
 
 	let chartContainer: HTMLElement;
 
@@ -32,7 +49,8 @@
 				syncX,
 				syncY,
 				xType,
-				yType
+				yType,
+				config
 			);
 		}
 	}
