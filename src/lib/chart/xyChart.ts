@@ -19,15 +19,10 @@ import type {
 	AxisType,
 	Feature,
 	DataKeys,
-	ChartConfig,
 	CreateChartProps
 } from './xy/utils/types.js';
 import { eventSystem } from './xy/utils/event.js';
-import {
-	createInitialSVG,
-	createInitialChartGroup,
-	createInitialScale
-} from './xy/utils/initial.js';
+import { createInitialSVG, createInitialScale } from './xy/utils/initial.js';
 import { isValidSeriesData } from './xy/utils/validator.js';
 
 // DRY Principle: Tooltip Handling
