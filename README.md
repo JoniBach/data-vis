@@ -2,7 +2,7 @@ Note: This project is a work in progress and is subject to changes as it evolves
 
 # **Universal Chart Library: Making Complex Visualizations Simple**
 
-### A D3.js Library for Multi-Coordinate System Charts, Made Easy
+### **Subtitle**: A D3.js Library for Multi-Coordinate System Charts, Made Easy
 
 ---
 
@@ -46,6 +46,25 @@ Users will interact with the system through a simple, **configuration-driven API
 ### **Conclusion**
 
 The **Universal Chart Library** aims to reduce the complexity of D3.js while maximizing its power. By offering a simple, modular canvas system for each coordinate type, this library will empower developers and analysts to create meaningful visualizations quickly and effectively—enabling more time for insight and analysis rather than wrestling with configuration. Let’s make visual storytelling easy, engaging, and versatile.
+
+### **Project Roadmap**
+
+[] Cartesian Coordinates (x, y)
+  [] Line, bar, scatter, area
+[] Polar Coordinates (Radius, Angle)
+  [] Pie charts, radar charts, polar bar charts
+[] Spherical Coordinates
+  [] 3D[]like representations on spherical surfaces
+[] Cylindrical Coordinates
+  [] Charts combining radial positioning with height
+[] Geographic Coordinates (Latitude, Longitude)
+  [] Maps, choropleths, geo heatmaps
+[] Logarithmic Coordinates
+  [] For data spanning multiple magnitudes
+[] Parallel Coordinates
+  [] High dimensional data plots
+[] Ternary and Hexagonal Coordinates
+  [] Specialized composition and density plots
 
 
 ## Developing
