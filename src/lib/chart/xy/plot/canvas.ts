@@ -4,7 +4,12 @@ import type { CreateParams, TooltipConfig } from '../utils/types.js';
 import { eventSystem } from '../utils/event.js';
 
 // Optimized: Simple helper for sanitizing input
-export function escapeHTML(str: number | string): string {
+// Updated: Simple helper for sanitizing input with improved error handling
+export function escapeHTML(str: number | string | null | undefined): string {
+    if (str === null || str === undefined) {
+        return ''; // Return empty string for null or undefined values
+    }
+
     if (typeof str !== 'string' && typeof str !== 'number') {
         console.warn('Invalid input type for escapeHTML. Expected a string or number.');
         return '';
@@ -18,6 +23,7 @@ export function escapeHTML(str: number | string): string {
         .replace(/'/g, "&#39;");
 }
 
+
 // DRY: Utility function to create an axis
 const createAxisHelper = (scale: any, orientation: 'bottom' | 'left', tickFormat: any, tickCount: number) => {
     return orientation === 'bottom'
@@ -29,18 +35,22 @@ const createAxisHelper = (scale: any, orientation: 'bottom' | 'left', tickFormat
 export function createAxis(params: CreateParams, config: any) {
     const { chartGroup, dateScale, xScale, valueScale, chartHeight } = params;
 
-    const xTickFormat = config?.xTickFormat || "%b %Y";
+    // Use date formatting like "MM / YY" (e.g., "10 / 24", "01 / 25")
+    const xTickFormat = config?.xTickFormat || "%m / %y";
     const yTickDecimals = config?.yTickDecimals !== undefined ? config.yTickDecimals : 2;
     const xTicks = config?.xTicks || 5;
     const yTicks = config?.yTicks || 10;
 
-    const xAxis = createAxisHelper(xScale || dateScale, 'bottom', d3.timeFormat(xTickFormat), xTicks);
+    // Ensure we are passing a Date object for date scales and formatting with `d3.timeFormat`.
+    const xAxis = createAxisHelper(dateScale || xScale, 'bottom', d3.timeFormat(xTickFormat), xTicks);
     const yAxis = createAxisHelper(valueScale, 'left', d3.format(`.${yTickDecimals}f`), yTicks);
 
+    // Append the x-axis (with date formatting if dateScale is used)
     chartGroup.append('g')
         .attr('transform', `translate(0,${chartHeight})`)
         .call(xAxis);
 
+    // Append the y-axis
     chartGroup.append('g')
         .call(yAxis);
 }
@@ -109,7 +119,14 @@ export function createTooltip(container: HTMLElement | null, showTooltip: boolea
 
 // Optimized: Attach tooltip handlers using a utility function
 export function attachTooltipHandlers(selection: d3.Selection<SVGRectElement, any, SVGGElement, any>, chartTooltip: any, dataKeys: any) {
-    selection.on('mouseover', (event, d) => eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys))
-        .on('mousemove', (event) => eventSystem.trigger('tooltipMove', chartTooltip, event))
-        .on('mouseout', () => eventSystem.trigger('tooltipHide', chartTooltip));
+    selection.on('mouseover', function (event, d) {
+        // Trigger tooltip with correct data point 'd'
+        eventSystem.trigger('tooltip', chartTooltip, d, dataKeys);
+    })
+        .on('mousemove', function (event) {
+            eventSystem.trigger('tooltipMove', chartTooltip, event);
+        })
+        .on('mouseout', function () {
+            eventSystem.trigger('tooltipHide', chartTooltip);
+        });
 }

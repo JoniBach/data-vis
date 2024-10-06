@@ -9,11 +9,26 @@ import { createInitialSVG, createInitialChartGroup, createInitialScale } from '.
 import { isValidSeriesData } from './xy/utils/validator.js';
 
 // DRY principle: Abstract repeated logic into reusable pure functions
+// Fixing the tooltip handler for better error handling and type safety
+// Updated tooltip handler with improved data checks
 const handleTooltip = (chartTooltip, d, dataKeys) => {
-    try {
-        const dateStr = escapeHTML(d3.timeFormat("%b %Y")(d[dataKeys.xKey]));
-        const valueStr = escapeHTML(d[dataKeys.yKey]);
 
+    try {
+        const xKeyValue = d[dataKeys.xKey];
+        const yKeyValue = d[dataKeys.yKey];
+
+        // Safely handle if xKey or yKey is undefined or null
+        const dateStr = xKeyValue
+            ? (xKeyValue instanceof Date
+                ? escapeHTML(d3.timeFormat("%b %Y")(xKeyValue))
+                : escapeHTML(String(xKeyValue)))
+            : 'N/A';
+
+        const valueStr = yKeyValue !== undefined && yKeyValue !== null
+            ? escapeHTML(String(yKeyValue))
+            : 'N/A';
+
+        // Update tooltip content
         chartTooltip.style("visibility", "visible")
             .html(`Date: ${dateStr}<br>Value: ${valueStr}`);
     } catch (error) {
@@ -21,19 +36,24 @@ const handleTooltip = (chartTooltip, d, dataKeys) => {
     }
 };
 
+
+
+// Tooltip positioning logic
 const moveTooltip = (chartTooltip, event) => {
     chartTooltip.style("top", `${event.pageY - 10}px`)
         .style("left", `${event.pageX + 10}px`);
 };
 
+// Hide the tooltip
 const hideTooltip = (chartTooltip) => {
     chartTooltip.style("visibility", "hidden");
 };
 
-// Attach tooltip events with refactored functions
+// Attach the refactored tooltip events
 eventSystem.on('tooltip', handleTooltip);
 eventSystem.on('tooltipMove', moveTooltip);
 eventSystem.on('tooltipHide', hideTooltip);
+
 
 // Registry system for features
 const featureRegistry: Record<string, FeatureFunction> = {

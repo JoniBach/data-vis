@@ -75,7 +75,7 @@ export function createErrorBars(
 
             bars.each((d, i, nodes) => {
                 const bar = d3.select(nodes[i]);
-                const xPos = xScale(d[dataKeys.xKey].getTime())! + seriesScale(series[dataKeys.name])!;
+                const xPos = getXPosition(xScale, d[dataKeys.xKey]) + seriesScale(series[dataKeys.name])!;
                 const yPos = valueScale(d[dataKeys.yKey]);
                 const height = chartHeight - valueScale(d[dataKeys.yKey]);
                 const width = seriesScale.bandwidth();
@@ -145,7 +145,7 @@ export function createStackedBars(
 
             bars.each((d, i, nodes) => {
                 const bar = d3.select(nodes[i]);
-                const xPos = xScale(d.data[dataKeys.xKey])!;
+                const xPos = getXPosition(xScale, d.data[dataKeys.xKey]);
                 const yPos = valueScale(d[1]);
                 const height = Math.abs(valueScale(d[0]) - valueScale(d[1]));
                 const fillColor = colorScale(seriesName);
@@ -184,7 +184,7 @@ export function createNonStackedBars(
 
             bars.each((d, i, nodes) => {
                 const bar = d3.select(nodes[i]);
-                const xPos = xScale(d[dataKeys.xKey].getTime())! + (type === 'grouped' ? seriesScale(series[dataKeys.name])! : 0);
+                const xPos = getXPosition(xScale, d[dataKeys.xKey]) + (type === 'grouped' ? seriesScale(series[dataKeys.name])! : 0);
                 const yPos = valueScale(d[dataKeys.yKey]);
                 const height = chartHeight - valueScale(d[dataKeys.yKey]);
                 const width = type === 'grouped' ? seriesScale.bandwidth() : xScale.bandwidth();
@@ -228,7 +228,7 @@ export function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys)
     }
 
     if (!dataKeys || !dataKeys.name || !dataKeys.xKey || !dataKeys.yKey || !dataKeys.data) {
-        throw new Error('Invalid dataKeys: all keys (name, date, value, data) must be defined');
+        throw new Error('Invalid dataKeys: all keys (name, xKey, yKey, data) must be defined');
     }
 
     const firstSeriesData = seriesData[0][dataKeys.data];
@@ -241,7 +241,7 @@ export function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys)
         .offset(d3.stackOffsetDiverging)(
             firstSeriesData.map((_, i) => {
                 const obj: Record<string, number> = {
-                    [dataKeys.xKey]: firstSeriesData[i][dataKeys.xKey].getTime()
+                    [dataKeys.xKey]: firstSeriesData[i][dataKeys.xKey]
                 };
                 seriesData.forEach(series => {
                     const seriesName = series[dataKeys.name];
@@ -255,4 +255,16 @@ export function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys)
                 return obj;
             })
         );
+}
+
+// Helper function to handle different types for x-axis
+function getXPosition(xScale: any, xKey: any) {
+    if (xKey instanceof Date) {
+        return xScale(xKey.getTime());
+    } else if (typeof xKey === 'number') {
+        return xScale(xKey);
+    } else if (typeof xKey === 'string') {
+        return xScale(xKey);
+    }
+    throw new Error('Unsupported xKey type. Only Date, number, or string are supported.');
 }

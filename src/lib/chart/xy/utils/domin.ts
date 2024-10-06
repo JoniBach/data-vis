@@ -1,13 +1,34 @@
 import type { DataKeys } from "./types.js";
 
 // Utility function to find unique and sorted dates
-const getUniqueSortedDates = (dates: Date[]): Date[] => {
-    return Array.from(new Set(dates.map(date => date.getTime()))).map(time => new Date(time)).sort((a, b) => a.getTime() - b.getTime());
+const getUniqueSortedDates = (dates: (Date | number | string)[]): Date[] => {
+    return Array.from(new Set(dates.map(date => {
+        if (date instanceof Date) {
+            return date.getTime();
+        } else if (typeof date === 'number') {
+            return date; // Assuming date is a timestamp number
+        } else {
+            // If it's a string, try to parse it into a Date object
+            return new Date(date).getTime();
+        }
+    })))
+        .map(time => new Date(time))
+        .sort((a, b) => a.getTime() - b.getTime());
 };
 
 // Utility function to find the data point by date
 const findDataPointByDate = (series: any, dataKeys: DataKeys, date: number) => {
-    return series[dataKeys.data].find((d: any) => d[dataKeys.xKey].getTime() === date);
+    return series[dataKeys.data].find((d: any) => {
+        const xValue = d[dataKeys.xKey];
+        if (xValue instanceof Date) {
+            return xValue.getTime() === date;
+        } else if (typeof xValue === 'number') {
+            return xValue === date; // If `xKey` is a timestamp number
+        } else if (typeof xValue === 'string') {
+            return new Date(xValue).getTime() === date; // If it's a string, convert to Date and compare
+        }
+        return false;
+    });
 };
 
 // DRY: Abstract calculation of min/max values for stacked and non-stacked variants
@@ -26,7 +47,8 @@ const calculateMinMaxForDate = (seriesDataArray: any[][], dataKeysArray: DataKey
             if (dataPoint) {
                 const value = dataPoint[dataKeys.yKey];
                 if (variant === 'stacked') {
-                    value >= 0 ? chartPositive += value : chartNegative += value;
+                    if (value >= 0) chartPositive += value;
+                    else chartNegative += value;
                 } else {
                     if (value > dateMaxPositive) dateMaxPositive = value;
                     if (value < dateMinNegative) dateMinNegative = value;

@@ -4,20 +4,33 @@ import * as d3 from 'd3';
 import type { CreateParams } from '../utils/types.js';
 
 // DRY: Utility function to compute X position for both line/area and bubbles
-const computeXPosition = (d: DataPoint, dataKeys: DataKeys, xScale: any, dateScale: any) =>
-    xScale
-        ? xScale(d[dataKeys.xKey].getTime())! + xScale.bandwidth() / 2
-        : dateScale!(d[dataKeys.xKey]);
+const computeXPosition = (d: DataPoint, dataKeys: DataKeys, xScale: any, dateScale: any) => {
+    const xValue = d[dataKeys.xKey];
+
+    // Determine the type of xKey (Date, number, or string) and use the correct scale
+    if (xValue instanceof Date) {
+        return dateScale ? dateScale(xValue) : xScale(xValue.getTime()) + xScale.bandwidth() / 2;
+    } else if (typeof xValue === 'number') {
+        return xScale(xValue);
+    } else if (typeof xValue === 'string') {
+        return xScale(xValue) + xScale.bandwidth() / 2;
+    } else {
+        throw new Error('Unsupported xKey type. Only Date, number, or string are supported.');
+    }
+};
 
 // DRY: Utility function to append tooltip handlers
 const addTooltipHandlers = (selection: any, chartTooltip: any, dataKeys: DataKeys) => {
-    selection.on('mouseover', (event, d) => {
-        eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys);
-    }).on('mousemove', (event) => {
-        eventSystem.trigger('tooltipMove', chartTooltip, event);
-    }).on('mouseout', () => {
-        eventSystem.trigger('tooltipHide', chartTooltip);
-    });
+    selection.on('mouseover', function (event, d) {
+        // Trigger tooltip with correct data point 'd'
+        eventSystem.trigger('tooltip', chartTooltip, d, dataKeys);
+    })
+        .on('mousemove', function (event) {
+            eventSystem.trigger('tooltipMove', chartTooltip, event);
+        })
+        .on('mouseout', function () {
+            eventSystem.trigger('tooltipHide', chartTooltip);
+        });
 };
 
 // Optimized: Create line or area generator
