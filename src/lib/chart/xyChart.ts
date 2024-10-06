@@ -271,9 +271,9 @@ const createXYChartCore = (
 	seriesDataArray: any[][],
 	featuresArray: Feature[][],
 	dataKeysArray: DataKeys[],
+	config: ChartConfig,
 	dateDomain: any[],
-	valueDomain: any[],
-	config: ChartConfig
+	valueDomain: any[]
 ) => {
 	const { height, squash, syncX, syncY, merge } = config;
 
@@ -333,9 +333,9 @@ export const createSeperateXyCharts = (
 		seriesDataArray,
 		featuresArray,
 		dataKeysArray,
+		config,
 		undefined,
-		false,
-		config
+		false
 	);
 };
 
@@ -351,9 +351,9 @@ export const createMergedXyCharts = (
 		seriesDataArray,
 		featuresArray,
 		dataKeysArray,
+		config,
 		undefined,
-		true,
-		config
+		true
 	);
 };
 
