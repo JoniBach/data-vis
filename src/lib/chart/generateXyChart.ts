@@ -67,7 +67,10 @@ export interface MultiSeriesResponse {
 // Default Features Function
 
 const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
-
+    // {
+    //     feature: 'area',
+    //     hide: true,
+    // },
     {
         feature: 'bar',
         hide: false,
@@ -92,24 +95,12 @@ const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
         config: { minRadius: 5, maxRadius: 30 }
     },  // Adding bubbles feature
 
-    // {
-    //     feature: 'area',
-    //     hide: true,
-    // },
+
     {
         feature: 'grid',
         hide: false,
     },
-    {
-        feature: "axis",
-        hide: false,
-        config: {
-            xTickFormat: "%m / %y",  // This will be passed as a string for formatting the x-axis (day/month/year format)
-            yTickDecimals: 0,   // Specify the number of decimal places on the y-axis
-            xTicks: 5,          // Number of ticks on the x-axis
-            yTicks: 10,         // Number of ticks on the y-axis
-        }
-    },
+
     {
         feature: 'tooltip',
         hide: false,
@@ -123,6 +114,16 @@ const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
         feature: 'label',
         hide: false,
         config: labels,
+    },
+    {
+        feature: "axis",
+        hide: false,
+        config: {
+            xTickFormat: "%m / %y",  // This will be passed as a string for formatting the x-axis (day/month/year format)
+            yTickDecimals: 0,   // Specify the number of decimal places on the y-axis
+            xTicks: 5,          // Number of ticks on the x-axis
+            yTicks: 10,         // Number of ticks on the y-axis
+        }
     },
 ];
 

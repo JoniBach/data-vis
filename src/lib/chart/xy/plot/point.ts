@@ -76,9 +76,9 @@ export function createPoints({ seriesData, chartGroup, colorScale, dateScale, xS
                     .attr('cx', d => {
                         const xValue = d[dataKeys.xKey];
                         const computedX = xScale
-                            ? xScale.bandwidth
+                            ? (xScale.bandwidth
                                 ? xScale(xValue)! + xScale.bandwidth() / 2
-                                : xScale(xValue)
+                                : xScale(xValue))
                             : dateScale!(xValue);
                         return isNaN(computedX) ? 0 : computedX; // Set to 0 if invalid
                     })
@@ -89,7 +89,7 @@ export function createPoints({ seriesData, chartGroup, colorScale, dateScale, xS
                     .attr('r', 4)
                     .attr('fill', colorScale(series[dataKeys.name]))
                     .on('mouseover', (event, d) => {
-                        eventSystem.trigger('tooltip', chartTooltip, d, dataKeys);
+                        eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys);
                     })
                     .on('mousemove', (event) => {
                         eventSystem.trigger('tooltipMove', chartTooltip, event);
@@ -101,9 +101,9 @@ export function createPoints({ seriesData, chartGroup, colorScale, dateScale, xS
                     .attr('cx', d => {
                         const xValue = d[dataKeys.xKey];
                         const computedX = xScale
-                            ? xScale.bandwidth
+                            ? (xScale.bandwidth
                                 ? xScale(xValue)! + xScale.bandwidth() / 2
-                                : xScale(xValue)
+                                : xScale(xValue))
                             : dateScale!(xValue);
                         return isNaN(computedX) ? 0 : computedX; // Set to 0 if invalid
                     })
@@ -141,27 +141,42 @@ export function createBubbles(params: CreateParams, config: { minRadius?: number
     seriesData.forEach(series => {
         const bubbles = bubblesGroup.selectAll(`circle.${series[dataKeys.name].replace(/\s+/g, '-')}`)
             .data(series[dataKeys.data].filter(d => d[dataKeys.xKey] !== null && d[dataKeys.yKey] !== null && !isNaN(valueScale(d[dataKeys.yKey])))) // Filter out invalid data points
-            .enter()
-            .append('circle')
-            .attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
-            .attr('cx', d => {
-                const xValue = d[dataKeys.xKey];
-                const computedX = xScale
-                    ? xScale.bandwidth
-                        ? xScale(xValue)! + xScale.bandwidth() / 2
-                        : xScale(xValue)
-                    : dateScale!(xValue);
-                return isNaN(computedX) ? 0 : computedX; // Set to 0 if invalid
-            })
-            .attr('cy', d => {
-                const computedY = valueScale(d[dataKeys.yKey]);
-                return isNaN(computedY) ? chartHeight : computedY; // Set to chartHeight if invalid
-            })
-            .attr('r', d => radiusScale(d[dataKeys.yKey]))
-            .attr('fill', colorScale(series[dataKeys.name]))
-            .attr('fill-opacity', 0.7);
+            .join(
+                enter => enter.append('circle')
+                    .attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
+                    .attr('cx', d => {
+                        const xValue = d[dataKeys.xKey];
+                        const computedX = xScale
+                            ? (xScale.bandwidth
+                                ? xScale(xValue)! + xScale.bandwidth() / 2
+                                : xScale(xValue))
+                            : dateScale!(xValue);
+                        return isNaN(computedX) ? 0 : computedX; // Set to 0 if invalid
+                    })
+                    .attr('cy', d => {
+                        const computedY = valueScale(d[dataKeys.yKey]);
+                        return isNaN(computedY) ? chartHeight : computedY; // Set to chartHeight if invalid
+                    })
+                    .attr('r', d => radiusScale(d[dataKeys.yKey]))
+                    .attr('fill', colorScale(series[dataKeys.name]))
+                    .attr('fill-opacity', 0.7),
+                update => update
+                    .attr('cx', d => {
+                        const xValue = d[dataKeys.xKey];
+                        const computedX = xScale
+                            ? (xScale.bandwidth
+                                ? xScale(xValue)! + xScale.bandwidth() / 2
+                                : xScale(xValue))
+                            : dateScale!(xValue);
+                        return isNaN(computedX) ? 0 : computedX; // Set to 0 if invalid
+                    })
+                    .attr('cy', d => {
+                        const computedY = valueScale(d[dataKeys.yKey]);
+                        return isNaN(computedY) ? chartHeight : computedY; // Set to chartHeight if invalid
+                    }),
+                exit => exit.remove() // Remove bubbles that no longer have data
+            );
 
         attachTooltipHandlers(bubbles, chartTooltip, dataKeys);
-
     });
 }

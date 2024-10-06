@@ -3,17 +3,11 @@ import * as d3 from 'd3';
 import type { CreateParams, TooltipConfig } from '../utils/types.js';
 import { eventSystem } from '../utils/event.js';
 
-// Optimized: Simple helper for sanitizing input
+// Utility: Simple helper for sanitizing input
 export function escapeHTML(str: number | string | null | undefined): string {
-    if (str === null || str === undefined) {
+    if (str == null) {
         return ''; // Return empty string for null or undefined values
     }
-
-    if (typeof str !== 'string' && typeof str !== 'number') {
-        console.warn('Invalid input type for escapeHTML. Expected a string or number.');
-        return '';
-    }
-
     return String(str)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -22,32 +16,24 @@ export function escapeHTML(str: number | string | null | undefined): string {
         .replace(/'/g, "&#39;");
 }
 
-// DRY: Utility function to create an axis
+// Utility: DRY function to create an axis
 const createAxisHelper = (scale: any, orientation: 'bottom' | 'left', tickFormat: any, tickCount: number) => {
-    return orientation === 'bottom'
-        ? d3.axisBottom(scale).ticks(tickCount).tickFormat(tickFormat)
-        : d3.axisLeft(scale).ticks(tickCount).tickFormat(tickFormat);
+    const axis = orientation === 'bottom' ? d3.axisBottom(scale) : d3.axisLeft(scale);
+    return axis.ticks(tickCount).tickFormat(tickFormat);
 };
 
-// Optimized: Axis creation with reusable helper
 // Optimized: Axis creation with reusable helper
 export function createAxis(params: CreateParams, config: any) {
     const { chartGroup, dateScale, xScale, valueScale, chartHeight, xType } = params;
 
     const xTickFormat = xType === 'date' ? d3.timeFormat(config?.xTickFormat || "%m / %y") : null;
-    const yTickDecimals = config?.yTickDecimals !== undefined ? config.yTickDecimals : 2;
-    const xTicks = config?.xTicks || 5;
-    const yTicks = config?.yTicks || 10;
+    const yTickDecimals = config?.yTickDecimals ?? 2;
+    const xTicks = config?.xTicks ?? 5;
+    const yTicks = config?.yTicks ?? 10;
 
     // Create the x-axis: Date format if xType is 'date', no format for number/string
-    const xAxis = d3.axisBottom(dateScale || xScale)
-        .ticks(xTicks)
-        .tickFormat(xTickFormat);  // Only apply tickFormat if it's for a date
-
-    // Create the y-axis
-    const yAxis = d3.axisLeft(valueScale)
-        .ticks(yTicks)
-        .tickFormat(d3.format(`.${yTickDecimals}f`));  // Number formatting for y-axis
+    const xAxis = createAxisHelper(dateScale || xScale, 'bottom', xTickFormat, xTicks);
+    const yAxis = createAxisHelper(valueScale, 'left', d3.format(`.${yTickDecimals}f`), yTicks);
 
     // Append the x-axis at the bottom of the chart
     chartGroup.append('g')
@@ -58,7 +44,6 @@ export function createAxis(params: CreateParams, config: any) {
     chartGroup.append('g').call(yAxis);
 }
 
-
 // Optimized: Create grid with refactored code
 export function createGrid(params: CreateParams) {
     const { chartGroup, dateScale, xScale, valueScale, chartHeight, chartWidth } = params;
@@ -67,14 +52,14 @@ export function createGrid(params: CreateParams) {
     gridGroup.call(d3.axisLeft(valueScale).tickSize(-chartWidth).tickFormat(() => ""))
         .selectAll('line').attr('stroke', '#ccc').attr('stroke-dasharray', '2,2');
 
-    const xAxis = xScale ? d3.axisBottom(xScale) : d3.axisBottom(dateScale!);
+    const xAxis = d3.axisBottom(xScale || dateScale!);
     gridGroup.append('g')
         .attr('transform', `translate(0,${chartHeight})`)
         .call(xAxis.tickSize(-chartHeight).tickFormat(() => ""))
         .selectAll('line').attr('stroke', '#ccc').attr('stroke-dasharray', '2,2');
 }
 
-// DRY: Utility function for creating labels
+// Utility: Create a text label
 const createTextLabel = (chartGroup: any, text: string, position: { x: number, y: number }, options: { anchor?: string, fontSize?: string, rotation?: string }) => {
     const label = chartGroup.append('text')
         .attr('x', position.x)

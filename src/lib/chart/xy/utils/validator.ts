@@ -1,6 +1,6 @@
 import type { DataKeys } from "./types.js";
 
-// DRY: Abstracted validation logic for object properties
+// Utility Function: Abstracted validation logic for object properties
 const validateProperties = <T extends object>(obj: T, properties: (keyof T)[], expectedType: string): boolean => {
     return properties.every(prop => typeof obj[prop] === expectedType);
 };
@@ -30,7 +30,7 @@ export function isValidSeriesData<T>(seriesData: T[], dataKeys: DataKeys): boole
     return true;
 }
 
-// DRY: General input validation for non-empty arrays
+// Utility Function: General input validation for non-empty arrays
 const validateNonEmptyArray = <T>(arr: T[], name: string): boolean => {
     if (!Array.isArray(arr) || arr.length === 0) {
         console.error(`Invalid ${name}: Must be a non-empty array.`);
@@ -39,7 +39,7 @@ const validateNonEmptyArray = <T>(arr: T[], name: string): boolean => {
     return true;
 };
 
-// DRY: General input validation for defined variables
+// Utility Function: General input validation for defined variables
 const validateDefined = (variables: any[], names: string[]): boolean => {
     return variables.every((variable, index) => {
         if (variable === undefined || variable === null) {
@@ -62,4 +62,28 @@ export function validateInput<T>(
     }
 
     return validateDefined([xScale, valueScale, colorScale], ['xScale', 'valueScale', 'colorScale']);
+}
+
+// Utility Function: Comprehensive error logging for validation failures
+const logValidationError = (condition: boolean, errorMessage: string): boolean => {
+    if (!condition) {
+        console.error(errorMessage);
+        return false;
+    }
+    return true;
+};
+
+// Enhanced: DRY principle for combined validation with detailed error logging
+export function combinedValidation<T>(
+    seriesData: T[],
+    dataKeys: DataKeys,
+    xScale: any,
+    valueScale: any,
+    colorScale: any
+): boolean {
+    return (
+        logValidationError(validateNonEmptyArray(seriesData, 'seriesData'), "seriesData validation failed.") &&
+        logValidationError(isValidSeriesData(seriesData, dataKeys), "Invalid series data structure.") &&
+        logValidationError(validateDefined([xScale, valueScale, colorScale], ['xScale', 'valueScale', 'colorScale']), "Scale validation failed.")
+    );
 }
