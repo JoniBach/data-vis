@@ -157,6 +157,8 @@ const calculateDomains = ({
 		: undefined;
 	return { mergedDateDomain, mergedValueDomain };
 };
+
+// XY Chart Setup and Feature Creation
 const setupXYChart = (
 	container,
 	seriesData,
@@ -167,7 +169,7 @@ const setupXYChart = (
 	valueDomain,
 	isBarChart,
 	config,
-	merge = false // New parameter to distinguish merged vs separate
+	merge = false
 ) => {
 	const { width, xType, margin } = config;
 
@@ -237,7 +239,7 @@ const setupXYChart = (
 };
 
 // Unified Chart Creation
-const createXYChartCore = (props: CreateChartProps, dateDomain: any[], valueDomain: any[]) => {
+export const createXyChart = (props: CreateChartProps) => {
 	const { container, data, dataKeysArray, features, config } = props;
 	const { height, squash, syncX, syncY, merge } = config;
 
@@ -272,8 +274,8 @@ const createXYChartCore = (props: CreateChartProps, dateDomain: any[], valueDoma
 		if (!merge) container.appendChild(chartContainer);
 
 		const chartHeight = squash ? height / data.length : height;
-		const domainDate = syncX ? mergedDateDomain : dateDomain;
-		const domainValue = syncY ? mergedValueDomain : valueDomain;
+		const domainDate = syncX ? mergedDateDomain : undefined;
+		const domainValue = syncY ? mergedValueDomain : undefined;
 
 		const { createParameters } = setupXYChart(
 			chartContainer,
@@ -285,7 +287,7 @@ const createXYChartCore = (props: CreateChartProps, dateDomain: any[], valueDoma
 			domainValue,
 			isBarChart,
 			config,
-			merge // Pass the merge parameter
+			merge
 		);
 
 		if (createParameters) {
@@ -293,17 +295,5 @@ const createXYChartCore = (props: CreateChartProps, dateDomain: any[], valueDoma
 		}
 	});
 };
-
-// Chart Creation Wrappers
-export const createSeperateXyCharts = (props: CreateChartProps) => {
-	createXYChartCore(props, undefined, false);
-};
-
-export const createMergedXyCharts = (props: CreateChartProps) => {
-	createXYChartCore(props, undefined, true);
-};
-
-export const createXyChart = (props: CreateChartProps) =>
-	props.config.merge ? createMergedXyCharts(props) : createSeperateXyCharts(props);
 
 attachTooltipEvents();
