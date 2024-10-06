@@ -3,7 +3,7 @@
 	import { XyChart } from '$lib/index.js'; // $lib is the alias for 'src/lib'
 	import type { DataGenerationConfig } from '$lib/index.js';
 	import { onMount } from 'svelte';
-	const xType = 'string';
+	const xType = 'date';
 	// Example usage with trendVariance configuration:
 	const config: DataGenerationConfig = {
 		seriesRange: { min: 4, max: 8 },

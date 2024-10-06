@@ -85,9 +85,20 @@ const createScales = ({ isBarChart, dateDomainUsed, chartWidth, seriesData, data
             .padding(0.1);
         barWidth = xScale.bandwidth();
     } else {
-        xScale = xType === 'date'
-            ? d3.scaleTime().domain(d3.extent(dateDomainUsed, d => new Date(d)) as [Date, Date]).range([0, chartWidth])
-            : d3.scaleLinear().domain(d3.extent(seriesData, d => +d[dataKeys.xKey]) as [number, number]).range([0, chartWidth]);
+        if (xType === 'date' && dateDomainUsed && dateDomainUsed.length > 0) {
+            xScale = d3.scaleTime()
+                .domain(d3.extent(dateDomainUsed, d => new Date(d)) as [Date, Date])
+                .range([0, chartWidth]);
+        } else if (seriesData && seriesData.length > 0) {
+            xScale = d3.scaleLinear()
+                .domain(d3.extent(seriesData, d => +d[dataKeys.xKey]) as [number, number])
+                .range([0, chartWidth]);
+        } else {
+            // Default fallback for empty or invalid data
+            xScale = d3.scaleLinear()
+                .domain([0, 1])
+                .range([0, chartWidth]);
+        }
     }
 
     return { xScale, barWidth };
