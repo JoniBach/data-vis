@@ -33,21 +33,33 @@ const createAxisHelper = (scale: any, orientation: 'bottom' | 'left', tickFormat
 
 
 // Optimized: Axis creation with reusable helper
-// Optimized: Axis creation with reusable helper
 export function createAxis(params: CreateParams, config: any) {
     const { chartGroup, dateScale, xScale, valueScale, chartHeight, xType } = params;
 
-    const xTickFormat = xType === 'date' ? d3.timeFormat(config?.xTickFormat || "%m / %y") : null;
-    const yTickDecimals = config?.yTickDecimals !== undefined ? config.yTickDecimals : 2;
-    const xTicks = config?.xTicks || 5;
-    const yTicks = config?.yTicks || 10;
+    // Set up tick formatting and scales conditionally based on xType
+    let xAxis;
+    if (xType === 'date') {
+        const xTickFormat = d3.timeFormat(config?.xTickFormat || "%m / %y");
+        const xTicks = config?.xTicks || 5;
 
-    // Create the x-axis: Date format if xType is 'date', no format for number/string
-    const xAxis = d3.axisBottom(dateScale || xScale)
-        .ticks(xTicks)
-        .tickFormat(xTickFormat);  // Only apply tickFormat if it's for a date
+        xAxis = d3.axisBottom(xScale)
+            .ticks(xTicks)
+            .tickFormat(xTickFormat);
+    } else if (xType === 'number') {
+        const xTicks = config?.xTicks || 5;
+
+        xAxis = d3.axisBottom(xScale)
+            .ticks(xTicks)
+            .tickFormat(d3.format("~s")); // Format for numbers, e.g., using SI prefixes
+    } else {
+        // If xType is something else, fallback to default
+        xAxis = d3.axisBottom(xScale);
+    }
 
     // Create the y-axis
+    const yTickDecimals = config?.yTickDecimals !== undefined ? config.yTickDecimals : 2;
+    const yTicks = config?.yTicks || 10;
+
     const yAxis = d3.axisLeft(valueScale)
         .ticks(yTicks)
         .tickFormat(d3.format(`.${yTickDecimals}f`));  // Number formatting for y-axis
@@ -55,7 +67,10 @@ export function createAxis(params: CreateParams, config: any) {
     // Append the x-axis at the bottom of the chart
     chartGroup.append('g')
         .attr('transform', `translate(0,${chartHeight})`)
-        .call(xAxis);
+        .call(xAxis)
+        .selectAll('text')
+        .style('text-anchor', 'start')
+        .attr('transform', 'rotate(15)');
 
     // Append the y-axis
     chartGroup.append('g').call(yAxis);

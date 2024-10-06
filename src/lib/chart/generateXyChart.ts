@@ -2,12 +2,14 @@
 
 export interface DataGenerationConfig {
     seriesRange: { min: number; max: number };
-    monthsRange: { min: number; max: number };
-    valueRange: { min: number; max: number };
+    xRange: { min: number; max: number };
+    yRange: { min: number; max: number };
     xType?: 'date' | 'number' | 'string'; // Added xType
     trendDirection?: 'up' | 'down' | 'random' | null; // Optional, controls the trend
     softCap?: SoftCapConfig;
     trendVariance?: number; // Controls the amount of randomness (e.g., 1 for smooth, 10 for high variance)
+    xConsistency?: boolean; // New property to determine if x intervals are consistent across series
+
 }
 
 export interface SoftCapConfig {
@@ -325,9 +327,42 @@ const randomizeFeatures = (labels: LabelConfig): FeatureConfig[] => {
         hide: false, // Ensure that all 'hide' properties are set to false
     }));
 };
+// Generate Consistent X Values Function with Minimum Gap
+const generateConsistentXValues = (config, numXPoints, randomGenerator) => {
+    const xValues = [];
+    const minGap = config.xMinGap || 1; // Minimum gap can be defined in the config, default to 1
 
-// Generate XY Data Function
+    let currentValue;
 
+    if (config.xType === 'date' || !config.xType) {
+        currentValue = new Date(); // Start from the current date
+        for (let j = 0; j < numXPoints; j++) {
+            const newDate = new Date(currentValue);
+            xValues.push(newDate);
+            // Increment date by at least 'minGap' days
+            currentValue.setDate(currentValue.getDate() + minGap + randomGenerator.nextInt(0, 3));
+        }
+    } else if (config.xType === 'number') {
+        currentValue = 1; // Start from 1 for numerical X values
+        for (let j = 0; j < numXPoints; j++) {
+            xValues.push(currentValue);
+            // Increment by at least 'minGap'
+            currentValue += minGap + randomGenerator.nextInt(0, 3);
+        }
+    } else if (config.xType === 'string') {
+        // For strings, we will shuffle the available lorem ipsum words
+        if (numXPoints > LOREM_IPSUM_WORDS.length) {
+            console.warn(`Requested number of string x-axis points (${numXPoints}) exceeds available lorem ipsum words (${LOREM_IPSUM_WORDS.length}). Some words will be reused.`);
+        }
+        const shuffledWords = [...LOREM_IPSUM_WORDS].sort(() => randomGenerator.nextFloat() - 0.5);
+        for (let i = 0; i < numXPoints; i++) {
+            xValues.push(shuffledWords[i % LOREM_IPSUM_WORDS.length]);
+        }
+    }
+    return xValues;
+};
+
+// Updated generateXyData Function
 export function generateXyData(
     config: DataGenerationConfig,
     userDataKeys: DataKeys | null = null,
@@ -355,34 +390,20 @@ export function generateXyData(
     const dataKeys: DataKeys = userDataKeys ?? randomDataConfig.dataKeys;
 
     const numSeries = getRandomInt(config.seriesRange.min, config.seriesRange.max);
-    const numXPoints = getRandomInt(config.monthsRange.min, config.monthsRange.max); // Number of points on the X-axis
+    const numXPoints = getRandomInt(config.xRange.min, config.xRange.max); // Number of points on the X-axis
 
-    // If xType is 'string', prepare the list of strings
-    let xStrings: string[] = [];
-    if (config.xType === 'string') {
-        if (numXPoints > LOREM_IPSUM_WORDS.length) {
-            console.warn(`Requested number of string x-axis points (${numXPoints}) exceeds available lorem ipsum words (${LOREM_IPSUM_WORDS.length}). Some words will be reused.`);
-        }
-
-        // Shuffle the LOREM_IPSUM_WORDS array
-        const shuffledWords = [...LOREM_IPSUM_WORDS].sort(() => randomGenerator.nextFloat() - 0.5);
-
-        // Select the required number of words, allowing reuse if necessary
-        for (let i = 0; i < numXPoints; i++) {
-            xStrings.push(LOREM_IPSUM_WORDS[i % LOREM_IPSUM_WORDS.length]);
-        }
-    }
+    // Generate consistent X values with a minimum gap
+    const consistentXValues = generateConsistentXValues(config, numXPoints, randomGenerator);
 
     const seriesData: SeriesData[] = [];
-    const startDate = new Date();
     const variance = config.trendVariance ?? 5;
 
     for (let i = 0; i < numSeries; i++) {
         const seriesName = `Series ${i + 1}`;
         const dataPoints: DataPoint[] = [];
 
-        let currentValue = getRandomInt(config.valueRange.min, config.valueRange.max);
-        let currentMagnitude = getRandomInt(config.valueRange.min, config.valueRange.max); // Generate random magnitude
+        let currentValue = getRandomInt(config.yRange.min, config.yRange.max);
+        let currentMagnitude = getRandomInt(config.yRange.min, config.yRange.max); // Generate random magnitude
 
         let trendDirection = 0;
         switch (config.trendDirection) {
@@ -407,26 +428,11 @@ export function generateXyData(
             currentMagnitude += getRandomFloat() * variance; // Adjust magnitude with a random change
 
             // Keep values within the configured value range
-            currentValue = Math.max(config.valueRange.min, Math.min(config.valueRange.max, currentValue));
-            currentMagnitude = Math.max(config.valueRange.min, Math.min(config.valueRange.max, currentMagnitude)); // Keep magnitude within range
+            currentValue = Math.max(config.yRange.min, Math.min(config.yRange.max, currentValue));
+            currentMagnitude = Math.max(config.yRange.min, Math.min(config.yRange.max, currentMagnitude)); // Keep magnitude within range
 
-            let xKeyValue: Date | number | string;
-
-            if (config.xType === 'date' || !config.xType) {
-                // If xType is 'date' or undefined, generate dates for X-axis
-                const date = new Date(startDate);
-                date.setMonth(startDate.getMonth() + j); // Increment date by one month
-                xKeyValue = date;
-            } else if (config.xType === 'number') {
-                // If xType is 'number', generate sequential numbers for X-axis
-                xKeyValue = j + 1; // Sequential numbers, or use random if desired
-            } else if (config.xType === 'string') {
-                // If xType is 'string', use pre-generated strings
-                xKeyValue = xStrings[j];
-            } else {
-                // Fallback to number if xType is unrecognized
-                xKeyValue = j + 1;
-            }
+            // Use pre-generated consistent X values
+            const xKeyValue = consistentXValues[j];
 
             // Push data points with magnitude
             dataPoints.push({

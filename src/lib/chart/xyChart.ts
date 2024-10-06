@@ -173,7 +173,6 @@ const setupXYChart = (container: HTMLElement, seriesData: any[], width: number, 
 
     const dateDomainUsed = dateDomain || extractDateDomain(seriesData, dataKeys);
     const { xScale, barWidth } = createScales({ isBarChart, dateDomainUsed, chartWidth, seriesData, dataKeys, xType });
-
     valueDomain = valueDomain || computeMergedValueDomain([seriesData], [dataKeys], [features.find(f => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']);
     const valueScale = createInitialScale(d3.scaleLinear, [chartHeight, 0], valueDomain as [number, number]);
 

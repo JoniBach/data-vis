@@ -3,12 +3,13 @@
 	import { XyChart } from '$lib/index.js'; // $lib is the alias for 'src/lib'
 	import type { DataGenerationConfig } from '$lib/index.js';
 	import { onMount } from 'svelte';
-	const xType = 'string';
+
+	const xType = 'date';
 	// Example usage with trendVariance configuration:
 	const config: DataGenerationConfig = {
-		seriesRange: { min: 4, max: 8 },
-		monthsRange: { min: 4, max: 8 },
-		valueRange: { min: 20, max: 90 },
+		seriesRange: { min: 2, max: 4 },
+		xRange: { min: 4, max: 8 },
+		yRange: { min: 20, max: 90 },
 		trendDirection: 'random', // Completely random trend
 		trendVariance: 5, // dLarger value for more random variation in trend
 		softCap: {
@@ -17,7 +18,8 @@
 			lowerLimit: 25,
 			adjustmentRange: 5
 		},
-		xType: xType
+		xType: xType,
+		xConsistency: false
 	};
 	const squash = false;
 	const syncX = true;

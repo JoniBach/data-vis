@@ -55,8 +55,16 @@ export function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
 
     // Append path for each series
     seriesData.forEach(series => {
+        // Sort the data by the xKey
+        const sortedData = series[dataKeys.data]
+            .filter(d => d[dataKeys.xKey] !== null && d[dataKeys.yKey] !== null && !isNaN(valueScale(d[dataKeys.yKey])))
+            .sort((a, b) => {
+                // Sorting by xKey, which could be a date or a number
+                return d3.ascending(a[dataKeys.xKey], b[dataKeys.xKey]);
+            });
+
         group.append('path')
-            .datum(series[dataKeys.data].filter(d => d[dataKeys.xKey] !== null && d[dataKeys.yKey] !== null && !isNaN(valueScale(d[dataKeys.yKey])))) // Filter out invalid data points
+            .datum(sortedData)
             .attr('fill', type === 'area' ? colorScale(series[dataKeys.name]) : 'none')
             .attr('stroke', type === 'line' ? colorScale(series[dataKeys.name]) : undefined)
             .attr('fill-opacity', type === 'area' ? 0.4 : 1)
