@@ -35,6 +35,25 @@ export interface DataKeys {
     yKey: string;
 }
 
+export interface Margin {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+}
+
+export interface ChartConfig {
+    width: string;
+    height: string;
+    squash: boolean;
+    syncX: boolean;
+    syncY: boolean;
+    yType: string;
+    xType: string;
+    margin: Margin;
+
+}
+
 export type AxisType = 'date' | 'string' | 'number'
 
 

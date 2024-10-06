@@ -1,34 +1,22 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { createXyChart, type AxisType, type DataKeys, type SeriesData } from './xyChart.js';
+	import type { ChartConfig } from './xy/utils/types.js';
 
 	// Props passed to the component
 	export let data: SeriesData[];
-	export let width: number = 500;
-	export let height: number = 300;
 	export let features: any[] = [];
 	export let dataKeys: DataKeys;
-	export let squash: boolean = false;
-	export let syncX: boolean = false;
-	export let syncY: boolean = false;
-	export let xType: AxisType = 'number';
-	export let yType: AxisType = 'date';
-	export let config: {
-		width: string;
-		height: string;
-		squash: boolean;
-		syncX: boolean;
-		syncY: boolean;
-		yType: string;
-		xType: string;
-	} = {
+
+	export let config: ChartConfig = {
 		width: '500',
 		height: '300',
 		squash: false,
 		syncX: false,
 		syncY: false,
 		yType: 'date',
-		xType: 'number'
+		xType: 'number',
+		margin: { top: 25, right: 30, bottom: 50, left: 50 }
 	};
 
 	let chartContainer: HTMLElement;
@@ -37,21 +25,7 @@
 	function renderChart() {
 		if (data && chartContainer) {
 			chartContainer.innerHTML = ''; // Clear previous chart
-			createXyChart(
-				chartContainer,
-				data,
-				width,
-				height,
-				features,
-				dataKeys,
-				false,
-				squash,
-				syncX,
-				syncY,
-				xType,
-				yType,
-				config
-			);
+			createXyChart(chartContainer, data, features, dataKeys, false, config);
 		}
 	}
 
@@ -62,7 +36,7 @@
 
 	// Reactive statement: re-render the chart when data, width, height, features, or dataKeys change
 
-	$: chartContainer, data, width, height, features, dataKeys, renderChart(); // This will trigger the chart update when any dependency changes
+	$: chartContainer, data, features, dataKeys, config, renderChart(); // This will trigger the chart update when any dependency changes
 </script>
 
 <div bind:this={chartContainer} class="chart-container"></div>

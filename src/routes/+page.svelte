@@ -5,6 +5,7 @@
 	import { onMount } from 'svelte';
 
 	const xType = 'date';
+
 	// Example usage with trendVariance configuration:
 	const config: DataGenerationConfig = {
 		seriesRange: { min: 2, max: 4 },
@@ -66,24 +67,13 @@
 		syncX: true,
 		syncY: true,
 		yType: 'number',
-		xType: xType
+		xType: xType,
+		margin: { top: 25, right: 30, bottom: 50, left: 50 }
 	};
 </script>
 
 <main>
-	<XyChart
-		{data}
-		{dataKeys}
-		{features}
-		width={600}
-		height={240}
-		{squash}
-		{syncX}
-		{syncY}
-		yType={'number'}
-		{xType}
-		config={chartConfig}
-	/>
+	<XyChart {data} {dataKeys} {features} config={chartConfig} />
 
 	<code>
 		Seed: <input bind:value={seed} type="number" />
