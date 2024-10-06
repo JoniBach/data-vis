@@ -12,7 +12,6 @@ import { isValidSeriesData } from './xy/utils/validator.js';
 // Fixing the tooltip handler for better error handling and type safety
 // Updated tooltip handler with improved data checks
 const handleTooltip = (chartTooltip, d, dataKeys) => {
-
     try {
         const xKeyValue = d[dataKeys.xKey];
         const yKeyValue = d[dataKeys.yKey];
@@ -36,8 +35,6 @@ const handleTooltip = (chartTooltip, d, dataKeys) => {
     }
 };
 
-
-
 // Tooltip positioning logic
 const moveTooltip = (chartTooltip, event) => {
     chartTooltip.style("top", `${event.pageY - 10}px`)
@@ -53,7 +50,6 @@ const hideTooltip = (chartTooltip) => {
 eventSystem.on('tooltip', handleTooltip);
 eventSystem.on('tooltipMove', moveTooltip);
 eventSystem.on('tooltipHide', hideTooltip);
-
 
 // Registry system for features
 const featureRegistry: Record<string, FeatureFunction> = {
@@ -89,27 +85,25 @@ const createScales = ({ isBarChart, dateDomainUsed, chartWidth, seriesData, data
     let dateScale, xScale, barWidth = 0;
 
     if (isBarChart) {
-        // Assuming 'dateDomainUsed' contains non-Date values like strings or numbers for bar charts
         xScale = d3.scaleBand()
-            .domain(dateDomainUsed) // Use the values directly without assuming they're Date objects
+            .domain(dateDomainUsed)
             .range([0, chartWidth])
             .padding(0.1);
         barWidth = xScale.bandwidth();
     } else {
         if (xType === 'date') {
             dateScale = d3.scaleTime()
-                .domain(d3.extent(dateDomainUsed, d => new Date(d)) as [Date, Date]) // Ensure 'dateDomainUsed' is processed as Date objects
+                .domain(d3.extent(dateDomainUsed, d => new Date(d)) as [Date, Date])
                 .range([0, chartWidth]);
         } else {
             dateScale = d3.scaleLinear()
-                .domain(d3.extent(seriesData, d => +d[dataKeys.xKey]) as [number, number]) // Ensure numeric values are parsed
+                .domain(d3.extent(seriesData, d => +d[dataKeys.xKey]) as [number, number])
                 .range([0, chartWidth]);
         }
     }
 
     return { dateScale, xScale, barWidth };
 };
-
 
 // DRY: Abstract common chart setup logic
 const setupChart = (container, width, height) => {
@@ -141,8 +135,8 @@ function setupXYChart(
     dateDomain?: Date[],
     valueDomain?: [number, number],
     isBarChart: boolean = false,
-    syncX: boolean = false, // Added syncX
-    syncY: boolean = false, // Added syncY
+    syncX: boolean = false,
+    syncY: boolean = false,
     xType: AxisType = 'number',
     yType: AxisType = 'number'
 ) {
@@ -166,6 +160,8 @@ function setupXYChart(
         [dataKeys],
         [features.find(f => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']
     );
+    // problem
+    console.log(valueDomain)
     const valueScale = createInitialScale(d3.scaleLinear, [chartHeight, 0], valueDomain as [number, number]);
 
     const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(seriesData.map(d => d[dataKeys.name]));
@@ -183,10 +179,10 @@ function setupXYChart(
         chartWidth,
         dataKeys,
         barWidth,
-        syncX, // Passed down
-        syncY,  // Passed down
-        xType,  // Passed down
-        yType   // Passed down
+        syncX,
+        syncY,
+        xType,
+        yType
     };
 
     return { createParameters, chartGroup };
@@ -221,7 +217,6 @@ export function createXYChartCore(
 
     const isBarChart = featuresArray.some(features => features.some(f => f.feature === 'bar' && !f.hide));
 
-    // Loop through each series to generate either separate or merged charts
     seriesDataArray.forEach((seriesData, i) => {
         const features = featuresArray[i];
         const dataKeys = dataKeysArray[i];
@@ -245,10 +240,10 @@ export function createXYChartCore(
             domainDate,
             domainValue,
             isBarChart,
-            syncX, // Passed down
-            syncY, // Passed down
-            xType, // Passed down
-            yType  // Passed down
+            syncX,
+            syncY,
+            xType,
+            yType
         );
 
         if (createParameters) {
@@ -301,8 +296,8 @@ export function createSeriesXYChart(
     dataKeys: DataKeys,
     dateDomain?: Date[],
     valueDomain?: [number, number],
-    syncX: boolean = false, // Added syncX
-    syncY: boolean = false, // Added syncY
+    syncX: boolean = false,
+    syncY: boolean = false,
     xType: AxisType = 'number',
     yType: AxisType = 'number'
 ) {
