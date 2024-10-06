@@ -157,24 +157,20 @@ const calculateDomains = ({
 		: undefined;
 	return { mergedDateDomain, mergedValueDomain };
 };
-
-// XY Chart Setup
 const setupXYChart = (
-	container: HTMLElement,
-	seriesData: any[],
-	height: number,
-	chartFeatures: Feature[],
-	dataKeys: DataKeys,
-	dateDomain: any[],
-	valueDomain: any[],
-	isBarChart: boolean,
-	config: ChartConfig
+	container,
+	seriesData,
+	height,
+	chartFeatures,
+	dataKeys,
+	dateDomain,
+	valueDomain,
+	isBarChart,
+	config,
+	merge = false // New parameter to distinguish merged vs separate
 ) => {
 	const { width, xType, margin } = config;
 
-	console.log(config);
-
-	// const margin = { top: 25, right: 30, bottom: 50, left: 50 };
 	const chartWidth = width - margin.left - margin.right;
 	const chartHeight = height - margin.top - margin.bottom;
 
@@ -183,8 +179,10 @@ const setupXYChart = (
 		return null;
 	}
 
-	const svg = setupChart(container, width, height);
-	const chartGroup = createInitialChartGroup({ svg, margin });
+	// If merged, do not create a new SVG, just create a new group
+	const svg = merge ? d3.select(container).select('svg') : setupChart(container, width, height);
+
+	const chartGroup = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
 	const dateDomainUsed = dateDomain || extractDateDomain(seriesData, dataKeys);
 	const { xScale, barWidth } = createScales({
@@ -195,6 +193,7 @@ const setupXYChart = (
 		dataKeys,
 		xType
 	});
+
 	valueDomain =
 		valueDomain ||
 		computeMergedValueDomain(
@@ -202,6 +201,7 @@ const setupXYChart = (
 			[dataKeys],
 			[chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']
 		);
+
 	const valueScale = createInitialScale(
 		d3.scaleLinear,
 		[chartHeight, 0],
@@ -211,6 +211,7 @@ const setupXYChart = (
 	const colorScale = d3
 		.scaleOrdinal(d3.schemeCategory10)
 		.domain(seriesData.map((d) => d[dataKeys.name]));
+
 	const chartTooltip = createTooltip(
 		container,
 		shouldShowFeature(chartFeatures, 'tooltip'),
@@ -240,7 +241,10 @@ const createXYChartCore = (props: CreateChartProps, dateDomain: any[], valueDoma
 	const { container, data, dataKeysArray, features, config } = props;
 	const { height, squash, syncX, syncY, merge } = config;
 
-	d3.select(container).selectAll('*').remove();
+	// Clear only if not merging, otherwise retain the existing SVG and append to it
+	if (!merge) {
+		d3.select(container).selectAll('*').remove();
+	}
 
 	const { mergedDateDomain, mergedValueDomain } = calculateDomains({
 		syncX,
@@ -253,6 +257,12 @@ const createXYChartCore = (props: CreateChartProps, dateDomain: any[], valueDoma
 	const isBarChart = features.some((chartFeatures) =>
 		chartFeatures.some((f) => f.feature === 'bar' && !f.hide)
 	);
+
+	const svg = merge
+		? d3.select(container).select('svg').empty()
+			? setupChart(container, config.width, height)
+			: d3.select(container).select('svg')
+		: null;
 
 	data.forEach((seriesData, i) => {
 		const chartFeatures = features[i];
@@ -274,7 +284,8 @@ const createXYChartCore = (props: CreateChartProps, dateDomain: any[], valueDoma
 			domainDate,
 			domainValue,
 			isBarChart,
-			config
+			config,
+			merge // Pass the merge parameter
 		);
 
 		if (createParameters) {
