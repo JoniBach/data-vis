@@ -273,10 +273,9 @@ const createXYChartCore = (
 	dataKeysArray: DataKeys[],
 	dateDomain: any[],
 	valueDomain: any[],
-	merge: boolean,
 	config: ChartConfig
 ) => {
-	const { height, squash, syncX, syncY } = config;
+	const { height, squash, syncX, syncY, merge } = config;
 
 	d3.select(container).selectAll('*').remove();
 
@@ -335,7 +334,6 @@ export const createSeperateXyCharts = (
 		featuresArray,
 		dataKeysArray,
 		undefined,
-		undefined,
 		false,
 		config
 	);
@@ -354,7 +352,6 @@ export const createMergedXyCharts = (
 		featuresArray,
 		dataKeysArray,
 		undefined,
-		undefined,
 		true,
 		config
 	);
@@ -365,10 +362,9 @@ export const createXyChart = (
 	seriesDataArray: any[][],
 	featuresArray: Feature[][],
 	dataKeysArray: DataKeys[],
-	merge = false,
 	config: ChartConfig
 ) =>
-	merge
+	config.merge
 		? createMergedXyCharts(container, seriesDataArray, featuresArray, dataKeysArray, config)
 		: createSeperateXyCharts(container, seriesDataArray, featuresArray, dataKeysArray, config);
 

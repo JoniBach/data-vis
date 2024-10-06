@@ -16,7 +16,8 @@
 		syncY: false,
 		yType: 'date',
 		xType: 'number',
-		margin: { top: 25, right: 30, bottom: 50, left: 50 }
+		margin: { top: 25, right: 30, bottom: 50, left: 50 },
+		merge: false
 	};
 
 	let chartContainer: HTMLElement;
@@ -25,7 +26,7 @@
 	function renderChart() {
 		if (data && chartContainer) {
 			chartContainer.innerHTML = ''; // Clear previous chart
-			createXyChart(chartContainer, data, features, dataKeys, false, config);
+			createXyChart(chartContainer, data, features, dataKeys, config);
 		}
 	}
 

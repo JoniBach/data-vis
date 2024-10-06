@@ -68,7 +68,8 @@
 		syncY: true,
 		yType: 'number',
 		xType: xType,
-		margin: { top: 25, right: 30, bottom: 50, left: 50 }
+		margin: { top: 25, right: 30, bottom: 50, left: 50 },
+		merge: false
 	};
 </script>
 
