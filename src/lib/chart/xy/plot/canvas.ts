@@ -174,11 +174,11 @@ export const handleTooltipShow = (chartTooltip, d, dataKeys) => {
 
 		const dateStr = xKeyValue
 			? xKeyValue instanceof Date
-				? canvas.escapeHTML(d3.timeFormat('%b %Y')(xKeyValue))
-				: canvas.escapeHTML(String(xKeyValue))
+				? escapeHTML(d3.timeFormat('%b %Y')(xKeyValue))
+				: escapeHTML(String(xKeyValue))
 			: 'N/A';
 
-		const valueStr = yKeyValue != null ? canvas.escapeHTML(String(yKeyValue)) : 'N/A';
+		const valueStr = yKeyValue != null ? escapeHTML(String(yKeyValue)) : 'N/A';
 
 		chartTooltip.style('visibility', 'visible').html(`Date: ${dateStr}<br>Value: ${valueStr}`);
 	} catch (error) {

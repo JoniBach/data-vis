@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { initializeXyChart } from './xyChart.js';
+	import initializeXyChart from './xyChart.js';
 	import type { ChartConfig, DataKeys, SeriesData } from './xy/utils/types.js';
 
 	// Props passed to the component

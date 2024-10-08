@@ -190,56 +190,6 @@ const initializeEventHandlers = () => {
 	eventUtils.eventSystem.on('tooltipHide', canvas.handleTooltipHide);
 };
 
-// Unified Chart Creation
-export const initializeXyChart = (props) => {
-	const { container, data, dataKeysArray, features, config } = props;
-	const { height, squash, syncX, syncY, merge } = config;
-
-	// Step 1: Prepare and Validate Data Domains
-	const { mergedDateDomain, mergedValueDomain } = computeDomains({
-		syncX,
-		syncY,
-		data,
-		dataKeysArray,
-		features
-	});
-
-	// Step 2: Chart Initialization
-	if (!merge) {
-		clearChartContainer(container);
-	}
-
-	// Step 3: Identify Chart Type
-	const isBarChart = features.some((chartFeatures) =>
-		chartFeatures.some((f) => f.feature === 'bar' && !f.hide)
-	);
-
-	// Step 4: Create Charts for Each Data Series
-	const allCreateParams = createMultiSeriesChart({
-		container,
-		data,
-		dataKeysArray,
-		features,
-		config,
-		mergedDateDomain,
-		mergedValueDomain,
-		isBarChart,
-		merge,
-		squash,
-		height,
-		syncX,
-		syncY
-	});
-
-	// Step 5: Render Features onto Chart
-	allCreateParams.forEach((paramsAndFeatures) => {
-		renderFeatures(paramsAndFeatures);
-	});
-
-	// Step 6: Initialize Event Handlers for Interactivity (Tooltips)
-	initializeEventHandlers();
-};
-
 // Helper Function for Creating Multi-Series Chart
 const createMultiSeriesChart = (props) => {
 	const allCreateParams = [];
@@ -296,3 +246,55 @@ const createDataSeriesChart = ({
 
 	return { createParams, chartFeatures };
 };
+
+// Unified Chart Creation
+export const initializeChart = (props) => {
+	const { container, data, dataKeysArray, features, config } = props;
+	const { height, squash, syncX, syncY, merge } = config;
+
+	// Step 1: Prepare and Validate Data Domains
+	const { mergedDateDomain, mergedValueDomain } = computeDomains({
+		syncX,
+		syncY,
+		data,
+		dataKeysArray,
+		features
+	});
+
+	// Step 2: Chart Initialization
+	if (!merge) {
+		clearChartContainer(container);
+	}
+
+	// Step 3: Identify Chart Type
+	const isBarChart = features.some((chartFeatures) =>
+		chartFeatures.some((f) => f.feature === 'bar' && !f.hide)
+	);
+
+	// Step 4: Create Charts for Each Data Series
+	const allCreateParams = createMultiSeriesChart({
+		container,
+		data,
+		dataKeysArray,
+		features,
+		config,
+		mergedDateDomain,
+		mergedValueDomain,
+		isBarChart,
+		merge,
+		squash,
+		height,
+		syncX,
+		syncY
+	});
+
+	// Step 5: Render Features onto Chart
+	allCreateParams.forEach((paramsAndFeatures) => {
+		renderFeatures(paramsAndFeatures);
+	});
+
+	// Step 6: Initialize Event Handlers for Interactivity (Tooltips)
+	initializeEventHandlers();
+};
+
+export default initializeChart;
