@@ -12,10 +12,10 @@
 		syncY: true,
 		yType: 'number',
 
+		xType: 'date',
 		// xType: 'string',
-		xType: 'number',
-		// xType: 'date',
-		// merge: false,
+		// xType: 'number',
+		// merge: true,
 		merge: false,
 		margin: { top: 25, right: 30, bottom: 50, left: 50 }
 	};

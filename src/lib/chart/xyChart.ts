@@ -13,9 +13,9 @@ import {
 import { createLineOrArea, createBubbles, createPoints } from './xy/plot/point.js';
 import type { DataKeys } from './generateXyChart.js';
 import type { Margin, ListenerMap } from './xy/utils/types.js';
+import { eventSystem } from './xy/utils/event.js';
 
 // **1. Preparation Phase**
-// Utility Function: Abstracted validation logic for object properties
 const validateProperties = <T extends object>(
 	obj: T,
 	properties: (keyof T)[],
@@ -24,7 +24,6 @@ const validateProperties = <T extends object>(
 	return properties.every((prop) => typeof obj[prop] === expectedType);
 };
 
-// Optimized: Validate margin using the abstracted property validation
 export function isValidMargin(margin: {
 	top: number;
 	right: number;
@@ -34,7 +33,6 @@ export function isValidMargin(margin: {
 	return validateProperties(margin, ['top', 'right', 'bottom', 'left'], 'number');
 }
 
-// Improved: Validation for series data with more descriptive logging and enhanced typing
 export function isValidSeriesData<T>(seriesData: T[], dataKeys: DataKeys): boolean {
 	if (!Array.isArray(seriesData)) {
 		console.error('Invalid seriesData: Must be an array.');
@@ -56,7 +54,6 @@ export function isValidSeriesData<T>(seriesData: T[], dataKeys: DataKeys): boole
 	return true;
 }
 
-// Utility Function: General input validation for non-empty arrays
 const validateNonEmptyArray = <T>(arr: T[], name: string): boolean => {
 	if (!Array.isArray(arr) || arr.length === 0) {
 		console.error(`Invalid ${name}: Must be a non-empty array.`);
@@ -65,7 +62,6 @@ const validateNonEmptyArray = <T>(arr: T[], name: string): boolean => {
 	return true;
 };
 
-// Utility Function: General input validation for defined variables
 const validateDefined = (variables: any[], names: string[]): boolean => {
 	return variables.every((variable, index) => {
 		if (variable === undefined || variable === null) {
@@ -76,7 +72,6 @@ const validateDefined = (variables: any[], names: string[]): boolean => {
 	});
 };
 
-// Optimized: Input validation for scales and seriesData with reusable helper functions
 export function validateInput<T>(
 	seriesData: T[],
 	xScale: any,
@@ -90,7 +85,6 @@ export function validateInput<T>(
 	return validateDefined([xScale, valueScale, colorScale], ['xScale', 'valueScale', 'colorScale']);
 }
 
-// Utility Function: Comprehensive error logging for validation failures
 const logValidationError = (condition: boolean, errorMessage: string): boolean => {
 	if (!condition) {
 		console.error(errorMessage);
@@ -99,7 +93,6 @@ const logValidationError = (condition: boolean, errorMessage: string): boolean =
 	return true;
 };
 
-// Enhanced: DRY principle for combined validation with detailed error logging
 export function combinedValidation<T>(
 	seriesData: T[],
 	dataKeys: DataKeys,
@@ -120,7 +113,6 @@ export function combinedValidation<T>(
 	);
 }
 
-// Utility function to handle different types for xKey (Date, number, string)
 function getXKeyValue(xKey: any): number | string {
 	if (xKey instanceof Date) {
 		return xKey.getTime();
@@ -128,7 +120,6 @@ function getXKeyValue(xKey: any): number | string {
 	return xKey;
 }
 
-// Preparation Phase
 const prepareAndValidateData = (seriesData, dataKeys) => {
 	if (!isValidSeriesData(seriesData, dataKeys)) {
 		console.error('Invalid or no data provided for the chart.');
@@ -138,7 +129,6 @@ const prepareAndValidateData = (seriesData, dataKeys) => {
 };
 
 // **2. Domain Calculation Phase**
-// Utility function: Validate if the input is a proper array (range and domain)
 const validateArray = <T>(input: T[], name: string): boolean => {
 	if (!Array.isArray(input)) {
 		console.error(`Invalid ${name} provided. It must be an array.`);
@@ -151,7 +141,6 @@ const validateArray = <T>(input: T[], name: string): boolean => {
 	return true;
 };
 
-// Optimized domain calculation for large datasets, improving performance and readability
 export function computeMergedValueDomain(
 	seriesDataArray: any[][],
 	dataKeysArray: DataKeys[],
@@ -222,7 +211,6 @@ export function computeMergedValueDomain(
 	return [Math.min(minValue, 0), Math.max(maxValue, 0)];
 }
 
-// Optimized date domain merging with improved performance for large datasets
 export function computeMergedDateDomain(
 	seriesDataArray: any[][],
 	dataKeysArray: DataKeys[]
@@ -244,7 +232,6 @@ export function computeMergedDateDomain(
 	return uniqueKeys.map((key) => (typeof key === 'number' ? new Date(key) : key)); // Convert back to Date if needed
 }
 
-// Optimized: Efficiently extract date domain for small and large datasets
 export function extractDateDomain(
 	seriesData: any[],
 	dataKeys: DataKeys
@@ -274,7 +261,6 @@ const computeDomains = ({ syncX, syncY, data, dataKeysArray, features }) => {
 };
 
 // **3. Initialization Phase**
-// Utility function: General margin validation with consistent error handling
 const validateMargin = (margin: Margin): boolean => {
 	if (!isValidMargin(margin)) {
 		console.error(
@@ -285,7 +271,6 @@ const validateMargin = (margin: Margin): boolean => {
 	return true;
 };
 
-// Optimized: Create initial scale with enhanced error handling and reusable types
 export function createInitialScale<T extends string | number | Date>(
 	scaleFn: () => d3.ScaleLinear<number, number> | d3.ScaleTime<number, number> | d3.ScaleBand<T>,
 	range: Range,
@@ -298,7 +283,6 @@ export function createInitialScale<T extends string | number | Date>(
 	return scaleFn().domain(domain).range(range);
 }
 
-// Optimized: Create initial SVG with container validation and clear error handling
 export function createInitialSVG({
 	container,
 	width,
@@ -337,7 +321,6 @@ const initializeChartContainer = (container, width, height, merge) => {
 	return createInitialSVG({ container, width, height });
 };
 
-// Optimized: Create initial chart group with margin validation and better abstraction
 export function createInitialChartGroup({
 	svg,
 	margin
@@ -358,12 +341,10 @@ const initializeScales = ({ dateDomainUsed, chartWidth }) => {
 };
 
 // **4. Drawing Essentials Phase**
-// Create basic visual elements such as chart groups for axis alignment
 const initializeChartGroup = (svg, margin) => {
 	return svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 };
 
-// Additional Utility: Create accessible title for SVGs
 export function createAccessibleTitle(
 	svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
 	title: string
@@ -372,12 +353,10 @@ export function createAccessibleTitle(
 }
 
 // **5. Data Binding & Chart Rendering Phase**
-// Utility function to determine if a feature should be rendered
 function shouldRenderFeature(chartFeatures, featureName) {
 	return chartFeatures.some(({ feature, hide }) => feature === featureName && !hide);
 }
 
-// Bind data to SVG elements and render core visuals
 const setupAndRenderChart = ({
 	chartContainer,
 	seriesData,
@@ -401,11 +380,9 @@ const setupAndRenderChart = ({
 	);
 	if (!validatedData) return null;
 
-	// Prepare Chart Container
 	const svg = initializeChartContainer(chartContainer, width, height, merge);
 	const chartGroup = initializeChartGroup(svg, margin);
 
-	// Extract or compute domains
 	const dateDomainUsed = dateDomain || extractDateDomain(validatedData, validatedKeys);
 	const { xScale, barWidth } = initializeScales({ dateDomainUsed, chartWidth });
 
@@ -448,7 +425,6 @@ const setupAndRenderChart = ({
 };
 
 // **6. Feature Enrichment Phase**
-// Enrich the chart with features like axes, labels, tooltips, grids, and legends
 const featureRegistry = {
 	tooltip: () => null,
 	grid: createGrid,
@@ -471,13 +447,13 @@ const renderFeatures = ({ createParams, chartFeatures }) => {
 				if (feature === 'point' || feature === 'bubbles' || feature === 'bar') {
 					selection
 						.on('mouseover', (event, d) => {
-							eventSystem.trigger('tooltip', createParams.chartTooltip, d, createParams.dataKeys);
+							handleTooltipShow(createParams.chartTooltip, d, createParams.dataKeys);
 						})
 						.on('mousemove', (event) => {
-							eventSystem.trigger('tooltipMove', createParams.chartTooltip, event);
+							handleTooltipMove(createParams.chartTooltip, event);
 						})
 						.on('mouseout', () => {
-							eventSystem.trigger('tooltipHide', createParams.chartTooltip);
+							handleTooltipHide(createParams.chartTooltip);
 						});
 				}
 			}
@@ -488,33 +464,38 @@ const renderFeatures = ({ createParams, chartFeatures }) => {
 };
 
 // **7. Interactivity Phase**
-// Add interactivity to the chart, such as tooltips or zooming functionality
-export const eventSystem = {
-	listeners: {} as ListenerMap,
-	on<T extends keyof ListenerMap>(eventType: T, callback: ListenerMap[T]) {
-		this.listeners[eventType] = callback;
-	},
-	trigger(eventType: keyof ListenerMap, ...args: any[]) {
-		const listener = this.listeners[eventType];
-		if (listener) {
-			(listener as (...args: any[]) => void)(...args);
-		}
-	}
-};
+
+// for some reason thsi doesnt work unless externalised
+// const eventSystem = {
+// 	listeners: {} as ListenerMap,
+// 	on<T extends keyof ListenerMap>(eventType: T, callback: ListenerMap[T]) {
+// 		this.listeners[eventType] = callback;
+// 	},
+// 	trigger(eventType: keyof ListenerMap, ...args: any[]) {
+// 		const listener = this.listeners[eventType];
+// 		if (listener) {
+// 			(listener as (...args: any[]) => void)(...args);
+// 		}
+// 	}
+// };
 
 const initializeEventHandlers = () => {
-	eventSystem.on('tooltip', handleTooltipShow);
-	eventSystem.on('tooltipMove', handleTooltipMove);
-	eventSystem.on('tooltipHide', handleTooltipHide);
+	eventSystem.on('tooltip', (tooltip, data, dataKeys) => {
+		handleTooltipShow(tooltip, data, dataKeys);
+	});
+	eventSystem.on('tooltipMove', (tooltip, event) => {
+		handleTooltipMove(tooltip, event);
+	});
+	eventSystem.on('tooltipHide', (tooltip) => {
+		handleTooltipHide(tooltip);
+	});
 };
 
 // **8. Unified Chart Creation Phase**
-// Combine all phases to create a comprehensive chart
 export const initializeChart = (props) => {
 	const { container, data, dataKeysArray, features, config } = props;
 	const { height, squash, syncX, syncY, merge } = config;
 
-	// Step 1: Prepare and Validate Data Domains
 	const { mergedDateDomain, mergedValueDomain } = computeDomains({
 		syncX,
 		syncY,
@@ -523,17 +504,14 @@ export const initializeChart = (props) => {
 		features
 	});
 
-	// Step 2: Chart Initialization
 	if (!merge) {
 		clearChartContainer(container);
 	}
 
-	// Step 3: Identify Chart Type
 	const isBarChart = features.some((chartFeatures) =>
 		chartFeatures.some((f) => f.feature === 'bar' && !f.hide)
 	);
 
-	// Step 4: Create Charts for Each Data Series
 	const allCreateParams = createMultiSeriesChart({
 		container,
 		data,
@@ -550,17 +528,15 @@ export const initializeChart = (props) => {
 		syncY
 	});
 
-	// Step 5: Render Features onto Chart
 	allCreateParams.forEach((paramsAndFeatures) => {
 		renderFeatures(paramsAndFeatures);
 	});
 
-	// Step 6: Initialize Event Handlers for Interactivity (Tooltips)
+	// Initialize the event handlers to enable tooltips and other interactions.
 	initializeEventHandlers();
 };
 
 // **9. Multi-Series Chart Creation (Optional Phase)**
-// Handle multiple datasets to create multi-series charts
 const createMultiSeriesChart = (props) => {
 	const allCreateParams = [];
 	props.data.forEach((seriesData, i) => {
@@ -592,7 +568,6 @@ const createDataSeriesChart = ({
 	const chartFeatures = features[i];
 	const dataKeys = dataKeysArray[i];
 
-	// Step 4a: Create Individual Chart Containers
 	const chartContainer = merge ? container : document.createElement('div');
 	if (!merge) container.appendChild(chartContainer);
 
@@ -600,7 +575,6 @@ const createDataSeriesChart = ({
 	const dateDomain = syncX ? mergedDateDomain : undefined;
 	const domainValue = syncY ? mergedValueDomain : undefined;
 
-	// Step 4b: Setup and Render Individual Charts
 	const { createParams } = setupAndRenderChart({
 		chartContainer,
 		seriesData,
