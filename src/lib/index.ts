@@ -5,3 +5,5 @@ export { XyChart, generateXyData };
 
 export type { DataGenerationConfig } from './chart/xy/generateXyChart.js';
 export type { SeriesData, Feature, DataPoint } from './chart/xyChart.js';
+
+export * from './chart/index.js';
