@@ -61,7 +61,7 @@ const featureRegistry = {
 };
 
 // Render Features
-const renderFeatures = (createParams, chartFeatures) => {
+const renderFeatures = ({ createParams, chartFeatures }) => {
 	chartFeatures.forEach(({ feature, hide, config }) => {
 		if (hide) return;
 		const featureFunction = featureRegistry[feature];
@@ -138,7 +138,7 @@ const setupAndRenderChart = ({
 	isBarChart,
 	config,
 	merge
-}: types.SetupChartParams): types.setupAndRenderChartRes => {
+}) => {
 	const { width, xType, margin } = config;
 
 	const chartWidth = width - margin.left - margin.right;
@@ -159,12 +159,8 @@ const setupAndRenderChart = ({
 
 	const dateDomainUsed = dateDomain || domainUtils.extractDateDomain(seriesData, dataKeys);
 	const { xScale, barWidth } = initializeScales({
-		isBarChart,
 		dateDomainUsed,
-		chartWidth,
-		seriesData,
-		dataKeys,
-		xType
+		chartWidth
 	});
 
 	valueDomain =
@@ -175,11 +171,7 @@ const setupAndRenderChart = ({
 			[chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']
 		);
 
-	const valueScale = initialUtils.createInitialScale(
-		d3.scaleLinear,
-		[chartHeight, 0],
-		valueDomain as [number, number]
-	);
+	const valueScale = initialUtils.createInitialScale(d3.scaleLinear, [chartHeight, 0], valueDomain);
 
 	const colorScale = d3
 		.scaleOrdinal(d3.schemeCategory10)
@@ -209,6 +201,64 @@ const setupAndRenderChart = ({
 	};
 };
 
+// Create Data Series Chart
+const createDataSeriesChart = ({
+	seriesData,
+	i,
+	dataKeysArray,
+	features,
+	config,
+	mergedDateDomain,
+	mergedValueDomain,
+	container,
+	isBarChart,
+	merge,
+	squash,
+	height,
+	data,
+	syncX,
+	syncY
+}) => {
+	const chartFeatures = features[i];
+	const dataKeys = dataKeysArray[i];
+
+	// Step 4a: Create Individual Chart Containers
+	const chartContainer = merge ? container : document.createElement('div');
+	if (!merge) container.appendChild(chartContainer);
+
+	const chartHeight = squash ? height / data.length : height;
+	const dateDomain = syncX ? mergedDateDomain : undefined;
+	const domainValue = syncY ? mergedValueDomain : undefined;
+
+	// Step 4b: Setup and Render Individual Charts
+	const { createParams } = setupAndRenderChart({
+		chartContainer,
+		seriesData,
+		height: chartHeight,
+		chartFeatures,
+		dataKeys,
+		dateDomain,
+		valueDomain: domainValue,
+		isBarChart,
+		config,
+		merge
+	});
+
+	return { createParams, chartFeatures };
+};
+
+// Create Multi-Series Chart
+const createMultiSeriesChart = (props) => {
+	const allCreateParams = [];
+	props.data.forEach((seriesData, i) => {
+		const { createParams, chartFeatures } = createDataSeriesChart({ ...props, seriesData, i });
+		if (createParams) {
+			allCreateParams.push({ createParams, chartFeatures });
+		}
+	});
+	return allCreateParams;
+};
+
 // Unified Chart Creation
 export const initializeXyChart = (props) => {
 	const { container, data, dataKeysArray, features, config } = props;
@@ -229,41 +279,30 @@ export const initializeXyChart = (props) => {
 	}
 
 	// Step 3: Identify Chart Type
-	const isBarChart = features.some((chartFeatures: types.Feature[]) =>
+	const isBarChart = features.some((chartFeatures) =>
 		chartFeatures.some((f) => f.feature === 'bar' && !f.hide)
 	);
 
 	// Step 4: Create Charts for Each Data Series
-	data.forEach((seriesData: types.SeriesData, i: number) => {
-		const chartFeatures = features[i];
-		const dataKeys = dataKeysArray[i];
+	const allCreateParams = createMultiSeriesChart({
+		container,
+		data,
+		dataKeysArray,
+		features,
+		config,
+		mergedDateDomain,
+		mergedValueDomain,
+		isBarChart,
+		merge,
+		squash,
+		height,
+		syncX,
+		syncY
+	});
 
-		// Step 4a: Create Individual Chart Containers
-		const chartContainer = merge ? container : document.createElement('div');
-		if (!merge) container.appendChild(chartContainer);
-
-		const chartHeight = squash ? height / data.length : height;
-		const dateDomain = syncX ? mergedDateDomain : undefined;
-		const domainValue = syncY ? mergedValueDomain : undefined;
-
-		// Step 4b: Setup and Render Individual Charts
-		const { createParams } = setupAndRenderChart({
-			chartContainer,
-			seriesData,
-			height: chartHeight,
-			chartFeatures,
-			dataKeys,
-			dateDomain,
-			valueDomain: domainValue,
-			isBarChart,
-			config,
-			merge
-		});
-
-		// Step 5: Render Features onto Chart
-		if (createParams) {
-			renderFeatures(createParams, chartFeatures);
-		}
+	// Step 5: Render Features onto Chart
+	allCreateParams.forEach((paramsAndFeatures) => {
+		renderFeatures(paramsAndFeatures);
 	});
 
 	// Step 6: Initialize Event Handlers for Interactivity (Tooltips)
