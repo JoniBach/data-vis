@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { generateMultiSeriesData } from '$lib/chart/generateXyChart.js';
+	import { generateMultiSeriesData } from '$lib/chart/xy/generateXyChart.js';
 	import { XyChart } from '$lib/index.js'; // $lib is the alias for 'src/lib'
 	import type { DataGenerationConfig } from '$lib/index.js';
 	import { onMount } from 'svelte';

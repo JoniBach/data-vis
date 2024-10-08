@@ -1,6 +1,6 @@
 // Imports
 import * as d3 from 'd3';
-import { createBarsVariant } from './xy/plot/bar.js';
+import { createBarsVariant } from '../xy/plot/bar.js';
 import {
 	createTooltip,
 	createGrid,
@@ -9,11 +9,11 @@ import {
 	handleTooltipShow,
 	handleTooltipMove,
 	handleTooltipHide
-} from './xy/plot/canvas.js';
-import { createLineOrArea, createBubbles, createPoints } from './xy/plot/point.js';
-import type { DataKeys } from './xy/generateXyChart.js';
-import type { Margin, ListenerMap } from './xy/utils/types.js';
-import { eventSystem } from './xy/utils/event.js';
+} from '../xy/plot/canvas.js';
+import { createLineOrArea, createBubbles, createPoints } from '../xy/plot/point.js';
+import type { DataKeys } from './generateXyChart.js';
+import type { Margin, ListenerMap } from '../xy/utils/types.js';
+import { eventSystem } from '../xy/utils/event.js';
 
 // **1. Preparation Phase**
 const validateProperties = <T extends object>(

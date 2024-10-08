@@ -1,4 +1,4 @@
-import type { LabelConfig } from '$lib/chart/generateXyChart.js';
+import type { LabelConfig } from '$lib/chart/xy/generateXyChart.js';
 import * as d3 from 'd3';
 import type { CreateParams, TooltipConfig } from '../utils/types.js';
 import { eventSystem } from '../utils/event.js';

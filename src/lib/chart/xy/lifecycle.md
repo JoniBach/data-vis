@@ -26,7 +26,8 @@ chart
     ├── bubbles.js                // Functions for rendering bubbles
     ├── axesAndGrid.js            // Functions for creating axes and grid lines
     ├── tooltips.js               // Functions for tooltip creation and management
-    └── utils.js                  // Helper functions used across different draw components
+    └── utils.js                  // Helper functions used across different draw 
+    index                         // Main entry point for chart creation       
 ```
 
 ### **Lifecycle Phases Explained with File Structure**
