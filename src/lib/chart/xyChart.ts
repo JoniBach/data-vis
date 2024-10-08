@@ -1,3 +1,4 @@
+// Imports
 import * as d3 from 'd3';
 import * as point from './xy/plot/point.js';
 import * as bar from './xy/plot/bar.js';
@@ -8,46 +9,137 @@ import * as eventUtils from './xy/utils/event.js';
 import * as initialUtils from './xy/utils/initial.js';
 import * as validator from './xy/utils/validator.js';
 
-// Tooltip Handlers
-const handleTooltipShow = (chartTooltip, d, dataKeys) => {
-	try {
-		const xKeyValue = d[dataKeys.xKey];
-		const yKeyValue = d[dataKeys.yKey];
-
-		const dateStr = xKeyValue
-			? xKeyValue instanceof Date
-				? canvas.escapeHTML(d3.timeFormat('%b %Y')(xKeyValue))
-				: canvas.escapeHTML(String(xKeyValue))
-			: 'N/A';
-
-		const valueStr = yKeyValue != null ? canvas.escapeHTML(String(yKeyValue)) : 'N/A';
-
-		chartTooltip.style('visibility', 'visible').html(`Date: ${dateStr}<br>Value: ${valueStr}`);
-	} catch (error) {
-		console.error('Error in tooltip handler:', error);
+// Preparation Phase
+const prepareAndValidateData = (seriesData, dataKeys) => {
+	if (!validator.isValidSeriesData(seriesData, dataKeys)) {
+		console.error('Invalid or no data provided for the chart.');
+		return null;
 	}
+	return { seriesData, dataKeys };
 };
 
-const handleTooltipMove = (chartTooltip, event) => {
-	chartTooltip.style('top', `${event.pageY - 10}px`).style('left', `${event.pageX + 10}px`);
-};
-
-const handleTooltipHide = (chartTooltip) => {
-	chartTooltip.style('visibility', 'hidden');
-};
-
-// Event Handlers Initialization
-const initializeEventHandlers = () => {
-	eventUtils.eventSystem.on('tooltip', handleTooltipShow);
-	eventUtils.eventSystem.on('tooltipMove', handleTooltipMove);
-	eventUtils.eventSystem.on('tooltipHide', handleTooltipHide);
-};
-
-// Feature Display Utility
 const shouldRenderFeature = (chartFeatures, featureName) =>
 	chartFeatures.some(({ feature, hide }) => feature === featureName && !hide);
 
-// Feature Registry
+// Domain Calculation Phase
+const computeDomains = ({ syncX, syncY, data, dataKeysArray, features }) => {
+	const mergedDateDomain = syncX
+		? domainUtils.computeMergedDateDomain(data, dataKeysArray)
+		: undefined;
+	const mergedValueDomain = syncY
+		? domainUtils.computeMergedValueDomain(
+				data,
+				dataKeysArray,
+				features.map(
+					(chartFeatures) =>
+						chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped'
+				)
+			)
+		: undefined;
+	return { mergedDateDomain, mergedValueDomain };
+};
+
+// Initialization Phase
+const clearChartContainer = (container) => {
+	d3.select(container).selectAll('*').remove();
+};
+
+const initializeChartContainer = (container, width, height, merge) => {
+	if (merge) {
+		const existingSvg = d3.select(container).select('svg');
+		if (!existingSvg.empty()) {
+			return existingSvg;
+		}
+	}
+	clearChartContainer(container);
+	return initialUtils.createInitialSVG({ container, width, height });
+};
+
+const initializeScales = ({ dateDomainUsed, chartWidth }) => {
+	const xScale = d3.scaleBand().domain(dateDomainUsed).range([0, chartWidth]).padding(0.1);
+	return { xScale, barWidth: xScale.bandwidth() };
+};
+
+// Drawing Essentials Phase
+const initializeChartGroup = (svg, margin) => {
+	return svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+};
+
+// Data Binding & Chart Rendering Phase
+const setupAndRenderChart = ({
+	chartContainer,
+	seriesData,
+	height,
+	chartFeatures,
+	dataKeys,
+	dateDomain,
+	valueDomain,
+	isBarChart,
+	config,
+	merge
+}) => {
+	const { width, margin } = config;
+
+	const chartWidth = width - margin.left - margin.right;
+	const chartHeight = height - margin.top - margin.bottom;
+
+	const { seriesData: validatedData, dataKeys: validatedKeys } = prepareAndValidateData(
+		seriesData,
+		dataKeys
+	);
+	if (!validatedData) return null;
+
+	// Prepare Chart Container
+	const svg = initializeChartContainer(chartContainer, width, height, merge);
+	const chartGroup = initializeChartGroup(svg, margin);
+
+	// Extract or compute domains
+	const dateDomainUsed = dateDomain || domainUtils.extractDateDomain(validatedData, validatedKeys);
+	const { xScale, barWidth } = initializeScales({ dateDomainUsed, chartWidth });
+
+	const valueDomainUsed =
+		valueDomain ||
+		domainUtils.computeMergedValueDomain(
+			[validatedData],
+			[validatedKeys],
+			[chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']
+		);
+
+	const valueScale = initialUtils.createInitialScale(
+		d3.scaleLinear,
+		[chartHeight, 0],
+		valueDomainUsed
+	);
+
+	const colorScale = d3
+		.scaleOrdinal(d3.schemeCategory10)
+		.domain(validatedData.map((d) => d[validatedKeys.name]));
+
+	const chartTooltip = canvas.createTooltip(
+		chartContainer,
+		shouldRenderFeature(chartFeatures, 'tooltip'),
+		chartFeatures.find((feature) => feature.feature === 'tooltip')?.config
+	);
+
+	return {
+		createParams: {
+			seriesData: validatedData,
+			chartGroup,
+			colorScale,
+			xScale,
+			valueScale,
+			chartTooltip,
+			chartHeight,
+			chartWidth,
+			dataKeys: validatedKeys,
+			barWidth,
+			...config
+		},
+		chartGroup
+	};
+};
+
+// Feature Enrichment Phase
 const featureRegistry = {
 	tooltip: () => null,
 	grid: canvas.createGrid,
@@ -60,7 +152,6 @@ const featureRegistry = {
 	bar: (params, config) => bar.createBarsVariant(config?.variant || 'grouped', params)
 };
 
-// Render Features
 const renderFeatures = ({ createParams, chartFeatures }) => {
 	chartFeatures.forEach(({ feature, hide, config }) => {
 		if (hide) return;
@@ -92,171 +183,11 @@ const renderFeatures = ({ createParams, chartFeatures }) => {
 	});
 };
 
-// Scale Initialization
-const initializeScales = ({ dateDomainUsed, chartWidth }) => {
-	const xScale = d3.scaleBand().domain(dateDomainUsed).range([0, chartWidth]).padding(0.1);
-	return { xScale, barWidth: xScale.bandwidth() };
-};
-
-// Chart Container Initialization
-const clearChartContainer = (container) => {
-	d3.select(container).selectAll('*').remove();
-};
-
-const initializeChart = (container, width, height) => {
-	clearChartContainer(container);
-	return initialUtils.createInitialSVG({ container, width, height });
-};
-
-// Domain Calculations
-const computeDomains = ({ syncX, syncY, data, dataKeysArray, features }) => {
-	const mergedDateDomain = syncX
-		? domainUtils.computeMergedDateDomain(data, dataKeysArray)
-		: undefined;
-	const mergedValueDomain = syncY
-		? domainUtils.computeMergedValueDomain(
-				data,
-				dataKeysArray,
-				features.map(
-					(chartFeatures) =>
-						chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped'
-				)
-			)
-		: undefined;
-	return { mergedDateDomain, mergedValueDomain };
-};
-
-// Setup and Render Individual Chart
-const setupAndRenderChart = ({
-	chartContainer,
-	seriesData,
-	height,
-	chartFeatures,
-	dataKeys,
-	dateDomain,
-	valueDomain,
-	isBarChart,
-	config,
-	merge
-}) => {
-	const { width, xType, margin } = config;
-
-	const chartWidth = width - margin.left - margin.right;
-	const chartHeight = height - margin.top - margin.bottom;
-
-	if (!validator.isValidSeriesData(seriesData, dataKeys)) {
-		console.error('Invalid or no data provided for the chart.');
-		return null;
-	}
-
-	const svg = merge
-		? d3.select(chartContainer).select('svg').empty()
-			? initializeChart(chartContainer, width, height)
-			: d3.select(chartContainer).select('svg')
-		: initializeChart(chartContainer, width, height);
-
-	const chartGroup = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
-
-	const dateDomainUsed = dateDomain || domainUtils.extractDateDomain(seriesData, dataKeys);
-	const { xScale, barWidth } = initializeScales({
-		dateDomainUsed,
-		chartWidth
-	});
-
-	valueDomain =
-		valueDomain ||
-		domainUtils.computeMergedValueDomain(
-			[seriesData],
-			[dataKeys],
-			[chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']
-		);
-
-	const valueScale = initialUtils.createInitialScale(d3.scaleLinear, [chartHeight, 0], valueDomain);
-
-	const colorScale = d3
-		.scaleOrdinal(d3.schemeCategory10)
-		.domain(seriesData.map((d) => d[dataKeys.name]));
-
-	const chartTooltip = canvas.createTooltip(
-		chartContainer,
-		shouldRenderFeature(chartFeatures, 'tooltip'),
-		chartFeatures.find((feature) => feature.feature === 'tooltip')?.config
-	);
-
-	return {
-		createParams: {
-			seriesData,
-			chartGroup,
-			colorScale,
-			xScale,
-			valueScale,
-			chartTooltip,
-			chartHeight,
-			chartWidth,
-			dataKeys,
-			barWidth,
-			...config
-		},
-		chartGroup
-	};
-};
-
-// Create Data Series Chart
-const createDataSeriesChart = ({
-	seriesData,
-	i,
-	dataKeysArray,
-	features,
-	config,
-	mergedDateDomain,
-	mergedValueDomain,
-	container,
-	isBarChart,
-	merge,
-	squash,
-	height,
-	data,
-	syncX,
-	syncY
-}) => {
-	const chartFeatures = features[i];
-	const dataKeys = dataKeysArray[i];
-
-	// Step 4a: Create Individual Chart Containers
-	const chartContainer = merge ? container : document.createElement('div');
-	if (!merge) container.appendChild(chartContainer);
-
-	const chartHeight = squash ? height / data.length : height;
-	const dateDomain = syncX ? mergedDateDomain : undefined;
-	const domainValue = syncY ? mergedValueDomain : undefined;
-
-	// Step 4b: Setup and Render Individual Charts
-	const { createParams } = setupAndRenderChart({
-		chartContainer,
-		seriesData,
-		height: chartHeight,
-		chartFeatures,
-		dataKeys,
-		dateDomain,
-		valueDomain: domainValue,
-		isBarChart,
-		config,
-		merge
-	});
-
-	return { createParams, chartFeatures };
-};
-
-// Create Multi-Series Chart
-const createMultiSeriesChart = (props) => {
-	const allCreateParams = [];
-	props.data.forEach((seriesData, i) => {
-		const { createParams, chartFeatures } = createDataSeriesChart({ ...props, seriesData, i });
-		if (createParams) {
-			allCreateParams.push({ createParams, chartFeatures });
-		}
-	});
-	return allCreateParams;
+// Interactivity Phase
+const initializeEventHandlers = () => {
+	eventUtils.eventSystem.on('tooltip', canvas.handleTooltipShow);
+	eventUtils.eventSystem.on('tooltipMove', canvas.handleTooltipMove);
+	eventUtils.eventSystem.on('tooltipHide', canvas.handleTooltipHide);
 };
 
 // Unified Chart Creation
@@ -307,4 +238,61 @@ export const initializeXyChart = (props) => {
 
 	// Step 6: Initialize Event Handlers for Interactivity (Tooltips)
 	initializeEventHandlers();
+};
+
+// Helper Function for Creating Multi-Series Chart
+const createMultiSeriesChart = (props) => {
+	const allCreateParams = [];
+	props.data.forEach((seriesData, i) => {
+		const { createParams, chartFeatures } = createDataSeriesChart({ ...props, seriesData, i });
+		if (createParams) {
+			allCreateParams.push({ createParams, chartFeatures });
+		}
+	});
+	return allCreateParams;
+};
+
+const createDataSeriesChart = ({
+	seriesData,
+	i,
+	dataKeysArray,
+	features,
+	config,
+	mergedDateDomain,
+	mergedValueDomain,
+	container,
+	isBarChart,
+	merge,
+	squash,
+	height,
+	data,
+	syncX,
+	syncY
+}) => {
+	const chartFeatures = features[i];
+	const dataKeys = dataKeysArray[i];
+
+	// Step 4a: Create Individual Chart Containers
+	const chartContainer = merge ? container : document.createElement('div');
+	if (!merge) container.appendChild(chartContainer);
+
+	const chartHeight = squash ? height / data.length : height;
+	const dateDomain = syncX ? mergedDateDomain : undefined;
+	const domainValue = syncY ? mergedValueDomain : undefined;
+
+	// Step 4b: Setup and Render Individual Charts
+	const { createParams } = setupAndRenderChart({
+		chartContainer,
+		seriesData,
+		height: chartHeight,
+		chartFeatures,
+		dataKeys,
+		dateDomain,
+		valueDomain: domainValue,
+		isBarChart,
+		config,
+		merge
+	});
+
+	return { createParams, chartFeatures };
 };

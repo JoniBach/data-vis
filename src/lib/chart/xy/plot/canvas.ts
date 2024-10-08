@@ -165,3 +165,31 @@ export function attachTooltipHandlers(
 			eventSystem.trigger('tooltipHide', chartTooltip);
 		});
 }
+
+// Tooltip Handlers
+export const handleTooltipShow = (chartTooltip, d, dataKeys) => {
+	try {
+		const xKeyValue = d[dataKeys.xKey];
+		const yKeyValue = d[dataKeys.yKey];
+
+		const dateStr = xKeyValue
+			? xKeyValue instanceof Date
+				? canvas.escapeHTML(d3.timeFormat('%b %Y')(xKeyValue))
+				: canvas.escapeHTML(String(xKeyValue))
+			: 'N/A';
+
+		const valueStr = yKeyValue != null ? canvas.escapeHTML(String(yKeyValue)) : 'N/A';
+
+		chartTooltip.style('visibility', 'visible').html(`Date: ${dateStr}<br>Value: ${valueStr}`);
+	} catch (error) {
+		console.error('Error in tooltip handler:', error);
+	}
+};
+
+export const handleTooltipMove = (chartTooltip, event) => {
+	chartTooltip.style('top', `${event.pageY - 10}px`).style('left', `${event.pageX + 10}px`);
+};
+
+export const handleTooltipHide = (chartTooltip) => {
+	chartTooltip.style('visibility', 'hidden');
+};
