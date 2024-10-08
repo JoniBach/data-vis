@@ -64,13 +64,17 @@ This document describes the lifecycle methodology for creating charts across dif
 ---
 
 ### **Diagram Overview**
-Consider a flowchart to visualize this lifecycle, with each phase as a distinct block, connected sequentially:
-1. **Preparation Phase** ➡️ 2. **Domain Calculation Phase** ➡️ 3. **Initialization Phase** ➡️ 4. **Drawing Essentials Phase** ➡️ 5. **Data Binding & Chart Rendering Phase** ➡️ 6. **Feature Enrichment Phase** ➡️ 7. **Interactivity Phase** ➡️ 8. **Unified Chart Creation Phase** ➡️ 9. **Multi-Series Chart Creation (Optional)**.
 
-- **Arrows** represent the flow between phases.
-- **Blocks** represent each lifecycle step.
-- **Dashed borders** can indicate optional phases (e.g., Multi-Series Creation).
 
-### **Summary**
-This standard lifecycle methodology is designed to ensure consistency, modularity, and scalability across different types of charts and coordinate systems. Each phase contributes to the robustness and interactivity of the resulting visualizations, making it easier to extend and adapt the process to new charting requirements. If you're building a new chart type, you can follow these phases to ensure a standardized approach that maintains high quality and ease of use.
+### **Coordinate Systems Supported**
 
+The following coordinate systems are supported by this methodology, allowing flexibility in the type of visualizations that can be created:
+
+1. **Cartesian Coordinates (x, y)**: Used for line charts, bar charts, scatter plots, and area charts.
+2. **Polar Coordinates (Radius, Angle)**: Suitable for pie charts, radar charts, and polar bar charts.
+3. **Spherical Coordinates**: 3D-like representations, useful for data that maps naturally onto a sphere.
+4. **Cylindrical Coordinates**: Charts that require radial positioning combined with height, for cylindrical projections.
+5. **Geographic Coordinates (Latitude, Longitude)**: Ideal for visualizing geographic data using maps, choropleths, or geo heatmaps.
+6. **Logarithmic Coordinates**: Useful for data that spans multiple magnitudes, especially for financial or scientific data.
+7. **Parallel Coordinates**: Enables visualization of high-dimensional data, where multiple attributes can be plotted together.
+8. **Ternary and Hexagonal Coordinates**: Specialized for compositional data (ternary plots) and density plots (hexagonal binning).
