@@ -1,8 +1,8 @@
 import type { SeriesData, DataKeys } from '$lib/chart/xy/generateXyChart.js';
 import * as d3 from 'd3';
 import { attachTooltipHandlers } from './canvas.js';
-import type { CreateParams } from '../utils/types.js';
-import { validateInput } from '../utils/validator.js';
+import type { CreateParams } from './types.js';
+import { prepareAndValidateData } from '../xyChart.js';
 
 // Main function to create bars (grouped, stacked, overlapped, or error bars)
 export function createBarsVariant(
@@ -22,7 +22,9 @@ export function createBarsVariant(
 		chartTooltip
 	} = params;
 
-	if (!validateInput(seriesData, xScale, valueScale, colorScale)) return;
+	// Validate the input data using the new validator
+	const preparedData = prepareAndValidateData({ seriesData, dataKeys });
+	if (!preparedData) return;
 
 	// Add clipping path to prevent overflow
 	createClippingPath(chartGroup, chartWidth, chartHeight);
@@ -35,13 +37,35 @@ export function createBarsVariant(
 
 	switch (type) {
 		case 'stacked':
-			createStackedBars(seriesData, barsGroup, params, fillOpacity, dataKeys, chartHeight);
+			createStackedBars(
+				preparedData.seriesData,
+				barsGroup,
+				params,
+				fillOpacity,
+				dataKeys,
+				chartHeight
+			);
 			break;
 		case 'error':
-			createErrorBars(seriesData, barsGroup, params, fillOpacity, dataKeys, chartHeight);
+			createErrorBars(
+				preparedData.seriesData,
+				barsGroup,
+				params,
+				fillOpacity,
+				dataKeys,
+				chartHeight
+			);
 			break;
 		default:
-			createNonStackedBars(type, seriesData, barsGroup, params, fillOpacity, dataKeys, chartHeight);
+			createNonStackedBars(
+				type,
+				preparedData.seriesData,
+				barsGroup,
+				params,
+				fillOpacity,
+				dataKeys,
+				chartHeight
+			);
 			break;
 	}
 }

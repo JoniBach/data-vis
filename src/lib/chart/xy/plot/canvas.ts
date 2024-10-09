@@ -1,7 +1,7 @@
 import type { LabelConfig } from '$lib/chart/xy/generateXyChart.js';
 import * as d3 from 'd3';
-import type { CreateParams, TooltipConfig } from '../utils/types.js';
-import { eventSystem } from '../utils/event.js';
+import type { CreateParams, TooltipConfig } from './types.js';
+import { eventSystem } from './event.js';
 
 // Optimized: Simple helper for sanitizing input
 export function escapeHTML(str: number | string | null | undefined): string {

@@ -12,8 +12,8 @@ import {
 } from '../xy/plot/canvas.js';
 import { createLineOrArea, createBubbles, createPoints } from '../xy/plot/point.js';
 import type { DataKeys } from './generateXyChart.js';
-import type { Margin } from '../xy/utils/types.js';
-import { eventSystem } from '../xy/utils/event.js';
+import type { Margin } from './plot/types.js';
+import { eventSystem } from './plot/event.js';
 
 // **Type Definitions**
 type ValidationResult = { valid: boolean; errors?: string[] };
@@ -70,7 +70,7 @@ function getXKeyValue(xKey: unknown): number | string {
 /**
  * Prepares and validates the data for further processing.
  */
-function prepareAndValidateData<T>({
+export function prepareAndValidateData<T>({
 	seriesData,
 	dataKeys
 }: {
@@ -287,22 +287,7 @@ function initializeScales<T>({
 	return { xScale, valueScale };
 }
 
-// **4. Drawing Essentials Phase**
-
-/**
- * Adds a `<title>` element to the SVG for accessibility purposes.
- */
-function createAccessibleTitle({
-	svg,
-	title
-}: {
-	svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
-	title: string;
-}): void {
-	svg.append('title').text(title);
-}
-
-// **5. Data Binding & Chart Rendering Phase**
+// **4. Data Binding & Chart Rendering Phase**
 
 /**
  * Sets up and renders the chart elements based on the data and configurations.
@@ -401,7 +386,7 @@ function shouldRenderFeature({
 	return chartFeatures.some(({ feature, hide }) => feature === featureName && !hide);
 }
 
-// **6. Feature Enrichment Phase**
+// **5. Feature Enrichment Phase**
 
 /**
  * A registry mapping feature names to their corresponding rendering functions.
@@ -453,7 +438,7 @@ function renderFeatures({
 	});
 }
 
-// **7. Interactivity Phase**
+// **6. Interactivity Phase**
 
 /**
  * Sets up event handlers to enable interactivity within the chart, such as tooltips and event responses.
@@ -470,7 +455,7 @@ function initializeEventHandlers(): void {
 	});
 }
 
-// **8. Unified Chart Creation Phase**
+// **7. Unified Chart Creation Phase**
 
 /**
  * Serves as the main entry point for chart creation, handling domain computations, rendering, and interactivity setup.
@@ -546,7 +531,7 @@ function computeDomains({
 	return { mergedDateDomain, mergedValueDomain };
 }
 
-// **9. Multi-Series Chart Creation Phase**
+// **8. Multi-Series Chart Creation Phase**
 
 /**
  * Handles the creation of charts for multiple data series, optionally merging them into a single chart or rendering them separately.

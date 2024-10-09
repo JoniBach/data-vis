@@ -1,7 +1,7 @@
 import type { DataPoint } from '$lib/chart/xy/generateXyChart.js';
-import { eventSystem } from '../utils/event.js';
+import { eventSystem } from './event.js';
 import * as d3 from 'd3';
-import type { CreateParams } from '../utils/types.js';
+import type { CreateParams } from './types.js';
 import { attachTooltipHandlers } from './canvas.js';
 
 export function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
