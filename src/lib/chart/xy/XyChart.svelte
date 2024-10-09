@@ -1,15 +1,13 @@
-<script lang="ts">
+<script>
 	import { onMount } from 'svelte';
-	import initializeXyChart from './xyChart.js';
-	import type { SeriesData, DataKeys } from './generateXyChart.js';
-	import type { ChartConfig } from './plot/types.js';
+	import initializeXyChart from './xyChart';
 
 	// Props passed to the component
-	export let data: SeriesData[];
-	export let features: any[] = [];
-	export let dataKeys: DataKeys;
+	export let data;
+	export let features = [];
+	export let dataKeys;
 
-	export let config: ChartConfig = {
+	export let config = {
 		width: '500',
 		height: '300',
 		squash: false,
@@ -21,7 +19,7 @@
 		merge: false
 	};
 
-	let container: HTMLElement;
+	let container;
 
 	// Function to render the chart
 	function renderChart() {
@@ -37,7 +35,6 @@
 	});
 
 	// Reactive statement: re-render the chart when data, width, height, features, or dataKeys change
-
 	$: container, data, features, dataKeys, config, renderChart(); // This will trigger the chart update when any dependency changes
 </script>
 

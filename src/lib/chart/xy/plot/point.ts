@@ -1,13 +1,12 @@
 // Imports
 import * as d3 from 'd3';
-import type { CreateParams } from './types.js';
 import { attachTooltipHandlers } from './canvas.js';
 
-export const createArea = (params: CreateParams) => createLineOrArea('area', params);
-export const createLine = (params: CreateParams) => createLineOrArea('line', params);
+export const createArea = (params) => createLineOrArea('area', params);
+export const createLine = (params) => createLineOrArea('line', params);
 
 // Function to create line or area charts
-function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
+function createLineOrArea(type, params) {
 	const { seriesData, chartGroup, colorScale, scales, dataKeys, chartHeight } = params;
 
 	const xScale = scales['x'];
@@ -27,12 +26,12 @@ function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
 	const generator =
 		type === 'line'
 			? d3
-					.line<any>()
+					.line()
 					.defined((d) => d[yKey] !== null && d[yKey] !== undefined && !isNaN(yScale(d[yKey])))
 					.x((d) => xScale(d[xKey]))
 					.y((d) => yScale(d[yKey]))
 			: d3
-					.area<any>()
+					.area()
 					.defined((d) => d[yKey] !== null && d[yKey] !== undefined && !isNaN(yScale(d[yKey])))
 					.x((d) => xScale(d[xKey]))
 					.y1((d) => yScale(d[yKey]))
@@ -59,9 +58,8 @@ function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
 }
 
 // Function to create points (scatter plots)
-export function createPoints(params: CreateParams) {
-	const { seriesData, chartGroup, colorScale, scales, chartTooltip, dataKeys, chartHeight } =
-		params;
+export function createPoints(params) {
+	const { seriesData, chartGroup, colorScale, scales, chartTooltip, dataKeys } = params;
 
 	const xScale = scales['x'];
 	const yScale = scales['y'];
@@ -72,7 +70,7 @@ export function createPoints(params: CreateParams) {
 
 	const pointsGroup = chartGroup.append('g').attr('class', 'points-group');
 	seriesData.forEach((series) => {
-		const points = pointsGroup
+		pointsGroup
 			.selectAll(`circle.${series[dataKeys.name].replace(/\s+/g, '-')}`)
 			.data(
 				series[dataKeys.data].filter(
@@ -96,10 +94,7 @@ export function createPoints(params: CreateParams) {
 }
 
 // Function to create bubbles (bubble charts)
-export function createBubbles(
-	params: CreateParams,
-	config: { minRadius?: number; maxRadius?: number } = {}
-) {
+export function createBubbles(params, config = {}) {
 	const {
 		seriesData,
 		chartGroup,
@@ -146,7 +141,7 @@ export function createBubbles(
 		.attr('clip-path', 'url(#clip)');
 
 	seriesData.forEach((series) => {
-		const bubbles = bubblesGroup
+		bubblesGroup
 			.selectAll(`circle.${series[dataKeys.name].replace(/\s+/g, '-')}`)
 			.data(
 				series[dataKeys.data].filter(

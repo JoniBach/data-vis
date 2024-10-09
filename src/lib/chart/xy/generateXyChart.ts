@@ -1,72 +1,6 @@
-// Interfaces and Types
+// Interfaces and Types are converted to plain JavaScript constants and helper functions
 
-export interface DataGenerationConfig {
-	seriesRange: { min: number; max: number };
-	xRange: { min: number; max: number };
-	yRange: { min: number; max: number };
-	xType?: 'date' | 'number' | 'string';
-	trendDirection?: 'up' | 'down' | 'random' | null;
-	softCap?: SoftCapConfig;
-	trendVariance?: number;
-	xConsistency?: boolean;
-}
-
-export interface SoftCapConfig {
-	enable: boolean;
-	upperLimit?: number;
-	lowerLimit?: number;
-	adjustmentRange?: number;
-}
-
-export interface DataKeys {
-	name: string;
-	data: string;
-	coordinates: Record<string, string>;
-	magnitude?: string;
-}
-
-export interface LabelConfig {
-	title: string;
-	xAxis: string;
-	yAxis: string;
-}
-
-export interface FeatureConfig {
-	feature: string;
-	hide: boolean;
-	config?: Record<string, unknown>;
-}
-
-export interface DefaultDataKeyEntry {
-	dataKeys: DataKeys;
-	labels: LabelConfig;
-}
-
-export interface GeneratedData {
-	data: SeriesData[];
-	dataKeys: DataKeys;
-	seed: number;
-	features: FeatureConfig[];
-}
-
-export interface SeriesData {
-	[key: string]: string | DataPoint[];
-}
-
-export interface DataPoint {
-	[key: string]: Date | number | string;
-}
-
-export interface MultiSeriesResponse {
-	data: SeriesData[][];
-	dataKeys: DataKeys[];
-	features: FeatureConfig[][];
-	seed: number;
-}
-
-// Default Features Function
-
-const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
+const defaultFeatures = (labels) => [
 	{
 		feature: 'bar',
 		hide: false,
@@ -117,7 +51,7 @@ const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
 	}
 ];
 
-const defaultDataKeys: DefaultDataKeyEntry[] = [
+const defaultDataKeys = [
 	{
 		dataKeys: {
 			name: 'city',
@@ -281,26 +215,22 @@ const defaultDataKeys: DefaultDataKeyEntry[] = [
 ];
 
 // Seeded Random Number Generator Class
-
 class SeededRandom {
-	private seed: number;
-
-	constructor(seed: number) {
+	constructor(seed) {
 		this.seed = seed % 2147483647;
 		if (this.seed <= 0) this.seed += 2147483646;
 	}
 
-	// Linear congruential generator (LCG) for pseudo-random number generation
-	public next(): number {
+	next() {
 		this.seed = (this.seed * 16807) % 2147483647;
 		return this.seed;
 	}
 
-	public nextFloat(): number {
+	nextFloat() {
 		return (this.next() - 1) / 2147483646;
 	}
 
-	public nextInt(min: number, max: number): number {
+	nextInt(min, max) {
 		return Math.floor(this.nextFloat() * (max - min + 1)) + min;
 	}
 }
@@ -379,29 +309,23 @@ const LOREM_IPSUM_WORDS = [
 ];
 
 // Randomize Features Function
-
-const randomizeFeatures = (labels: LabelConfig): FeatureConfig[] => {
-	const updatedLabels: LabelConfig = {
+const randomizeFeatures = (labels) => {
+	const updatedLabels = {
 		...labels,
 		title: `${labels.title} (${Math.floor(Math.random() * 100)})`
 	};
 
 	return defaultFeatures(updatedLabels).map((feature) => ({
 		...feature,
-		hide: false // Ensure that all 'hide' properties are set to false
+		hide: false
 	}));
 };
 
 // Generate Consistent X Values Function with Minimum Gap
-const generateConsistentXValues = (
-	config: DataGenerationConfig,
-	numXPoints: number,
-	randomGenerator: SeededRandom
-) => {
-	const xValues: (Date | number | string)[] = [];
+const generateConsistentXValues = (config, numXPoints, randomGenerator) => {
+	const xValues = [];
 	const minGap = config.xMinGap || 1;
-
-	let currentValue: any;
+	let currentValue;
 
 	if (config.xType === 'date' || !config.xType) {
 		currentValue = new Date();
@@ -431,20 +355,15 @@ const generateConsistentXValues = (
 };
 
 // Updated generateXyData Function
-export function generateXyData(
-	config: DataGenerationConfig,
-	userDataKeys: DataKeys | null = null,
-	seed: number | null = null,
-	usedIndices: Set<number>
-): GeneratedData {
+export function generateXyData(config, userDataKeys = null, seed = null, usedIndices) {
 	const generatedSeed = seed !== null ? seed : Math.floor(Math.random() * 2147483647);
 	const randomGenerator = new SeededRandom(generatedSeed);
 
-	const getRandomFloat = (): number => randomGenerator.nextFloat();
-	const getRandomInt = (min: number, max: number): number => randomGenerator.nextInt(min, max);
+	const getRandomFloat = () => randomGenerator.nextFloat();
+	const getRandomInt = (min, max) => randomGenerator.nextInt(min, max);
 
-	const getUniqueRandomIndex = (max: number): number => {
-		let randomIndex: number;
+	const getUniqueRandomIndex = (max) => {
+		let randomIndex;
 		do {
 			randomIndex = getRandomInt(0, max);
 		} while (usedIndices.has(randomIndex));
@@ -455,25 +374,23 @@ export function generateXyData(
 	const randomConfigIndex = getUniqueRandomIndex(defaultDataKeys.length - 1);
 	const randomDataConfig = defaultDataKeys[randomConfigIndex];
 
-	const dataKeys: DataKeys = userDataKeys ?? randomDataConfig.dataKeys;
+	const dataKeys = userDataKeys ?? randomDataConfig.dataKeys;
 
 	const numSeries = getRandomInt(config.seriesRange.min, config.seriesRange.max);
 	const numXPoints = getRandomInt(config.xRange.min, config.xRange.max);
 
-	// Generate consistent X values with a minimum gap
 	const consistentXValues = generateConsistentXValues(config, numXPoints, randomGenerator);
 
-	const seriesData: SeriesData[] = [];
+	const seriesData = [];
 	const variance = config.trendVariance ?? 5;
 
-	// Extract coordinate keys
 	const xKey = dataKeys.coordinates['x'];
 	const yKey = dataKeys.coordinates['y'];
 	const magnitudeKey = dataKeys.magnitude;
 
 	for (let i = 0; i < numSeries; i++) {
 		const seriesName = `Series ${i + 1}`;
-		const dataPoints: DataPoint[] = [];
+		const dataPoints = [];
 
 		let currentValue = getRandomInt(config.yRange.min, config.yRange.max);
 		let currentMagnitude = getRandomInt(config.yRange.min, config.yRange.max);
@@ -494,26 +411,21 @@ export function generateXyData(
 		}
 
 		for (let j = 0; j < numXPoints; j++) {
-			// Apply randomness and trend
 			let randomChange = getRandomFloat() * variance * trendDirection;
 
 			currentValue += randomChange;
 			currentMagnitude += getRandomFloat() * variance;
 
-			// Keep values within the configured value range
 			currentValue = Math.max(config.yRange.min, Math.min(config.yRange.max, currentValue));
 			currentMagnitude = Math.max(config.yRange.min, Math.min(config.yRange.max, currentMagnitude));
 
-			// Use pre-generated consistent X values
 			const xKeyValue = consistentXValues[j];
 
-			// Prepare data point
-			const dataPoint: DataPoint = {
+			const dataPoint = {
 				[xKey]: xKeyValue,
 				[yKey]: Math.round(currentValue)
 			};
 
-			// Include magnitude if defined
 			if (magnitudeKey) {
 				dataPoint[magnitudeKey] = Math.round(currentMagnitude);
 			}
@@ -538,28 +450,16 @@ export function generateXyData(
 }
 
 // Generate Single Series Function
-
-const generateSingleSeries = (
-	config: DataGenerationConfig,
-	userDataKeys: DataKeys | null,
-	seed: number | null,
-	seriesIndex: number,
-	usedIndices: Set<number>
-): GeneratedData => {
+const generateSingleSeries = (config, userDataKeys, seed, seriesIndex, usedIndices) => {
 	const adjustedSeed = seed !== null ? seed + seriesIndex : null;
 	return generateXyData(config, userDataKeys, adjustedSeed, usedIndices);
 };
 
 // Generate Multi-Series Data Function
-
-export const generateMultiSeriesData = (
-	config: DataGenerationConfig,
-	userDataKeys: DataKeys | null = null,
-	seed: number | null = null
-): MultiSeriesResponse => {
+export const generateMultiSeriesData = (config, userDataKeys = null, seed = null) => {
 	const numberOfSeries = 3;
 	let newSeed = seed;
-	const usedIndices = new Set<number>();
+	const usedIndices = new Set();
 
 	const seriesData = Array.from({ length: numberOfSeries }, (_, index) => {
 		const singleSeries = generateSingleSeries(config, userDataKeys, newSeed, index, usedIndices);
@@ -571,16 +471,15 @@ export const generateMultiSeriesData = (
 		return singleSeries;
 	});
 
-	// Extract data, dataKeys, and features from each series
 	const data = seriesData.map((series) => series.data);
 	const dataKeys = seriesData.map((series) => series.dataKeys);
 	const features = seriesData.map((series) => series.features);
 
-	const response: MultiSeriesResponse = {
+	const response = {
 		data,
 		dataKeys,
 		features,
-		seed: newSeed as number
+		seed: newSeed
 	};
 
 	console.log('Generating mock XY data with the following data:', response);

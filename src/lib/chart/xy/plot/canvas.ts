@@ -1,11 +1,9 @@
 // Imports
 import * as d3 from 'd3';
-import type { CreateParams, TooltipConfig } from './types.js';
 import { eventSystem } from './event.js';
-import type { DataKeys } from '../generateXyChart.js';
 
 // Utility function to escape HTML
-export function escapeHTML(str: number | string | null | undefined): string {
+export function escapeHTML(str) {
 	if (str === null || str === undefined) {
 		return '';
 	}
@@ -16,7 +14,8 @@ export function escapeHTML(str: number | string | null | undefined): string {
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&#39;');
 }
-export function createAxis(params: CreateParams, config: any) {
+
+export function createAxis(params, config) {
 	const { chartGroup, scales, chartHeight, xType } = params;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
@@ -74,7 +73,7 @@ export function createAxis(params: CreateParams, config: any) {
 }
 
 // Function to create grid lines
-export function createGrid(params: CreateParams) {
+export function createGrid(params) {
 	const { chartGroup, scales, chartHeight, chartWidth } = params;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
@@ -110,7 +109,7 @@ export function createGrid(params: CreateParams) {
 }
 
 // Function to create labels
-export function createLabel(params: CreateParams, config: any) {
+export function createLabel(params, config) {
 	const { chartGroup, chartWidth, chartHeight, margin } = params;
 
 	if (config?.title) {
@@ -144,17 +143,13 @@ export function createLabel(params: CreateParams, config: any) {
 }
 
 // Function to create tooltip
-export function createTooltip(
-	container: HTMLElement | null,
-	showTooltip: boolean,
-	config: TooltipConfig
-): d3.Selection<HTMLDivElement, unknown, null, undefined> {
+export function createTooltip(container, showTooltip, config) {
 	if (!showTooltip) {
 		return d3.select(document.createElement('div'));
 	}
 
 	return d3
-		.select(container as HTMLElement)
+		.select(container)
 		.append('div')
 		.attr('class', 'tooltip')
 		.style('position', 'absolute')
@@ -166,11 +161,7 @@ export function createTooltip(
 }
 
 // Function to attach tooltip handlers
-export function attachTooltipHandlers(
-	selection: d3.Selection<any, any, any, any>,
-	chartTooltip: any,
-	dataKeys: DataKeys
-) {
+export function attachTooltipHandlers(selection, chartTooltip, dataKeys) {
 	selection
 		.on('mouseover', function (event, d) {
 			eventSystem.trigger('tooltip', chartTooltip, d, dataKeys);

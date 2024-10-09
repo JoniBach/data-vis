@@ -1,7 +1,6 @@
-<script lang="ts">
-	import { generateMultiSeriesData } from '$lib/chart/xy/generateXyChart.js';
-	import { XyChart } from '$lib/index.js'; // $lib is the alias for 'src/lib'
-	import type { DataGenerationConfig } from '$lib/index.js';
+<script>
+	import { generateMultiSeriesData } from '$lib/chart/xy/generateXyChart';
+	import { XyChart } from '$lib/index'; // $lib is the alias for 'src/lib'
 	import { onMount } from 'svelte';
 
 	const config = {
@@ -9,25 +8,20 @@
 		height: 240,
 		squash: false,
 		syncX: true,
-		// syncX: false,
 		syncY: true,
 		yType: 'number',
-
 		xType: 'date',
-		// xType: 'string',
-		// xType: 'number',
-		// merge: true,
 		merge: false,
 		margin: { top: 25, right: 30, bottom: 60, left: 50 }
 	};
 
 	// Example usage with trendVariance configuration:
-	const dataConfig: DataGenerationConfig = {
+	const dataConfig = {
 		seriesRange: { min: 2, max: 4 },
 		xRange: { min: 4, max: 8 },
 		yRange: { min: 20, max: 90 },
 		trendDirection: 'random', // Completely random trend
-		trendVariance: 5, // dLarger value for more random variation in trend
+		trendVariance: 5, // Larger value for more random variation in trend
 		softCap: {
 			enable: true,
 			upperLimit: 95,
@@ -38,10 +32,10 @@
 		xConsistency: false
 	};
 
-	$: seed = null; // Initialize the seed value
-	$: data = [];
-	$: dataKeys = [];
-	$: features = [];
+	let seed = null; // Initialize the seed value
+	let data = [];
+	let dataKeys = [];
+	let features = [];
 
 	// Generate data initially using the seed
 	function generateData() {
@@ -53,9 +47,9 @@
 	}
 
 	// Function to copy specific data to clipboard
-	function copyToClipboard(item: any, label: string) {
+	function copyToClipboard(item, label) {
 		navigator.clipboard
-			.writeText(JSON.stringify(item, null, 2)) // seed is set to 2
+			.writeText(JSON.stringify(item, null, 2)) // Indentation set to 2 spaces
 			.then(() => {
 				console.log(`${label} copied to clipboard!`);
 			})
@@ -84,6 +78,6 @@
 	<button on:click={() => copyToClipboard(seed, 'Seed')}>Copy Seed</button>
 	<button on:click={() => copyToClipboard(data, 'Data')}>Copy Data</button>
 	<button on:click={() => copyToClipboard(dataKeys, 'Data Keys')}>Copy Data Keys</button>
-	<button on:click={() => copyToClipboard(labels, 'Labels')}>Copy Labels</button>
+	<button on:click={() => copyToClipboard(features, 'Features')}>Copy Features</button>
 	<button on:click={() => copyToClipboard(config, 'Config')}>Copy Generator Config</button>
 </main>
