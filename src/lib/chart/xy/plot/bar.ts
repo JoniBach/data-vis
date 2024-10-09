@@ -1,8 +1,9 @@
-import type { SeriesData, DataKeys } from '$lib/chart/xy/generateXyChart.js';
+// Imports
 import * as d3 from 'd3';
 import { attachTooltipHandlers } from './canvas.js';
 import type { CreateParams } from './types.js';
 import { prepareAndValidateData } from '../xyChart.js';
+import type { DataKeys } from '../generateXyChart.js';
 
 // Main function to create bars (grouped, stacked, overlapped, or error bars)
 export function createBarsVariant(
@@ -14,8 +15,7 @@ export function createBarsVariant(
 		seriesData,
 		chartGroup,
 		colorScale,
-		xScale,
-		valueScale,
+		scales,
 		chartHeight,
 		chartWidth,
 		dataKeys,
@@ -25,6 +25,10 @@ export function createBarsVariant(
 	// Validate the input data using the new validator
 	const preparedData = prepareAndValidateData({ seriesData, dataKeys });
 	if (!preparedData) return;
+
+	// Extract coordinate keys
+	const xKey = dataKeys.coordinates['x'];
+	const yKey = dataKeys.coordinates['y'];
 
 	// Add clipping path to prevent overflow
 	createClippingPath(chartGroup, chartWidth, chartHeight);
@@ -43,7 +47,9 @@ export function createBarsVariant(
 				params,
 				fillOpacity,
 				dataKeys,
-				chartHeight
+				chartHeight,
+				xKey,
+				yKey
 			);
 			break;
 		case 'error':
@@ -53,7 +59,9 @@ export function createBarsVariant(
 				params,
 				fillOpacity,
 				dataKeys,
-				chartHeight
+				chartHeight,
+				xKey,
+				yKey
 			);
 			break;
 		default:
@@ -64,7 +72,9 @@ export function createBarsVariant(
 				params,
 				fillOpacity,
 				dataKeys,
-				chartHeight
+				chartHeight,
+				xKey,
+				yKey
 			);
 			break;
 	}
@@ -89,10 +99,14 @@ export function createErrorBars(
 	barsGroup: any,
 	params: CreateParams,
 	fillOpacity: number,
-	dataKeys: any,
-	chartHeight: number
+	dataKeys: DataKeys,
+	chartHeight: number,
+	xKey: string,
+	yKey: string
 ) {
-	const { xScale, valueScale, colorScale } = params;
+	const { scales, colorScale } = params;
+	const xScale = scales['x'];
+	const yScale = scales['y'];
 
 	try {
 		// Only define seriesScale if xScale has a bandwidth function (scaleBand)
@@ -104,15 +118,13 @@ export function createErrorBars(
 					.padding(0.05)
 			: null;
 
+		const magnitudeKey = dataKeys.magnitude;
+
 		const magnitudeScale = d3
 			.scaleLinear()
 			.domain([
-				d3.min(seriesData, (series) =>
-					d3.min(series[dataKeys.data], (d) => d[dataKeys.magnitude])
-				) || 0,
-				d3.max(seriesData, (series) =>
-					d3.max(series[dataKeys.data], (d) => d[dataKeys.magnitude])
-				) || 1
+				d3.min(seriesData, (series) => d3.min(series[dataKeys.data], (d) => d[magnitudeKey])) || 0,
+				d3.max(seriesData, (series) => d3.max(series[dataKeys.data], (d) => d[magnitudeKey])) || 1
 			])
 			.range([0, chartHeight * 0.2]);
 
@@ -126,10 +138,9 @@ export function createErrorBars(
 			bars.each((d, i, nodes) => {
 				const bar = d3.select(nodes[i]);
 				const xPos =
-					getXPosition(xScale, d[dataKeys.xKey]) +
-					(seriesScale ? seriesScale(series[dataKeys.name])! : 0);
-				const yPos = valueScale(d[dataKeys.yKey]);
-				const height = chartHeight - valueScale(d[dataKeys.yKey]);
+					getXPosition(xScale, d[xKey]) + (seriesScale ? seriesScale(series[dataKeys.name])! : 0);
+				const yPos = yScale(d[yKey]);
+				const height = chartHeight - yScale(d[yKey]);
 				const width = seriesScale ? seriesScale.bandwidth() : 10; // Fallback width if not scaleBand
 				const fillColor = colorScale(series[dataKeys.name]);
 
@@ -145,7 +156,8 @@ export function createErrorBars(
 					params.chartTooltip,
 					dataKeys
 				);
-				addErrorBars(barsGroup, xPos, width, yPos, magnitudeScale(d[dataKeys.magnitude]));
+
+				addErrorBars(barsGroup, xPos, width, yPos, magnitudeScale(d[magnitudeKey]));
 			});
 		});
 	} catch (error) {
@@ -194,18 +206,23 @@ function addErrorBars(
 		.attr('stroke-width', 1.5);
 }
 
+// Function to create stacked bars
 export function createStackedBars(
 	seriesData: any[],
 	barsGroup: any,
 	params: CreateParams,
 	fillOpacity: number,
-	dataKeys: any,
-	chartHeight: number
+	dataKeys: DataKeys,
+	chartHeight: number,
+	xKey: string,
+	yKey: string
 ) {
-	const { xScale, valueScale, colorScale } = params;
+	const { scales, colorScale } = params;
+	const xScale = scales['x'];
+	const yScale = scales['y'];
 
 	try {
-		const stackedData = prepareStackedData(seriesData, dataKeys);
+		const stackedData = prepareStackedData(seriesData, dataKeys, xKey, yKey);
 
 		stackedData.forEach((layer, layerIndex) => {
 			const seriesName = seriesData[layerIndex][dataKeys.name];
@@ -217,9 +234,9 @@ export function createStackedBars(
 
 			bars.each((d, i, nodes) => {
 				const bar = d3.select(nodes[i]);
-				const xPos = getXPosition(xScale, d.data[dataKeys.xKey]);
-				const yPos = valueScale(d[1]);
-				const height = Math.abs(valueScale(d[0]) - valueScale(d[1]));
+				const xPos = getXPosition(xScale, d.data[xKey]);
+				const yPos = yScale(d[1]);
+				const height = Math.abs(yScale(d[0]) - yScale(d[1]));
 				const width = xScale.bandwidth ? xScale.bandwidth() : 10; // Fallback width if not scaleBand
 				const fillColor = colorScale(seriesName);
 
@@ -242,19 +259,23 @@ export function createStackedBars(
 	}
 }
 
+// Function to create grouped or overlapped bars
 export function createNonStackedBars(
 	type: 'grouped' | 'overlapped',
 	seriesData: any[],
 	barsGroup: any,
 	params: CreateParams,
 	fillOpacity: number,
-	dataKeys: any,
-	chartHeight: number
+	dataKeys: DataKeys,
+	chartHeight: number,
+	xKey: string,
+	yKey: string
 ) {
-	const { xScale, valueScale, colorScale } = params;
+	const { scales, colorScale } = params;
+	const xScale = scales['x'];
+	const yScale = scales['y'];
 
 	try {
-		// Check if xScale has a bandwidth method (i.e., it's a scaleBand)
 		const seriesScale = xScale.bandwidth
 			? d3
 					.scaleBand()
@@ -273,10 +294,10 @@ export function createNonStackedBars(
 			bars.each((d, i, nodes) => {
 				const bar = d3.select(nodes[i]);
 				const xPos =
-					getXPosition(xScale, d[dataKeys.xKey]) +
+					getXPosition(xScale, d[xKey]) +
 					(type === 'grouped' && seriesScale ? seriesScale(series[dataKeys.name])! : 0);
-				const yPos = valueScale(d[dataKeys.yKey]);
-				const height = chartHeight - valueScale(d[dataKeys.yKey]);
+				const yPos = yScale(d[yKey]);
+				const height = chartHeight - yScale(d[yKey]);
 				const width = seriesScale
 					? seriesScale.bandwidth()
 					: xScale.bandwidth
@@ -314,7 +335,7 @@ export function createBar(
 	fillColor: string,
 	fillOpacity: number,
 	chartTooltip: any,
-	dataKeys: any
+	dataKeys: DataKeys
 ) {
 	selection
 		.attr('x', x)
@@ -328,50 +349,47 @@ export function createBar(
 }
 
 // Helper function to prepare stacked data
-export function prepareStackedData(seriesData: SeriesData[], dataKeys: DataKeys) {
+export function prepareStackedData(
+	seriesData: any[],
+	dataKeys: DataKeys,
+	xKey: string,
+	yKey: string
+) {
 	if (!Array.isArray(seriesData) || seriesData.length === 0) {
 		throw new Error('Invalid seriesData: must be a non-empty array');
 	}
 
-	if (!dataKeys || !dataKeys.name || !dataKeys.xKey || !dataKeys.yKey || !dataKeys.data) {
-		throw new Error('Invalid dataKeys: all keys (name, xKey, yKey, data) must be defined');
+	if (!dataKeys || !dataKeys.name || !xKey || !yKey || !dataKeys.data) {
+		throw new Error('Invalid dataKeys: all keys (name, data) and coordinate keys must be defined');
 	}
 
-	const firstSeriesData = seriesData[0][dataKeys.data];
-	if (!Array.isArray(firstSeriesData)) {
-		throw new Error('Invalid data format: seriesData elements must contain arrays');
-	}
+	const seriesNames = seriesData.map((d) => d[dataKeys.name]);
 
-	return d3
-		.stack()
-		.keys(seriesData.map((d) => d[dataKeys.name]))
-		.offset(d3.stackOffsetDiverging)(
-		firstSeriesData.map((_, i) => {
-			const obj: Record<string, number> = {
-				[dataKeys.xKey]: firstSeriesData[i][dataKeys.xKey]
-			};
-			seriesData.forEach((series) => {
-				const seriesName = series[dataKeys.name];
-				const dataPoint = series[dataKeys.data][i];
-				if (seriesName && dataPoint) {
-					obj[seriesName] = dataPoint[dataKeys.yKey];
-				} else {
-					throw new Error(`Data inconsistency found at index ${i} for series: ${seriesName}`);
-				}
-			});
-			return obj;
-		})
-	);
+	const dataArray = seriesData[0][dataKeys.data].map((_, i) => {
+		const obj: Record<string, any> = {
+			[xKey]: seriesData[0][dataKeys.data][i][xKey]
+		};
+		seriesData.forEach((series) => {
+			const seriesName = series[dataKeys.name];
+			const dataPoint = series[dataKeys.data][i];
+			if (seriesName && dataPoint) {
+				obj[seriesName] = dataPoint[yKey];
+			} else {
+				throw new Error(`Data inconsistency found at index ${i} for series: ${seriesName}`);
+			}
+		});
+		return obj;
+	});
+
+	return d3.stack().keys(seriesNames).offset(d3.stackOffsetDiverging)(dataArray);
 }
 
 // Helper function to handle different types for x-axis
-function getXPosition(xScale: any, xKey: any) {
-	if (xKey instanceof Date) {
-		return xScale(xKey.getTime());
-	} else if (typeof xKey === 'number') {
-		return xScale(xKey);
-	} else if (typeof xKey === 'string') {
-		return xScale(xKey);
+function getXPosition(xScale: any, xValue: any) {
+	if (xValue instanceof Date) {
+		return xScale(xValue.getTime());
+	} else if (typeof xValue === 'number' || typeof xValue === 'string') {
+		return xScale(xValue);
 	}
-	throw new Error('Unsupported xKey type. Only Date, number, or string are supported.');
+	throw new Error('Unsupported xValue type. Only Date, number, or string are supported.');
 }

@@ -1,78 +1,38 @@
-import type { DataPoint } from '$lib/chart/xy/generateXyChart.js';
-import { eventSystem } from './event.js';
+// Imports
 import * as d3 from 'd3';
 import type { CreateParams } from './types.js';
 import { attachTooltipHandlers } from './canvas.js';
 
+// Function to create line or area charts
 export function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
-	const {
-		seriesData,
-		chartGroup,
-		colorScale,
-		dateScale,
-		xScale,
-		valueScale,
-		dataKeys,
-		chartHeight
-	} = params;
+	const { seriesData, chartGroup, colorScale, scales, dataKeys, chartHeight } = params;
+
+	const xScale = scales['x'];
+	const yScale = scales['y'];
+
+	// Extract coordinate keys
+	const xKey = dataKeys.coordinates['x'];
+	const yKey = dataKeys.coordinates['y'];
 
 	// Ensure that the chart group, scales, and data are available
-	if (!chartGroup || (!dateScale && !xScale) || !valueScale) {
-		console.error(
-			'Missing required elements (chartGroup, dateScale/xScale, valueScale) to create chart.'
-		);
+	if (!chartGroup || !xScale || !yScale) {
+		console.error('Missing required elements (chartGroup, xScale, yScale) to create chart.');
 		return;
 	}
-
-	// Determine how to compute x position based on the type of scale (Date, number, or string)
-	const computeXPosition = (d: DataPoint) => {
-		const xValue = d[dataKeys.xKey];
-		let computedX;
-		if (xScale) {
-			computedX = xScale.bandwidth ? xScale(xValue)! + xScale.bandwidth() / 2 : xScale(xValue);
-		} else {
-			computedX = dateScale!(xValue);
-		}
-		// Debug: Log if computedX is invalid
-		if (isNaN(computedX)) {
-			console.warn('Invalid x value detected:', xValue, computedX);
-		}
-		return computedX;
-	};
-
-	const computeYPosition = (d: DataPoint) => {
-		const yValue = d[dataKeys.yKey];
-		const computedY = valueScale(yValue);
-		// Debug: Log if computedY is invalid
-		if (isNaN(computedY)) {
-			console.warn('Invalid y value detected:', yValue, computedY);
-		}
-		return computedY;
-	};
 
 	// Create line or area generator based on the type
 	const generator =
 		type === 'line'
 			? d3
-					.line<DataPoint>()
-					.defined(
-						(d) =>
-							d[dataKeys.yKey] !== null &&
-							d[dataKeys.yKey] !== undefined &&
-							!isNaN(valueScale(d[dataKeys.yKey]))
-					) // Ignore invalid points
-					.x(computeXPosition)
-					.y(computeYPosition)
+					.line<any>()
+					.defined((d) => d[yKey] !== null && d[yKey] !== undefined && !isNaN(yScale(d[yKey])))
+					.x((d) => xScale(d[xKey]))
+					.y((d) => yScale(d[yKey]))
 			: d3
-					.area<DataPoint>()
-					.defined(
-						(d) =>
-							d[dataKeys.yKey] !== null &&
-							d[dataKeys.yKey] !== undefined &&
-							!isNaN(valueScale(d[dataKeys.yKey]))
-					) // Ignore invalid points
-					.x(computeXPosition)
-					.y1(computeYPosition)
+					.area<any>()
+					.defined((d) => d[yKey] !== null && d[yKey] !== undefined && !isNaN(yScale(d[yKey])))
+					.x((d) => xScale(d[xKey]))
+					.y1((d) => yScale(d[yKey]))
 					.y0(chartHeight);
 
 	const group = chartGroup.append('g').attr('class', `${type}-group`);
@@ -81,16 +41,8 @@ export function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
 	seriesData.forEach((series) => {
 		// Sort the data by the xKey
 		const sortedData = series[dataKeys.data]
-			.filter(
-				(d) =>
-					d[dataKeys.xKey] !== null &&
-					d[dataKeys.yKey] !== null &&
-					!isNaN(valueScale(d[dataKeys.yKey]))
-			)
-			.sort((a, b) => {
-				// Sorting by xKey, which could be a date or a number
-				return d3.ascending(a[dataKeys.xKey], b[dataKeys.xKey]);
-			});
+			.filter((d) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey])))
+			.sort((a, b) => d3.ascending(a[xKey], b[xKey]));
 
 		group
 			.append('path')
@@ -103,77 +55,44 @@ export function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
 	});
 }
 
-export function createPoints({
-	seriesData,
-	chartGroup,
-	colorScale,
-	dateScale,
-	xScale,
-	valueScale,
-	chartTooltip,
-	dataKeys
-}: CreateParams) {
+// Function to create points (scatter plots)
+export function createPoints(params: CreateParams) {
+	const { seriesData, chartGroup, colorScale, scales, chartTooltip, dataKeys, chartHeight } =
+		params;
+
+	const xScale = scales['x'];
+	const yScale = scales['y'];
+
+	// Extract coordinate keys
+	const xKey = dataKeys.coordinates['x'];
+	const yKey = dataKeys.coordinates['y'];
+
 	const pointsGroup = chartGroup.append('g').attr('class', 'points-group');
 	seriesData.forEach((series) => {
-		pointsGroup
+		const points = pointsGroup
 			.selectAll(`circle.${series[dataKeys.name].replace(/\s+/g, '-')}`)
 			.data(
 				series[dataKeys.data].filter(
-					(d) =>
-						d[dataKeys.xKey] !== null &&
-						d[dataKeys.yKey] !== null &&
-						!isNaN(valueScale(d[dataKeys.yKey]))
+					(d) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey]))
 				)
-			) // Filter out invalid data points
+			)
 			.join(
 				(enter) =>
 					enter
 						.append('circle')
 						.attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
-						.attr('cx', (d) => {
-							const xValue = d[dataKeys.xKey];
-							const computedX = xScale
-								? xScale.bandwidth
-									? xScale(xValue)! + xScale.bandwidth() / 2
-									: xScale(xValue)
-								: dateScale!(xValue);
-							return isNaN(computedX) ? 0 : computedX; // Set to 0 if invalid
-						})
-						.attr('cy', (d) => {
-							const computedY = valueScale(d[dataKeys.yKey]);
-							return isNaN(computedY) ? chartHeight : computedY; // Set to chartHeight if invalid
-						})
+						.attr('cx', (d) => xScale(d[xKey]))
+						.attr('cy', (d) => yScale(d[yKey]))
 						.attr('r', 4)
 						.attr('fill', colorScale(series[dataKeys.name]))
-						.on('mouseover', (event, d) => {
-							eventSystem.trigger('tooltip', chartTooltip, event, d, dataKeys);
-						})
-						.on('mousemove', (event) => {
-							eventSystem.trigger('tooltipMove', chartTooltip, event);
-						})
-						.on('mouseout', () => {
-							eventSystem.trigger('tooltipHide', chartTooltip);
-						}),
-				(update) =>
-					update
-						.attr('cx', (d) => {
-							const xValue = d[dataKeys.xKey];
-							const computedX = xScale
-								? xScale.bandwidth
-									? xScale(xValue)! + xScale.bandwidth() / 2
-									: xScale(xValue)
-								: dateScale!(xValue);
-							return isNaN(computedX) ? 0 : computedX; // Set to 0 if invalid
-						})
-						.attr('cy', (d) => {
-							const computedY = valueScale(d[dataKeys.yKey]);
-							return isNaN(computedY) ? chartHeight : computedY; // Set to chartHeight if invalid
-						}),
-				(exit) => exit.remove() // Remove points that no longer have data
+						.call((selection) => attachTooltipHandlers(selection, chartTooltip, dataKeys)),
+				(update) => update.attr('cx', (d) => xScale(d[xKey])).attr('cy', (d) => yScale(d[yKey])),
+				(exit) => exit.remove()
 			);
 	});
 }
 
+// Function to create bubbles (bubble charts)
 export function createBubbles(
 	params: CreateParams,
 	config: { minRadius?: number; maxRadius?: number } = {}
@@ -182,22 +101,29 @@ export function createBubbles(
 		seriesData,
 		chartGroup,
 		colorScale,
-		dateScale,
-		xScale,
-		valueScale,
+		scales,
 		chartTooltip,
 		dataKeys,
 		chartHeight,
 		chartWidth
 	} = params;
+
+	const xScale = scales['x'];
+	const yScale = scales['y'];
+
+	// Extract coordinate keys
+	const xKey = dataKeys.coordinates['x'];
+	const yKey = dataKeys.coordinates['y'];
+	const magnitudeKey = dataKeys.magnitude;
+
 	const minRadius = config.minRadius ?? 5;
 	const maxRadius = config.maxRadius ?? 20;
 
 	const radiusScale = d3
 		.scaleSqrt()
 		.domain([
-			d3.min(seriesData, (series) => d3.min(series[dataKeys.data], (d) => d[dataKeys.yKey])) || 0,
-			d3.max(seriesData, (series) => d3.max(series[dataKeys.data], (d) => d[dataKeys.yKey])) || 1
+			d3.min(seriesData, (series) => d3.min(series[dataKeys.data], (d) => d[magnitudeKey])) || 0,
+			d3.max(seriesData, (series) => d3.max(series[dataKeys.data], (d) => d[magnitudeKey])) || 1
 		])
 		.range([minRadius, maxRadius]);
 
@@ -221,51 +147,26 @@ export function createBubbles(
 			.selectAll(`circle.${series[dataKeys.name].replace(/\s+/g, '-')}`)
 			.data(
 				series[dataKeys.data].filter(
-					(d) =>
-						d[dataKeys.xKey] !== null &&
-						d[dataKeys.yKey] !== null &&
-						!isNaN(valueScale(d[dataKeys.yKey]))
+					(d) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey]))
 				)
-			) // Filter out invalid data points
+			)
 			.join(
 				(enter) =>
 					enter
 						.append('circle')
 						.attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
-						.attr('cx', (d) => {
-							const xValue = d[dataKeys.xKey];
-							const computedX = xScale
-								? xScale.bandwidth
-									? xScale(xValue)! + xScale.bandwidth() / 2
-									: xScale(xValue)
-								: dateScale!(xValue);
-							return isNaN(computedX) ? 0 : computedX; // Set to 0 if invalid
-						})
-						.attr('cy', (d) => {
-							const computedY = valueScale(d[dataKeys.yKey]);
-							return isNaN(computedY) ? chartHeight : computedY; // Set to chartHeight if invalid
-						})
-						.attr('r', (d) => radiusScale(d[dataKeys.yKey]))
+						.attr('cx', (d) => xScale(d[xKey]))
+						.attr('cy', (d) => yScale(d[yKey]))
+						.attr('r', (d) => radiusScale(d[magnitudeKey]))
 						.attr('fill', colorScale(series[dataKeys.name]))
-						.attr('fill-opacity', 0.7),
+						.attr('fill-opacity', 0.7)
+						.call((selection) => attachTooltipHandlers(selection, chartTooltip, dataKeys)),
 				(update) =>
 					update
-						.attr('cx', (d) => {
-							const xValue = d[dataKeys.xKey];
-							const computedX = xScale
-								? xScale.bandwidth
-									? xScale(xValue)! + xScale.bandwidth() / 2
-									: xScale(xValue)
-								: dateScale!(xValue);
-							return isNaN(computedX) ? 0 : computedX; // Set to 0 if invalid
-						})
-						.attr('cy', (d) => {
-							const computedY = valueScale(d[dataKeys.yKey]);
-							return isNaN(computedY) ? chartHeight : computedY; // Set to chartHeight if invalid
-						}),
-				(exit) => exit.remove() // Remove bubbles that no longer have data
+						.attr('cx', (d) => xScale(d[xKey]))
+						.attr('cy', (d) => yScale(d[yKey]))
+						.attr('r', (d) => radiusScale(d[magnitudeKey])),
+				(exit) => exit.remove()
 			);
-
-		attachTooltipHandlers(bubbles, chartTooltip, dataKeys);
 	});
 }

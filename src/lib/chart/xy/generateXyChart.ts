@@ -4,11 +4,11 @@ export interface DataGenerationConfig {
 	seriesRange: { min: number; max: number };
 	xRange: { min: number; max: number };
 	yRange: { min: number; max: number };
-	xType?: 'date' | 'number' | 'string'; // Added xType
-	trendDirection?: 'up' | 'down' | 'random' | null; // Optional, controls the trend
+	xType?: 'date' | 'number' | 'string';
+	trendDirection?: 'up' | 'down' | 'random' | null;
 	softCap?: SoftCapConfig;
-	trendVariance?: number; // Controls the amount of randomness (e.g., 1 for smooth, 10 for high variance)
-	xConsistency?: boolean; // New property to determine if x intervals are consistent across series
+	trendVariance?: number;
+	xConsistency?: boolean;
 }
 
 export interface SoftCapConfig {
@@ -21,9 +21,8 @@ export interface SoftCapConfig {
 export interface DataKeys {
 	name: string;
 	data: string;
-	xKey: string;
-	yKey: string;
-	magnitude?: string; // Add this new property
+	coordinates: Record<string, string>;
+	magnitude?: string;
 }
 
 export interface LabelConfig {
@@ -68,18 +67,11 @@ export interface MultiSeriesResponse {
 // Default Features Function
 
 const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
-	// {
-	// 	feature: 'area',
-	// 	hide: true
-	// },
 	{
 		feature: 'bar',
 		hide: false,
 		config: {
 			variant: 'error'
-			// variant: 'overlapped',
-			// variant: 'stacked',
-			// variant: 'grouped',
 		}
 	},
 	{
@@ -94,13 +86,11 @@ const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
 		feature: 'bubbles',
 		hide: false,
 		config: { minRadius: 5, maxRadius: 30 }
-	}, // Adding bubbles feature
-
+	},
 	{
 		feature: 'grid',
 		hide: false
 	},
-
 	{
 		feature: 'tooltip',
 		hide: false,
@@ -119,10 +109,10 @@ const defaultFeatures = (labels: LabelConfig): FeatureConfig[] => [
 		feature: 'axis',
 		hide: false,
 		config: {
-			xTickFormat: '%d / %m / %y', // This will be passed as a string for formatting the x-axis (day/month/year format)
-			yTickDecimals: 0, // Specify the number of decimal places on the y-axis
-			xTicks: 5, // Number of ticks on the x-axis
-			yTicks: 10 // Number of ticks on the y-axis
+			xTickFormat: '%d / %m / %y',
+			yTickDecimals: 0,
+			xTicks: 5,
+			yTicks: 10
 		}
 	}
 ];
@@ -132,9 +122,11 @@ const defaultDataKeys: DefaultDataKeyEntry[] = [
 		dataKeys: {
 			name: 'city',
 			data: 'temperatureData',
-			xKey: 'date',
-			yKey: 'averageTemperature',
-			magnitude: 'humidityLevel' // Added magnitude
+			coordinates: {
+				x: 'date',
+				y: 'averageTemperature'
+			},
+			magnitude: 'humidityLevel'
 		},
 		labels: {
 			title: 'Average Temperature Over Time',
@@ -146,9 +138,11 @@ const defaultDataKeys: DefaultDataKeyEntry[] = [
 		dataKeys: {
 			name: 'city',
 			data: 'airQualityData',
-			xKey: 'date',
-			yKey: 'aqiValue',
-			magnitude: 'pollutionConcentration' // Added magnitude
+			coordinates: {
+				x: 'date',
+				y: 'aqiValue'
+			},
+			magnitude: 'pollutionConcentration'
 		},
 		labels: {
 			title: 'Air Quality Index Over Time',
@@ -160,9 +154,11 @@ const defaultDataKeys: DefaultDataKeyEntry[] = [
 		dataKeys: {
 			name: 'website',
 			data: 'trafficData',
-			xKey: 'date',
-			yKey: 'numberOfVisitors',
-			magnitude: 'timeSpentPerVisit' // Added magnitude
+			coordinates: {
+				x: 'date',
+				y: 'numberOfVisitors'
+			},
+			magnitude: 'timeSpentPerVisit'
 		},
 		labels: {
 			title: 'Website Traffic Over Time',
@@ -174,9 +170,11 @@ const defaultDataKeys: DefaultDataKeyEntry[] = [
 		dataKeys: {
 			name: 'store',
 			data: 'salesData',
-			xKey: 'date',
-			yKey: 'totalSales',
-			magnitude: 'numberOfTransactions' // Added magnitude
+			coordinates: {
+				x: 'date',
+				y: 'totalSales'
+			},
+			magnitude: 'numberOfTransactions'
 		},
 		labels: {
 			title: 'Store Sales Over Time',
@@ -188,9 +186,11 @@ const defaultDataKeys: DefaultDataKeyEntry[] = [
 		dataKeys: {
 			name: 'user',
 			data: 'fitnessData',
-			xKey: 'date',
-			yKey: 'stepsWalked',
-			magnitude: 'caloriesBurned' // Added magnitude
+			coordinates: {
+				x: 'date',
+				y: 'stepsWalked'
+			},
+			magnitude: 'caloriesBurned'
 		},
 		labels: {
 			title: 'Daily Steps Walked Over Time',
@@ -202,9 +202,11 @@ const defaultDataKeys: DefaultDataKeyEntry[] = [
 		dataKeys: {
 			name: 'restaurant',
 			data: 'reservationData',
-			xKey: 'date',
-			yKey: 'numberOfReservations',
-			magnitude: 'averagePartySize' // Added magnitude
+			coordinates: {
+				x: 'date',
+				y: 'numberOfReservations'
+			},
+			magnitude: 'averagePartySize'
 		},
 		labels: {
 			title: 'Restaurant Reservations Over Time',
@@ -216,9 +218,11 @@ const defaultDataKeys: DefaultDataKeyEntry[] = [
 		dataKeys: {
 			name: 'app',
 			data: 'downloadData',
-			xKey: 'date',
-			yKey: 'downloads',
-			magnitude: 'activeUsers' // Added magnitude
+			coordinates: {
+				x: 'date',
+				y: 'downloads'
+			},
+			magnitude: 'activeUsers'
 		},
 		labels: {
 			title: 'App Downloads Over Time',
@@ -230,9 +234,11 @@ const defaultDataKeys: DefaultDataKeyEntry[] = [
 		dataKeys: {
 			name: 'product',
 			data: 'reviewData',
-			xKey: 'date',
-			yKey: 'averageRating',
-			magnitude: 'reviewCount' // Added magnitude
+			coordinates: {
+				x: 'date',
+				y: 'averageRating'
+			},
+			magnitude: 'reviewCount'
 		},
 		labels: {
 			title: 'Product Average Rating Over Time',
@@ -244,9 +250,11 @@ const defaultDataKeys: DefaultDataKeyEntry[] = [
 		dataKeys: {
 			name: 'company',
 			data: 'stockPriceData',
-			xKey: 'date',
-			yKey: 'closingPrice',
-			magnitude: 'dailyVolume' // Added magnitude
+			coordinates: {
+				x: 'date',
+				y: 'closingPrice'
+			},
+			magnitude: 'dailyVolume'
 		},
 		labels: {
 			title: 'Company Stock Prices Over Time',
@@ -258,9 +266,11 @@ const defaultDataKeys: DefaultDataKeyEntry[] = [
 		dataKeys: {
 			name: 'region',
 			data: 'electricityUsageData',
-			xKey: 'date',
-			yKey: 'energyConsumed',
-			magnitude: 'peakDemand' // Added magnitude
+			coordinates: {
+				x: 'date',
+				y: 'energyConsumed'
+			},
+			magnitude: 'peakDemand'
 		},
 		labels: {
 			title: 'Electricity Usage Over Time',
@@ -366,7 +376,6 @@ const LOREM_IPSUM_WORDS = [
 	'id',
 	'est',
 	'laborum'
-	// Add more words as needed to ensure a sufficient pool
 ];
 
 // Randomize Features Function
@@ -382,30 +391,32 @@ const randomizeFeatures = (labels: LabelConfig): FeatureConfig[] => {
 		hide: false // Ensure that all 'hide' properties are set to false
 	}));
 };
-// Generate Consistent X Values Function with Minimum Gap
-const generateConsistentXValues = (config, numXPoints, randomGenerator) => {
-	const xValues = [];
-	const minGap = config.xMinGap || 1; // Minimum gap can be defined in the config, default to 1
 
-	let currentValue;
+// Generate Consistent X Values Function with Minimum Gap
+const generateConsistentXValues = (
+	config: DataGenerationConfig,
+	numXPoints: number,
+	randomGenerator: SeededRandom
+) => {
+	const xValues: (Date | number | string)[] = [];
+	const minGap = config.xMinGap || 1;
+
+	let currentValue: any;
 
 	if (config.xType === 'date' || !config.xType) {
-		currentValue = new Date(); // Start from the current date
+		currentValue = new Date();
 		for (let j = 0; j < numXPoints; j++) {
 			const newDate = new Date(currentValue);
 			xValues.push(newDate);
-			// Increment date by at least 'minGap' days
 			currentValue.setDate(currentValue.getDate() + minGap + randomGenerator.nextInt(0, 3));
 		}
 	} else if (config.xType === 'number') {
-		currentValue = 1; // Start from 1 for numerical X values
+		currentValue = 1;
 		for (let j = 0; j < numXPoints; j++) {
 			xValues.push(currentValue);
-			// Increment by at least 'minGap'
 			currentValue += minGap + randomGenerator.nextInt(0, 3);
 		}
 	} else if (config.xType === 'string') {
-		// For strings, we will shuffle the available lorem ipsum words
 		if (numXPoints > LOREM_IPSUM_WORDS.length) {
 			console.warn(
 				`Requested number of string x-axis points (${numXPoints}) exceeds available lorem ipsum words (${LOREM_IPSUM_WORDS.length}). Some words will be reused.`
@@ -447,7 +458,7 @@ export function generateXyData(
 	const dataKeys: DataKeys = userDataKeys ?? randomDataConfig.dataKeys;
 
 	const numSeries = getRandomInt(config.seriesRange.min, config.seriesRange.max);
-	const numXPoints = getRandomInt(config.xRange.min, config.xRange.max); // Number of points on the X-axis
+	const numXPoints = getRandomInt(config.xRange.min, config.xRange.max);
 
 	// Generate consistent X values with a minimum gap
 	const consistentXValues = generateConsistentXValues(config, numXPoints, randomGenerator);
@@ -455,12 +466,17 @@ export function generateXyData(
 	const seriesData: SeriesData[] = [];
 	const variance = config.trendVariance ?? 5;
 
+	// Extract coordinate keys
+	const xKey = dataKeys.coordinates['x'];
+	const yKey = dataKeys.coordinates['y'];
+	const magnitudeKey = dataKeys.magnitude;
+
 	for (let i = 0; i < numSeries; i++) {
 		const seriesName = `Series ${i + 1}`;
 		const dataPoints: DataPoint[] = [];
 
 		let currentValue = getRandomInt(config.yRange.min, config.yRange.max);
-		let currentMagnitude = getRandomInt(config.yRange.min, config.yRange.max); // Generate random magnitude
+		let currentMagnitude = getRandomInt(config.yRange.min, config.yRange.max);
 
 		let trendDirection = 0;
 		switch (config.trendDirection) {
@@ -482,21 +498,27 @@ export function generateXyData(
 			let randomChange = getRandomFloat() * variance * trendDirection;
 
 			currentValue += randomChange;
-			currentMagnitude += getRandomFloat() * variance; // Adjust magnitude with a random change
+			currentMagnitude += getRandomFloat() * variance;
 
 			// Keep values within the configured value range
 			currentValue = Math.max(config.yRange.min, Math.min(config.yRange.max, currentValue));
-			currentMagnitude = Math.max(config.yRange.min, Math.min(config.yRange.max, currentMagnitude)); // Keep magnitude within range
+			currentMagnitude = Math.max(config.yRange.min, Math.min(config.yRange.max, currentMagnitude));
 
 			// Use pre-generated consistent X values
 			const xKeyValue = consistentXValues[j];
 
-			// Push data points with magnitude
-			dataPoints.push({
-				[dataKeys.xKey]: xKeyValue,
-				[dataKeys.yKey]: Math.round(currentValue),
-				[dataKeys.magnitude ?? 'magnitude']: Math.round(currentMagnitude) // Add magnitude to data points
-			});
+			// Prepare data point
+			const dataPoint: DataPoint = {
+				[xKey]: xKeyValue,
+				[yKey]: Math.round(currentValue)
+			};
+
+			// Include magnitude if defined
+			if (magnitudeKey) {
+				dataPoint[magnitudeKey] = Math.round(currentMagnitude);
+			}
+
+			dataPoints.push(dataPoint);
 		}
 
 		seriesData.push({
@@ -558,7 +580,7 @@ export const generateMultiSeriesData = (
 		data,
 		dataKeys,
 		features,
-		seed: newSeed as number // Type assertion since newSeed will be set after first iteration
+		seed: newSeed as number
 	};
 
 	console.log('Generating mock XY data with the following data:', response);

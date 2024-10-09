@@ -11,11 +11,17 @@ import {
 	handleTooltipHide
 } from '../xy/plot/canvas.js';
 import { createLineOrArea, createBubbles, createPoints } from '../xy/plot/point.js';
-import type { DataKeys } from './generateXyChart.js';
 import type { Margin } from './plot/types.js';
 import { eventSystem } from './plot/event.js';
 
 // **Type Definitions**
+type DataKeys = {
+	name: string;
+	data: string;
+	coordinates: Record<string, string>;
+	magnitude?: string;
+};
+
 type ValidationResult = { valid: boolean; errors?: string[] };
 
 // **1. Preparation Phase**
@@ -46,25 +52,37 @@ function validateSeriesData<T>({
 	dataKeys: DataKeys;
 }): ValidationResult {
 	const errors: string[] = [];
+
 	if (!Array.isArray(seriesData) || seriesData.length === 0) {
 		errors.push('seriesData must be a non-empty array.');
 	} else {
 		const firstSeries = seriesData[0];
 		if (!firstSeries || !firstSeries[dataKeys.data]) {
 			errors.push(`Data key '${dataKeys.data}' is missing in the first series.`);
+		} else {
+			// Validate that all coordinate keys are present
+			const coordinateKeys = Object.values(dataKeys.coordinates);
+			const firstDataPoint = firstSeries[dataKeys.data][0];
+			if (firstDataPoint) {
+				coordinateKeys.forEach((key) => {
+					if (!(key in firstDataPoint)) {
+						errors.push(`Coordinate key '${key}' is missing in the data points.`);
+					}
+				});
+			}
 		}
 	}
 	return { valid: errors.length === 0, errors };
 }
 
 /**
- * Retrieves the x-key value, converting Date objects to timestamps if necessary.
+ * Retrieves the coordinate value, converting Date objects to timestamps if necessary.
  */
-function getXKeyValue(xKey: unknown): number | string {
-	if (xKey instanceof Date) {
-		return xKey.getTime();
+function getCoordinateValue(value: unknown): number | string {
+	if (value instanceof Date) {
+		return value.getTime();
 	}
-	return xKey as number | string;
+	return value as number | string;
 }
 
 /**
@@ -88,7 +106,7 @@ export function prepareAndValidateData<T>({
 // **2. Domain Calculation Phase**
 
 /**
- * Computes the merged value domain (y-axis) for multiple series, considering stacking variants.
+ * Computes the merged value domain for multiple series, considering stacking variants.
  */
 function computeMergedValueDomain<T>({
 	seriesDataArray,
@@ -105,10 +123,12 @@ function computeMergedValueDomain<T>({
 	const allKeysSet = new Set<number | string>();
 	seriesDataArray.forEach((seriesData, index) => {
 		const dataKeys = dataKeysArray[index];
+		const xKey = dataKeys.coordinates['x'];
+
 		seriesData.forEach((series) => {
 			const dataPoints = series[dataKeys.data];
 			dataPoints.forEach((d: any) => {
-				allKeysSet.add(getXKeyValue(d[dataKeys.xKey]));
+				allKeysSet.add(getCoordinateValue(d[xKey]));
 			});
 		});
 	});
@@ -121,6 +141,8 @@ function computeMergedValueDomain<T>({
 		seriesDataArray.forEach((seriesData, index) => {
 			const variant = variants[index];
 			const dataKeys = dataKeysArray[index];
+			const xKey = dataKeys.coordinates['x'];
+			const yKey = dataKeys.coordinates['y'];
 
 			if (variant === 'stacked') {
 				let chartPositive = 0;
@@ -128,10 +150,10 @@ function computeMergedValueDomain<T>({
 
 				seriesData.forEach((series) => {
 					const dataPoint = series[dataKeys.data].find(
-						(d: any) => getXKeyValue(d[dataKeys.xKey]) === key
+						(d: any) => getCoordinateValue(d[xKey]) === key
 					);
 					if (dataPoint) {
-						const value = dataPoint[dataKeys.yKey];
+						const value = dataPoint[yKey];
 						if (value >= 0) {
 							chartPositive += value;
 						} else {
@@ -145,10 +167,10 @@ function computeMergedValueDomain<T>({
 			} else {
 				seriesData.forEach((series) => {
 					const dataPoint = series[dataKeys.data].find(
-						(d: any) => getXKeyValue(d[dataKeys.xKey]) === key
+						(d: any) => getCoordinateValue(d[xKey]) === key
 					);
 					if (dataPoint) {
-						const value = dataPoint[dataKeys.yKey];
+						const value = dataPoint[yKey];
 						dateMaxPositive = Math.max(dateMaxPositive, value);
 						dateMinNegative = Math.min(dateMinNegative, value);
 					}
@@ -164,9 +186,9 @@ function computeMergedValueDomain<T>({
 }
 
 /**
- * Computes the merged date domain (x-axis) for multiple series.
+ * Computes the merged x-domain for multiple series.
  */
-function computeMergedDateDomain<T>({
+function computeMergedXDomain<T>({
 	seriesDataArray,
 	dataKeysArray
 }: {
@@ -176,9 +198,10 @@ function computeMergedDateDomain<T>({
 	const allKeysSet = new Set<number | string>();
 	seriesDataArray.forEach((seriesData, index) => {
 		const dataKeys = dataKeysArray[index];
+		const xKey = dataKeys.coordinates['x'];
 		seriesData.forEach((series) => {
 			series[dataKeys.data].forEach((d: any) => {
-				allKeysSet.add(getXKeyValue(d[dataKeys.xKey]));
+				allKeysSet.add(getCoordinateValue(d[xKey]));
 			});
 		});
 	});
@@ -196,7 +219,7 @@ function computeMergedDateDomain<T>({
 /**
  * Extracts the unique x-axis keys from a single series.
  */
-function extractDateDomain<T>({
+function extractXDomain<T>({
 	seriesData,
 	dataKeys
 }: {
@@ -204,9 +227,10 @@ function extractDateDomain<T>({
 	dataKeys: DataKeys;
 }): (Date | number | string)[] {
 	const keysSet = new Set<number | string>();
+	const xKey = dataKeys.coordinates['x'];
 	seriesData.forEach((series) => {
 		series[dataKeys.data].forEach((d: any) => {
-			keysSet.add(getXKeyValue(d[dataKeys.xKey]));
+			keysSet.add(getCoordinateValue(d[xKey]));
 		});
 	});
 	return Array.from(keysSet);
@@ -269,22 +293,36 @@ function createChartGroup({
 }
 
 /**
- * Initializes the x and y scales based on the domains and chart dimensions.
+ * Initializes the scales based on the domains and chart dimensions.
  */
-function initializeScales<T>({
-	dateDomain,
-	valueDomain,
+// xyChart.ts (or wherever initializeScales is defined)
+
+function initializeScales({
+	domains,
 	chartWidth,
-	chartHeight
+	chartHeight,
+	xType
 }: {
-	dateDomain: T[];
-	valueDomain: [number, number];
+	domains: Record<string, any>;
 	chartWidth: number;
 	chartHeight: number;
-}): { xScale: d3.ScaleBand<T>; valueScale: d3.ScaleLinear<number, number> } {
-	const xScale = d3.scaleBand<T>().domain(dateDomain).range([0, chartWidth]).padding(0.1);
-	const valueScale = d3.scaleLinear().domain(valueDomain).range([chartHeight, 0]);
-	return { xScale, valueScale };
+	xType: 'date' | 'number' | 'string';
+}): Record<string, any> {
+	const scales: Record<string, any> = {};
+
+	const xDomain = domains['x'];
+
+	if (xType === 'date') {
+		scales['x'] = d3.scaleTime().domain(d3.extent(xDomain)).range([0, chartWidth]);
+	} else if (xType === 'number') {
+		scales['x'] = d3.scaleLinear().domain(d3.extent(xDomain)).range([0, chartWidth]);
+	} else {
+		scales['x'] = d3.scaleBand().domain(xDomain).range([0, chartWidth]).padding(0.1);
+	}
+
+	scales['y'] = d3.scaleLinear().domain(domains['y']).range([chartHeight, 0]);
+
+	return scales;
 }
 
 // **4. Data Binding & Chart Rendering Phase**
@@ -298,8 +336,7 @@ function setupAndRenderChart<T>({
 	height,
 	chartFeatures,
 	dataKeys,
-	dateDomain,
-	valueDomain,
+	domains,
 	config,
 	merge
 }: {
@@ -308,8 +345,7 @@ function setupAndRenderChart<T>({
 	height: number;
 	chartFeatures: any[];
 	dataKeys: DataKeys;
-	dateDomain?: any[];
-	valueDomain?: [number, number];
+	domains?: Record<string, any>;
 	config: any;
 	merge: boolean;
 }): { createParams: any; chartGroup: d3.Selection<SVGGElement, unknown, null, undefined> } | null {
@@ -325,11 +361,11 @@ function setupAndRenderChart<T>({
 
 	const chartGroup = createChartGroup({ svg, margin });
 
-	const dateDomainUsed =
-		dateDomain ||
-		extractDateDomain({ seriesData: preparedData.seriesData, dataKeys: preparedData.dataKeys });
-	const valueDomainUsed =
-		valueDomain ||
+	const xDomainUsed =
+		domains?.['x'] ||
+		extractXDomain({ seriesData: preparedData.seriesData, dataKeys: preparedData.dataKeys });
+	const yDomainUsed =
+		domains?.['y'] ||
 		computeMergedValueDomain({
 			seriesDataArray: [preparedData.seriesData],
 			dataKeysArray: [preparedData.dataKeys],
@@ -338,9 +374,8 @@ function setupAndRenderChart<T>({
 			]
 		});
 
-	const { xScale, valueScale } = initializeScales({
-		dateDomain: dateDomainUsed,
-		valueDomain: valueDomainUsed,
+	const scales = initializeScales({
+		domains: { x: xDomainUsed, y: yDomainUsed },
 		chartWidth,
 		chartHeight
 	});
@@ -361,8 +396,7 @@ function setupAndRenderChart<T>({
 			seriesData: preparedData.seriesData,
 			chartGroup,
 			colorScale,
-			xScale,
-			valueScale,
+			scales,
 			chartTooltip,
 			chartHeight,
 			chartWidth,
@@ -464,7 +498,7 @@ export function initializeChart(props: any): void {
 	const { container, data, dataKeysArray, features, config } = props;
 	const { height, squash, syncX, syncY, merge } = config;
 
-	const { mergedDateDomain, mergedValueDomain } = computeDomains({
+	const { mergedXDomain, mergedYDomain } = computeDomains({
 		syncX,
 		syncY,
 		data,
@@ -482,8 +516,7 @@ export function initializeChart(props: any): void {
 		dataKeysArray,
 		features,
 		config,
-		mergedDateDomain,
-		mergedValueDomain,
+		mergedDomains: { x: mergedXDomain, y: mergedYDomain },
 		merge,
 		squash,
 		height,
@@ -513,11 +546,11 @@ function computeDomains({
 	data: any[][];
 	dataKeysArray: DataKeys[];
 	features: any[];
-}): { mergedDateDomain?: any[]; mergedValueDomain?: [number, number] } {
-	const mergedDateDomain = syncX
-		? computeMergedDateDomain({ seriesDataArray: data, dataKeysArray })
+}): { mergedXDomain?: any[]; mergedYDomain?: [number, number] } {
+	const mergedXDomain = syncX
+		? computeMergedXDomain({ seriesDataArray: data, dataKeysArray })
 		: undefined;
-	const mergedValueDomain = syncY
+	const mergedYDomain = syncY
 		? computeMergedValueDomain({
 				seriesDataArray: data,
 				dataKeysArray,
@@ -528,7 +561,7 @@ function computeDomains({
 				)
 			})
 		: undefined;
-	return { mergedDateDomain, mergedValueDomain };
+	return { mergedXDomain, mergedYDomain };
 }
 
 // **8. Multi-Series Chart Creation Phase**
@@ -557,8 +590,7 @@ function createDataSeriesChart(props: any): any | null {
 		dataKeysArray,
 		features,
 		config,
-		mergedDateDomain,
-		mergedValueDomain,
+		mergedDomains,
 		container,
 		merge,
 		squash,
@@ -575,8 +607,10 @@ function createDataSeriesChart(props: any): any | null {
 	if (!merge) container.appendChild(chartContainer);
 
 	const chartHeight = squash ? height / data.length : height;
-	const dateDomain = syncX ? mergedDateDomain : undefined;
-	const valueDomain = syncY ? mergedValueDomain : undefined;
+	const domains = {
+		x: syncX ? mergedDomains.x : undefined,
+		y: syncY ? mergedDomains.y : undefined
+	};
 
 	const result = setupAndRenderChart({
 		chartContainer,
@@ -584,8 +618,7 @@ function createDataSeriesChart(props: any): any | null {
 		height: chartHeight,
 		chartFeatures,
 		dataKeys,
-		dateDomain,
-		valueDomain,
+		domains,
 		config,
 		merge
 	});

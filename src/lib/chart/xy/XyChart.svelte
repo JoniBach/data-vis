@@ -16,7 +16,7 @@
 		syncY: false,
 		yType: 'date',
 		xType: 'number',
-		margin: { top: 25, right: 30, bottom: 50, left: 50 },
+		margin: { top: 25, right: 30, bottom: 60, left: 50 },
 		merge: false
 	};
 

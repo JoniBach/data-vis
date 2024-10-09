@@ -1,19 +1,14 @@
-import type { LabelConfig } from '$lib/chart/xy/generateXyChart.js';
+// Imports
 import * as d3 from 'd3';
 import type { CreateParams, TooltipConfig } from './types.js';
 import { eventSystem } from './event.js';
+import type { DataKeys } from '../generateXyChart.js';
 
-// Optimized: Simple helper for sanitizing input
+// Utility function to escape HTML
 export function escapeHTML(str: number | string | null | undefined): string {
 	if (str === null || str === undefined) {
-		return ''; // Return empty string for null or undefined values
-	}
-
-	if (typeof str !== 'string' && typeof str !== 'number') {
-		console.warn('Invalid input type for escapeHTML. Expected a string or number.');
 		return '';
 	}
-
 	return String(str)
 		.replace(/&/g, '&amp;')
 		.replace(/</g, '&lt;')
@@ -21,35 +16,47 @@ export function escapeHTML(str: number | string | null | undefined): string {
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&#39;');
 }
-
-// Optimized: Axis creation with reusable helper
 export function createAxis(params: CreateParams, config: any) {
-	const { chartGroup, dateScale, xScale, valueScale, chartHeight, xType } = params;
+	const { chartGroup, scales, chartHeight, xType } = params;
+	const xScale = scales['x'];
+	const yScale = scales['y'];
 
 	// Set up tick formatting and scales conditionally based on xType
 	let xAxis;
-	if (xType === 'date') {
-		const xTickFormat = d3.timeFormat(config?.xTickFormat || '%m / %y');
-		const xTicks = config?.xTicks || 5;
 
+	if (xType === 'date') {
+		const xTickFormatStr = config?.xTickFormat || '%m / %y';
+		let xTickFormat;
+		try {
+			xTickFormat = d3.timeFormat(xTickFormatStr);
+		} catch (error) {
+			console.warn(`Invalid date format "${xTickFormatStr}". Falling back to default '%m / %y'.`);
+			xTickFormat = d3.timeFormat('%m / %y');
+		}
+		const xTicks = config?.xTicks || 5;
 		xAxis = d3.axisBottom(xScale).ticks(xTicks).tickFormat(xTickFormat);
 	} else if (xType === 'number') {
+		const xTickFormatStr = config?.xTickFormat || '~s';
+		let xTickFormat;
+		try {
+			xTickFormat = d3.format(xTickFormatStr);
+		} catch (error) {
+			console.warn(`Invalid number format "${xTickFormatStr}". Falling back to default '~s'.`);
+			xTickFormat = d3.format('~s');
+		}
 		const xTicks = config?.xTicks || 5;
-
-		xAxis = d3.axisBottom(xScale).ticks(xTicks).tickFormat(d3.format('~s')); // Format for numbers, e.g., using SI prefixes
+		xAxis = d3.axisBottom(xScale).ticks(xTicks).tickFormat(xTickFormat);
 	} else {
-		// If xType is something else, fallback to default
+		// For strings or other types, use default formatting
 		xAxis = d3.axisBottom(xScale);
 	}
 
 	// Create the y-axis
 	const yTickDecimals = config?.yTickDecimals !== undefined ? config.yTickDecimals : 2;
 	const yTicks = config?.yTicks || 10;
+	const yTickFormat = d3.format(`.${yTickDecimals}f`);
 
-	const yAxis = d3
-		.axisLeft(valueScale)
-		.ticks(yTicks)
-		.tickFormat(d3.format(`.${yTickDecimals}f`)); // Number formatting for y-axis
+	const yAxis = d3.axisLeft(yScale).ticks(yTicks).tickFormat(yTickFormat);
 
 	// Append the x-axis at the bottom of the chart
 	chartGroup
@@ -58,21 +65,27 @@ export function createAxis(params: CreateParams, config: any) {
 		.call(xAxis)
 		.selectAll('text')
 		.style('text-anchor', 'start')
-		.attr('transform', 'rotate(15)');
+		.attr('transform', 'rotate(20)')
+		.attr('dx', '0.8em')
+		.attr('dy', '0.15em');
 
 	// Append the y-axis
 	chartGroup.append('g').call(yAxis);
 }
 
-// Optimized: Create grid with refactored code
+// Function to create grid lines
 export function createGrid(params: CreateParams) {
-	const { chartGroup, dateScale, xScale, valueScale, chartHeight, chartWidth } = params;
+	const { chartGroup, scales, chartHeight, chartWidth } = params;
+	const xScale = scales['x'];
+	const yScale = scales['y'];
 
-	const gridGroup = chartGroup.append('g').attr('class', 'grid');
-	gridGroup
+	// Create y-axis grid lines
+	chartGroup
+		.append('g')
+		.attr('class', 'grid')
 		.call(
 			d3
-				.axisLeft(valueScale)
+				.axisLeft(yScale)
 				.tickSize(-chartWidth)
 				.tickFormat(() => '')
 		)
@@ -80,54 +93,57 @@ export function createGrid(params: CreateParams) {
 		.attr('stroke', '#ccc')
 		.attr('stroke-dasharray', '2,2');
 
-	const xAxis = xScale ? d3.axisBottom(xScale) : d3.axisBottom(dateScale!);
-	gridGroup
+	// Create x-axis grid lines
+	chartGroup
 		.append('g')
+		.attr('class', 'grid')
 		.attr('transform', `translate(0,${chartHeight})`)
-		.call(xAxis.tickSize(-chartHeight).tickFormat(() => ''))
+		.call(
+			d3
+				.axisBottom(xScale)
+				.tickSize(-chartHeight)
+				.tickFormat(() => '')
+		)
 		.selectAll('line')
 		.attr('stroke', '#ccc')
 		.attr('stroke-dasharray', '2,2');
 }
 
-// DRY: Utility function for creating labels
-const createTextLabel = (
-	chartGroup: any,
-	text: string,
-	position: { x: number; y: number },
-	options: { anchor?: string; fontSize?: string; rotation?: string }
-) => {
-	const label = chartGroup
-		.append('text')
-		.attr('x', position.x)
-		.attr('y', position.y)
-		.attr('text-anchor', options.anchor || 'middle')
-		.attr('font-size', options.fontSize || '12px')
-		.text(text);
-
-	if (options.rotation) {
-		label.attr('transform', `rotate(${options.rotation})`);
-	}
-};
-
-// Optimized: Label creation using utility function
-export function createLabel(params: CreateParams, config?: LabelConfig) {
-	const { chartGroup, chartWidth, chartHeight } = params;
+// Function to create labels
+export function createLabel(params: CreateParams, config: any) {
+	const { chartGroup, chartWidth, chartHeight, margin } = params;
 
 	if (config?.title) {
-		createTextLabel(chartGroup, config.title, { x: chartWidth / 2, y: -10 }, { fontSize: '16px' });
+		chartGroup
+			.append('text')
+			.attr('x', chartWidth / 2)
+			.attr('y', -margin.top / 2)
+			.attr('text-anchor', 'middle')
+			.attr('font-size', '16px')
+			.text(config.title);
 	}
 
 	if (config?.xAxis) {
-		createTextLabel(chartGroup, config.xAxis, { x: chartWidth / 2, y: chartHeight + 40 }, {});
+		chartGroup
+			.append('text')
+			.attr('x', chartWidth / 2)
+			.attr('y', chartHeight + margin.bottom - 10)
+			.attr('text-anchor', 'middle')
+			.text(config.xAxis);
 	}
 
 	if (config?.yAxis) {
-		createTextLabel(chartGroup, config.yAxis, { x: -chartHeight / 2, y: -40 }, { rotation: '-90' });
+		chartGroup
+			.append('text')
+			.attr('transform', `rotate(-90)`)
+			.attr('x', -chartHeight / 2)
+			.attr('y', -margin.left + 20)
+			.attr('text-anchor', 'middle')
+			.text(config.yAxis);
 	}
 }
 
-// Optimized: Create tooltip with default settings
+// Function to create tooltip
 export function createTooltip(
 	container: HTMLElement | null,
 	showTooltip: boolean,
@@ -145,23 +161,24 @@ export function createTooltip(
 		.style('visibility', 'hidden')
 		.style('background', config?.background || '#f9f9f9')
 		.style('border', config?.border || '1px solid #d3d3d3')
-		.style('padding', config?.padding || '5px');
+		.style('padding', config?.padding || '5px')
+		.style('border-radius', config?.borderRadius || '4px');
 }
 
-// Optimized: Attach tooltip handlers using a utility function
+// Function to attach tooltip handlers
 export function attachTooltipHandlers(
 	selection: d3.Selection<any, any, any, any>,
 	chartTooltip: any,
-	dataKeys: any
+	dataKeys: DataKeys
 ) {
 	selection
-		.on('mouseover', (event, d) => {
+		.on('mouseover', function (event, d) {
 			eventSystem.trigger('tooltip', chartTooltip, d, dataKeys);
 		})
-		.on('mousemove', (event) => {
+		.on('mousemove', function (event) {
 			eventSystem.trigger('tooltipMove', chartTooltip, event);
 		})
-		.on('mouseout', () => {
+		.on('mouseout', function () {
 			eventSystem.trigger('tooltipHide', chartTooltip);
 		});
 }
@@ -169,18 +186,16 @@ export function attachTooltipHandlers(
 // Tooltip Handlers
 export const handleTooltipShow = (chartTooltip, d, dataKeys) => {
 	try {
-		const xKeyValue = d[dataKeys.xKey];
-		const yKeyValue = d[dataKeys.yKey];
+		const xKey = dataKeys.coordinates['x'];
+		const yKey = dataKeys.coordinates['y'];
 
-		const dateStr = xKeyValue
-			? xKeyValue instanceof Date
-				? escapeHTML(d3.timeFormat('%b %Y')(xKeyValue))
-				: escapeHTML(String(xKeyValue))
-			: 'N/A';
+		const xValue = d[xKey];
+		const yValue = d[yKey];
 
-		const valueStr = yKeyValue != null ? escapeHTML(String(yKeyValue)) : 'N/A';
+		const xStr = xValue instanceof Date ? d3.timeFormat('%b %Y')(xValue) : escapeHTML(xValue);
+		const yStr = escapeHTML(yValue);
 
-		chartTooltip.style('visibility', 'visible').html(`Date: ${dateStr}<br>Value: ${valueStr}`);
+		chartTooltip.style('visibility', 'visible').html(`X: ${xStr}<br>Y: ${yStr}`);
 	} catch (error) {
 		console.error('Error in tooltip handler:', error);
 	}
