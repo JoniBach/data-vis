@@ -20,6 +20,9 @@ type ValidationResult = { valid: boolean; errors?: string[] };
 
 // **1. Preparation Phase**
 
+/**
+ * Validates the margin object to ensure it has valid numerical values.
+ */
 function validateMargin(margin: Margin): ValidationResult {
 	const requiredProps: (keyof Margin)[] = ['top', 'right', 'bottom', 'left'];
 	const errors = requiredProps.reduce<string[]>((acc, prop) => {
@@ -32,6 +35,9 @@ function validateMargin(margin: Margin): ValidationResult {
 	return { valid: errors.length === 0, errors };
 }
 
+/**
+ * Validates the series data to ensure it meets the required structure.
+ */
 function validateSeriesData<T>(seriesData: T[], dataKeys: DataKeys): ValidationResult {
 	const errors: string[] = [];
 	if (!Array.isArray(seriesData) || seriesData.length === 0) {
@@ -45,6 +51,9 @@ function validateSeriesData<T>(seriesData: T[], dataKeys: DataKeys): ValidationR
 	return { valid: errors.length === 0, errors };
 }
 
+/**
+ * Retrieves the x-key value, converting Date objects to timestamps if necessary.
+ */
 function getXKeyValue(xKey: unknown): number | string {
 	if (xKey instanceof Date) {
 		return xKey.getTime();
@@ -52,6 +61,9 @@ function getXKeyValue(xKey: unknown): number | string {
 	return xKey as number | string;
 }
 
+/**
+ * Prepares and validates the data for further processing.
+ */
 function prepareAndValidateData<T>(
 	seriesData: T[],
 	dataKeys: DataKeys
@@ -66,6 +78,9 @@ function prepareAndValidateData<T>(
 
 // **2. Domain Calculation Phase**
 
+/**
+ * Computes the merged value domain (y-axis) for multiple series, considering stacking variants.
+ */
 function computeMergedValueDomain<T>(
 	seriesDataArray: T[][],
 	dataKeysArray: DataKeys[],
@@ -135,6 +150,9 @@ function computeMergedValueDomain<T>(
 	return [Math.min(minValue, 0), Math.max(maxValue, 0)];
 }
 
+/**
+ * Computes the merged date domain (x-axis) for multiple series.
+ */
 function computeMergedDateDomain<T>(
 	seriesDataArray: T[][],
 	dataKeysArray: DataKeys[]
@@ -159,6 +177,9 @@ function computeMergedDateDomain<T>(
 	return uniqueKeys.map((key) => (typeof key === 'number' ? new Date(key) : key));
 }
 
+/**
+ * Extracts the unique x-axis keys from a single series.
+ */
 function extractDateDomain<T>(seriesData: T[], dataKeys: DataKeys): (Date | number | string)[] {
 	const keysSet = new Set<number | string>();
 	seriesData.forEach((series) => {
@@ -171,6 +192,9 @@ function extractDateDomain<T>(seriesData: T[], dataKeys: DataKeys): (Date | numb
 
 // **3. Initialization Phase**
 
+/**
+ * Creates the initial SVG element within the specified container.
+ */
 function createInitialSVG(
 	container: HTMLElement,
 	width: number,
@@ -199,6 +223,9 @@ function createInitialSVG(
 		.attr('aria-label', 'Chart');
 }
 
+/**
+ * Appends a `<g>` element to the SVG to contain the chart elements, applying the specified margins.
+ */
 function createChartGroup(
 	svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
 	margin: Margin
@@ -211,6 +238,9 @@ function createChartGroup(
 	return svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 }
 
+/**
+ * Initializes the x and y scales based on the domains and chart dimensions.
+ */
 function initializeScales<T>(
 	dateDomain: T[],
 	valueDomain: [number, number],
@@ -224,6 +254,9 @@ function initializeScales<T>(
 
 // **4. Drawing Essentials Phase**
 
+/**
+ * Adds a `<title>` element to the SVG for accessibility purposes.
+ */
 function createAccessibleTitle(
 	svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
 	title: string
@@ -233,6 +266,9 @@ function createAccessibleTitle(
 
 // **5. Data Binding & Chart Rendering Phase**
 
+/**
+ * Sets up and renders the chart elements based on the data and configurations.
+ */
 function setupAndRenderChart<T>({
 	chartContainer,
 	seriesData,
@@ -311,12 +347,18 @@ function setupAndRenderChart<T>({
 	};
 }
 
+/**
+ * Determines whether a specific feature should be rendered based on the provided chart features configuration.
+ */
 function shouldRenderFeature(chartFeatures: any[], featureName: string): boolean {
 	return chartFeatures.some(({ feature, hide }) => feature === featureName && !hide);
 }
 
 // **6. Feature Enrichment Phase**
 
+/**
+ * A registry mapping feature names to their corresponding rendering functions.
+ */
 const featureRegistry: Record<string, (params: any, config?: any) => any> = {
 	tooltip: () => null,
 	grid: createGrid,
@@ -329,6 +371,9 @@ const featureRegistry: Record<string, (params: any, config?: any) => any> = {
 	bar: (params, config) => createBarsVariant(config?.variant || 'grouped', params)
 };
 
+/**
+ * Renders additional chart features such as grids, axes, labels, and data representations.
+ */
 function renderFeatures({
 	createParams,
 	chartFeatures
@@ -363,6 +408,9 @@ function renderFeatures({
 
 // **7. Interactivity Phase**
 
+/**
+ * Sets up event handlers to enable interactivity within the chart, such as tooltips and event responses.
+ */
 function initializeEventHandlers(): void {
 	eventSystem.on('tooltip', (tooltip, data, dataKeys) => {
 		handleTooltipShow(tooltip, data, dataKeys);
@@ -377,6 +425,9 @@ function initializeEventHandlers(): void {
 
 // **8. Unified Chart Creation Phase**
 
+/**
+ * Serves as the main entry point for chart creation, handling domain computations, rendering, and interactivity setup.
+ */
 export function initializeChart(props: any): void {
 	const { container, data, dataKeysArray, features, config } = props;
 	const { height, squash, syncX, syncY, merge } = config;
@@ -415,6 +466,9 @@ export function initializeChart(props: any): void {
 	initializeEventHandlers();
 }
 
+/**
+ * Computes merged domains for x and y axes if synchronization is enabled.
+ */
 function computeDomains({
 	syncX,
 	syncY,
@@ -443,8 +497,11 @@ function computeDomains({
 	return { mergedDateDomain, mergedValueDomain };
 }
 
-// **9. Multi-Series Chart Creation (Optional Phase)**
+// **9. Multi-Series Chart Creation Phase**
 
+/**
+ * Handles the creation of charts for multiple data series, optionally merging them into a single chart or rendering them separately.
+ */
 function createMultiSeriesChart(props: any): any[] {
 	const allCreateParams: any[] = [];
 	props.data.forEach((seriesData: any, i: number) => {
@@ -456,6 +513,9 @@ function createMultiSeriesChart(props: any): any[] {
 	return allCreateParams;
 }
 
+/**
+ * Sets up and renders a chart for a single data series.
+ */
 function createDataSeriesChart(props: any): any | null {
 	const {
 		seriesData,
