@@ -5,8 +5,11 @@ import type { CreateParams } from './types.js';
 import { prepareAndValidateData } from '../xyChart.js';
 import type { DataKeys } from '../generateXyChart.js';
 
+export const createBars = (params, config) =>
+	createBarsVariant(config?.variant || 'grouped', params);
+
 // Main function to create bars (grouped, stacked, overlapped, or error bars)
-export function createBarsVariant(
+function createBarsVariant(
 	type: 'grouped' | 'stacked' | 'overlapped' | 'error',
 	params: CreateParams,
 	config: { fillOpacity?: number } = {}

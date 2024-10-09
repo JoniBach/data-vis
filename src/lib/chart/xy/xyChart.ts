@@ -1,6 +1,6 @@
 // Imports
 import * as d3 from 'd3';
-import { createBarsVariant } from '../xy/plot/bar.js';
+import { createBars } from '../xy/plot/bar.js';
 import {
 	createTooltip,
 	createGrid,
@@ -10,7 +10,12 @@ import {
 	handleTooltipMove,
 	handleTooltipHide
 } from '../xy/plot/canvas.js';
-import { createLineOrArea, createBubbles, createPoints } from '../xy/plot/point.js';
+import {
+	createBubbles,
+	createPoints,
+	createArea,
+	createLine
+} from '../xy/plot/point.js';
 import { eventSystem } from './plot/event.js';
 
 // **1. Preparation Phase**
@@ -348,11 +353,11 @@ const featureRegistry = {
 	grid: createGrid,
 	axis: createAxis,
 	label: createLabel,
-	area: (params) => createLineOrArea('area', params),
-	line: (params) => createLineOrArea('line', params),
+	area: createArea,
+	line: createLine,
 	bubbles: createBubbles,
 	point: createPoints,
-	bar: (params, config) => createBarsVariant(config?.variant || 'grouped', params)
+	bar: createBars
 };
 
 /**

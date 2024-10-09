@@ -3,8 +3,11 @@ import * as d3 from 'd3';
 import type { CreateParams } from './types.js';
 import { attachTooltipHandlers } from './canvas.js';
 
+export const createArea = (params: CreateParams) => createLineOrArea('area', params);
+export const createLine = (params: CreateParams) => createLineOrArea('line', params);
+
 // Function to create line or area charts
-export function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
+function createLineOrArea(type: 'line' | 'area', params: CreateParams) {
 	const { seriesData, chartGroup, colorScale, scales, dataKeys, chartHeight } = params;
 
 	const xScale = scales['x'];
