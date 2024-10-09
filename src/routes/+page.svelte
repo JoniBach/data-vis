@@ -9,6 +9,7 @@
 		height: 240,
 		squash: false,
 		syncX: true,
+		// syncX: false,
 		syncY: true,
 		yType: 'number',
 

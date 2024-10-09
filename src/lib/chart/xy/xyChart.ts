@@ -11,27 +11,17 @@ import {
 	handleTooltipHide
 } from '../xy/plot/canvas.js';
 import { createLineOrArea, createBubbles, createPoints } from '../xy/plot/point.js';
-import type { Margin } from './plot/types.js';
 import { eventSystem } from './plot/event.js';
-
-// **Type Definitions**
-type DataKeys = {
-	name: string;
-	data: string;
-	coordinates: Record<string, string>;
-	magnitude?: string;
-};
-
-type ValidationResult = { valid: boolean; errors?: string[] };
 
 // **1. Preparation Phase**
 
 /**
  * Validates the margin object to ensure it has valid numerical values.
  */
-function validateMargin({ margin }: { margin: Margin }): ValidationResult {
-	const requiredProps: (keyof Margin)[] = ['top', 'right', 'bottom', 'left'];
-	const errors = requiredProps.reduce<string[]>((acc, prop) => {
+function validateMargin(props) {
+	const { margin } = props;
+	const requiredProps = ['top', 'right', 'bottom', 'left'];
+	const errors = requiredProps.reduce((acc, prop) => {
 		if (typeof margin[prop] !== 'number') {
 			acc.push(`Margin property '${prop}' must be a number.`);
 		}
@@ -44,14 +34,9 @@ function validateMargin({ margin }: { margin: Margin }): ValidationResult {
 /**
  * Validates the series data to ensure it meets the required structure.
  */
-function validateSeriesData<T>({
-	seriesData,
-	dataKeys
-}: {
-	seriesData: T[];
-	dataKeys: DataKeys;
-}): ValidationResult {
-	const errors: string[] = [];
+function validateSeriesData(props) {
+	const { seriesData, dataKeys } = props;
+	const errors = [];
 
 	if (!Array.isArray(seriesData) || seriesData.length === 0) {
 		errors.push('seriesData must be a non-empty array.');
@@ -78,23 +63,19 @@ function validateSeriesData<T>({
 /**
  * Retrieves the coordinate value, converting Date objects to timestamps if necessary.
  */
-function getCoordinateValue(value: unknown): number | string {
+function getCoordinateValue(props) {
+	const { value } = props;
 	if (value instanceof Date) {
 		return value.getTime();
 	}
-	return value as number | string;
+	return value;
 }
 
 /**
  * Prepares and validates the data for further processing.
  */
-export function prepareAndValidateData<T>({
-	seriesData,
-	dataKeys
-}: {
-	seriesData: T[];
-	dataKeys: DataKeys;
-}): { seriesData: T[]; dataKeys: DataKeys } | null {
+export function prepareAndValidateData(props) {
+	const { seriesData, dataKeys } = props;
 	const validation = validateSeriesData({ seriesData, dataKeys });
 	if (!validation.valid) {
 		console.error('Data validation failed:', validation.errors);
@@ -108,27 +89,20 @@ export function prepareAndValidateData<T>({
 /**
  * Computes the merged value domain for multiple series, considering stacking variants.
  */
-function computeMergedValueDomain<T>({
-	seriesDataArray,
-	dataKeysArray,
-	variants
-}: {
-	seriesDataArray: T[][];
-	dataKeysArray: DataKeys[];
-	variants: string[];
-}): [number, number] {
+function computeMergedValueDomain(props) {
+	const { seriesDataArray, dataKeysArray, variants } = props;
 	let minValue = Infinity;
 	let maxValue = -Infinity;
 
-	const allKeysSet = new Set<number | string>();
+	const allKeysSet = new Set();
 	seriesDataArray.forEach((seriesData, index) => {
 		const dataKeys = dataKeysArray[index];
 		const xKey = dataKeys.coordinates['x'];
 
 		seriesData.forEach((series) => {
 			const dataPoints = series[dataKeys.data];
-			dataPoints.forEach((d: any) => {
-				allKeysSet.add(getCoordinateValue(d[xKey]));
+			dataPoints.forEach((d) => {
+				allKeysSet.add(getCoordinateValue({ value: d[xKey] }));
 			});
 		});
 	});
@@ -150,7 +124,7 @@ function computeMergedValueDomain<T>({
 
 				seriesData.forEach((series) => {
 					const dataPoint = series[dataKeys.data].find(
-						(d: any) => getCoordinateValue(d[xKey]) === key
+						(d) => getCoordinateValue({ value: d[xKey] }) === key
 					);
 					if (dataPoint) {
 						const value = dataPoint[yKey];
@@ -167,7 +141,7 @@ function computeMergedValueDomain<T>({
 			} else {
 				seriesData.forEach((series) => {
 					const dataPoint = series[dataKeys.data].find(
-						(d: any) => getCoordinateValue(d[xKey]) === key
+						(d) => getCoordinateValue({ value: d[xKey] }) === key
 					);
 					if (dataPoint) {
 						const value = dataPoint[yKey];
@@ -188,20 +162,15 @@ function computeMergedValueDomain<T>({
 /**
  * Computes the merged x-domain for multiple series.
  */
-function computeMergedXDomain<T>({
-	seriesDataArray,
-	dataKeysArray
-}: {
-	seriesDataArray: T[][];
-	dataKeysArray: DataKeys[];
-}): (Date | number | string)[] {
-	const allKeysSet = new Set<number | string>();
+function computeMergedXDomain(props) {
+	const { seriesDataArray, dataKeysArray } = props;
+	const allKeysSet = new Set();
 	seriesDataArray.forEach((seriesData, index) => {
 		const dataKeys = dataKeysArray[index];
 		const xKey = dataKeys.coordinates['x'];
 		seriesData.forEach((series) => {
-			series[dataKeys.data].forEach((d: any) => {
-				allKeysSet.add(getCoordinateValue(d[xKey]));
+			series[dataKeys.data].forEach((d) => {
+				allKeysSet.add(getCoordinateValue({ value: d[xKey] }));
 			});
 		});
 	});
@@ -219,18 +188,13 @@ function computeMergedXDomain<T>({
 /**
  * Extracts the unique x-axis keys from a single series.
  */
-function extractXDomain<T>({
-	seriesData,
-	dataKeys
-}: {
-	seriesData: T[];
-	dataKeys: DataKeys;
-}): (Date | number | string)[] {
-	const keysSet = new Set<number | string>();
+function extractXDomain(props) {
+	const { seriesData, dataKeys } = props;
+	const keysSet = new Set();
 	const xKey = dataKeys.coordinates['x'];
 	seriesData.forEach((series) => {
-		series[dataKeys.data].forEach((d: any) => {
-			keysSet.add(getCoordinateValue(d[xKey]));
+		series[dataKeys.data].forEach((d) => {
+			keysSet.add(getCoordinateValue({ value: d[xKey] }));
 		});
 	});
 	return Array.from(keysSet);
@@ -241,23 +205,14 @@ function extractXDomain<T>({
 /**
  * Creates the initial SVG element within the specified container.
  */
-function createInitialSVG({
-	container,
-	width,
-	height,
-	merge
-}: {
-	container: HTMLElement;
-	width: number;
-	height: number;
-	merge: boolean;
-}): d3.Selection<SVGSVGElement, unknown, null, undefined> | null {
+function createInitialSVG(props) {
+	const { container, width, height, merge } = props;
 	if (!(container instanceof HTMLElement)) {
 		throw new Error('Invalid container provided. It must be an instance of HTMLElement.');
 	}
 
 	if (merge) {
-		const existingSvg = d3.select(container).select<SVGSVGElement>('svg');
+		const existingSvg = d3.select(container).select('svg');
 		if (!existingSvg.empty()) {
 			return existingSvg;
 		}
@@ -275,15 +230,10 @@ function createInitialSVG({
 }
 
 /**
- * Appends a `<g>` element to the SVG to contain the chart elements, applying the specified margins.
+ * Appends a <g> element to the SVG to contain the chart elements, applying the specified margins.
  */
-function createChartGroup({
-	svg,
-	margin
-}: {
-	svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
-	margin: Margin;
-}): d3.Selection<SVGGElement, unknown, null, undefined> {
+function createChartGroup(props) {
+	const { svg, margin } = props;
 	const validation = validateMargin({ margin });
 	if (!validation.valid) {
 		throw new Error(`Margin validation failed: ${validation.errors?.join(', ')}`);
@@ -295,20 +245,9 @@ function createChartGroup({
 /**
  * Initializes the scales based on the domains and chart dimensions.
  */
-// xyChart.ts (or wherever initializeScales is defined)
-
-function initializeScales({
-	domains,
-	chartWidth,
-	chartHeight,
-	xType
-}: {
-	domains: Record<string, any>;
-	chartWidth: number;
-	chartHeight: number;
-	xType: 'date' | 'number' | 'string';
-}): Record<string, any> {
-	const scales: Record<string, any> = {};
+function initializeScales(props) {
+	const { domains, chartWidth, chartHeight, xType } = props;
+	const scales = {};
 
 	const xDomain = domains['x'];
 
@@ -330,25 +269,9 @@ function initializeScales({
 /**
  * Sets up and renders the chart elements based on the data and configurations.
  */
-function setupAndRenderChart<T>({
-	chartContainer,
-	seriesData,
-	height,
-	chartFeatures,
-	dataKeys,
-	domains,
-	config,
-	merge
-}: {
-	chartContainer: HTMLElement;
-	seriesData: T[];
-	height: number;
-	chartFeatures: any[];
-	dataKeys: DataKeys;
-	domains?: Record<string, any>;
-	config: any;
-	merge: boolean;
-}): { createParams: any; chartGroup: d3.Selection<SVGGElement, unknown, null, undefined> } | null {
+function setupAndRenderChart(props) {
+	const { chartContainer, seriesData, height, chartFeatures, dataKeys, domains, config, merge } =
+		props;
 	const { width, margin } = config;
 	const chartWidth = width - margin.left - margin.right;
 	const chartHeight = height - margin.top - margin.bottom;
@@ -381,7 +304,7 @@ function setupAndRenderChart<T>({
 	});
 
 	const colorScale = d3
-		.scaleOrdinal<string>()
+		.scaleOrdinal()
 		.domain(preparedData.seriesData.map((d) => d[preparedData.dataKeys.name]))
 		.range(d3.schemeCategory10);
 
@@ -410,13 +333,8 @@ function setupAndRenderChart<T>({
 /**
  * Determines whether a specific feature should be rendered based on the provided chart features configuration.
  */
-function shouldRenderFeature({
-	chartFeatures,
-	featureName
-}: {
-	chartFeatures: any[];
-	featureName: string;
-}): boolean {
+function shouldRenderFeature(props) {
+	const { chartFeatures, featureName } = props;
 	return chartFeatures.some(({ feature, hide }) => feature === featureName && !hide);
 }
 
@@ -425,7 +343,7 @@ function shouldRenderFeature({
 /**
  * A registry mapping feature names to their corresponding rendering functions.
  */
-const featureRegistry: Record<string, (params: any, config?: any) => any> = {
+const featureRegistry = {
 	tooltip: () => null,
 	grid: createGrid,
 	axis: createAxis,
@@ -440,13 +358,8 @@ const featureRegistry: Record<string, (params: any, config?: any) => any> = {
 /**
  * Renders additional chart features such as grids, axes, labels, and data representations.
  */
-function renderFeatures({
-	createParams,
-	chartFeatures
-}: {
-	createParams: any;
-	chartFeatures: any[];
-}): void {
+function renderFeatures(props) {
+	const { createParams, chartFeatures } = props;
 	chartFeatures.forEach(({ feature, hide, config }) => {
 		if (hide) return;
 		const featureFunction = featureRegistry[feature];
@@ -455,10 +368,10 @@ function renderFeatures({
 			if (selection && selection.on) {
 				if (['point', 'bubbles', 'bar'].includes(feature)) {
 					selection
-						.on('mouseover', (event: any, d: any) => {
+						.on('mouseover', (event, d) => {
 							handleTooltipShow(createParams.chartTooltip, d, createParams.dataKeys);
 						})
-						.on('mousemove', (event: any) => {
+						.on('mousemove', (event) => {
 							handleTooltipMove(createParams.chartTooltip, event);
 						})
 						.on('mouseout', () => {
@@ -477,7 +390,7 @@ function renderFeatures({
 /**
  * Sets up event handlers to enable interactivity within the chart, such as tooltips and event responses.
  */
-function initializeEventHandlers(): void {
+function initializeEventHandlers() {
 	eventSystem.on('tooltip', (tooltip, data, dataKeys) => {
 		handleTooltipShow(tooltip, data, dataKeys);
 	});
@@ -494,7 +407,7 @@ function initializeEventHandlers(): void {
 /**
  * Serves as the main entry point for chart creation, handling domain computations, rendering, and interactivity setup.
  */
-export function initializeChart(props: any): void {
+export function initializeChart(props) {
 	const { container, data, dataKeysArray, features, config } = props;
 	const { height, squash, syncX, syncY, merge } = config;
 
@@ -534,19 +447,8 @@ export function initializeChart(props: any): void {
 /**
  * Computes merged domains for x and y axes if synchronization is enabled.
  */
-function computeDomains({
-	syncX,
-	syncY,
-	data,
-	dataKeysArray,
-	features
-}: {
-	syncX: boolean;
-	syncY: boolean;
-	data: any[][];
-	dataKeysArray: DataKeys[];
-	features: any[];
-}): { mergedXDomain?: any[]; mergedYDomain?: [number, number] } {
+function computeDomains(props) {
+	const { syncX, syncY, data, dataKeysArray, features } = props;
 	const mergedXDomain = syncX
 		? computeMergedXDomain({ seriesDataArray: data, dataKeysArray })
 		: undefined;
@@ -556,8 +458,7 @@ function computeDomains({
 				dataKeysArray,
 				variants: features.map(
 					(chartFeatures) =>
-						chartFeatures.find((f: any) => f.feature === 'bar' && !f.hide)?.config?.variant ||
-						'grouped'
+						chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped'
 				)
 			})
 		: undefined;
@@ -569,9 +470,9 @@ function computeDomains({
 /**
  * Handles the creation of charts for multiple data series, optionally merging them into a single chart or rendering them separately.
  */
-function createMultiSeriesChart(props: any): any[] {
-	const allCreateParams: any[] = [];
-	props.data.forEach((seriesData: any, i: number) => {
+function createMultiSeriesChart(props) {
+	const allCreateParams = [];
+	props.data.forEach((seriesData, i) => {
 		const result = createDataSeriesChart({ ...props, seriesData, i });
 		if (result) {
 			allCreateParams.push(result);
@@ -583,7 +484,7 @@ function createMultiSeriesChart(props: any): any[] {
 /**
  * Sets up and renders a chart for a single data series.
  */
-function createDataSeriesChart(props: any): any | null {
+function createDataSeriesChart(props) {
 	const {
 		seriesData,
 		i,
