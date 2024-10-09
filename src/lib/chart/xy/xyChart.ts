@@ -23,7 +23,7 @@ type ValidationResult = { valid: boolean; errors?: string[] };
 /**
  * Validates the margin object to ensure it has valid numerical values.
  */
-function validateMargin(margin: Margin): ValidationResult {
+function validateMargin({ margin }: { margin: Margin }): ValidationResult {
 	const requiredProps: (keyof Margin)[] = ['top', 'right', 'bottom', 'left'];
 	const errors = requiredProps.reduce<string[]>((acc, prop) => {
 		if (typeof margin[prop] !== 'number') {
@@ -38,7 +38,13 @@ function validateMargin(margin: Margin): ValidationResult {
 /**
  * Validates the series data to ensure it meets the required structure.
  */
-function validateSeriesData<T>(seriesData: T[], dataKeys: DataKeys): ValidationResult {
+function validateSeriesData<T>({
+	seriesData,
+	dataKeys
+}: {
+	seriesData: T[];
+	dataKeys: DataKeys;
+}): ValidationResult {
 	const errors: string[] = [];
 	if (!Array.isArray(seriesData) || seriesData.length === 0) {
 		errors.push('seriesData must be a non-empty array.');
@@ -64,11 +70,14 @@ function getXKeyValue(xKey: unknown): number | string {
 /**
  * Prepares and validates the data for further processing.
  */
-function prepareAndValidateData<T>(
-	seriesData: T[],
-	dataKeys: DataKeys
-): { seriesData: T[]; dataKeys: DataKeys } | null {
-	const validation = validateSeriesData(seriesData, dataKeys);
+function prepareAndValidateData<T>({
+	seriesData,
+	dataKeys
+}: {
+	seriesData: T[];
+	dataKeys: DataKeys;
+}): { seriesData: T[]; dataKeys: DataKeys } | null {
+	const validation = validateSeriesData({ seriesData, dataKeys });
 	if (!validation.valid) {
 		console.error('Data validation failed:', validation.errors);
 		return null;
@@ -81,11 +90,15 @@ function prepareAndValidateData<T>(
 /**
  * Computes the merged value domain (y-axis) for multiple series, considering stacking variants.
  */
-function computeMergedValueDomain<T>(
-	seriesDataArray: T[][],
-	dataKeysArray: DataKeys[],
-	variants: string[]
-): [number, number] {
+function computeMergedValueDomain<T>({
+	seriesDataArray,
+	dataKeysArray,
+	variants
+}: {
+	seriesDataArray: T[][];
+	dataKeysArray: DataKeys[];
+	variants: string[];
+}): [number, number] {
 	let minValue = Infinity;
 	let maxValue = -Infinity;
 
@@ -153,10 +166,13 @@ function computeMergedValueDomain<T>(
 /**
  * Computes the merged date domain (x-axis) for multiple series.
  */
-function computeMergedDateDomain<T>(
-	seriesDataArray: T[][],
-	dataKeysArray: DataKeys[]
-): (Date | number | string)[] {
+function computeMergedDateDomain<T>({
+	seriesDataArray,
+	dataKeysArray
+}: {
+	seriesDataArray: T[][];
+	dataKeysArray: DataKeys[];
+}): (Date | number | string)[] {
 	const allKeysSet = new Set<number | string>();
 	seriesDataArray.forEach((seriesData, index) => {
 		const dataKeys = dataKeysArray[index];
@@ -180,7 +196,13 @@ function computeMergedDateDomain<T>(
 /**
  * Extracts the unique x-axis keys from a single series.
  */
-function extractDateDomain<T>(seriesData: T[], dataKeys: DataKeys): (Date | number | string)[] {
+function extractDateDomain<T>({
+	seriesData,
+	dataKeys
+}: {
+	seriesData: T[];
+	dataKeys: DataKeys;
+}): (Date | number | string)[] {
 	const keysSet = new Set<number | string>();
 	seriesData.forEach((series) => {
 		series[dataKeys.data].forEach((d: any) => {
@@ -195,12 +217,17 @@ function extractDateDomain<T>(seriesData: T[], dataKeys: DataKeys): (Date | numb
 /**
  * Creates the initial SVG element within the specified container.
  */
-function createInitialSVG(
-	container: HTMLElement,
-	width: number,
-	height: number,
-	merge: boolean
-): d3.Selection<SVGSVGElement, unknown, null, undefined> | null {
+function createInitialSVG({
+	container,
+	width,
+	height,
+	merge
+}: {
+	container: HTMLElement;
+	width: number;
+	height: number;
+	merge: boolean;
+}): d3.Selection<SVGSVGElement, unknown, null, undefined> | null {
 	if (!(container instanceof HTMLElement)) {
 		throw new Error('Invalid container provided. It must be an instance of HTMLElement.');
 	}
@@ -226,11 +253,14 @@ function createInitialSVG(
 /**
  * Appends a `<g>` element to the SVG to contain the chart elements, applying the specified margins.
  */
-function createChartGroup(
-	svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
-	margin: Margin
-): d3.Selection<SVGGElement, unknown, null, undefined> {
-	const validation = validateMargin(margin);
+function createChartGroup({
+	svg,
+	margin
+}: {
+	svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
+	margin: Margin;
+}): d3.Selection<SVGGElement, unknown, null, undefined> {
+	const validation = validateMargin({ margin });
 	if (!validation.valid) {
 		throw new Error(`Margin validation failed: ${validation.errors?.join(', ')}`);
 	}
@@ -241,12 +271,17 @@ function createChartGroup(
 /**
  * Initializes the x and y scales based on the domains and chart dimensions.
  */
-function initializeScales<T>(
-	dateDomain: T[],
-	valueDomain: [number, number],
-	chartWidth: number,
-	chartHeight: number
-): { xScale: d3.ScaleBand<T>; valueScale: d3.ScaleLinear<number, number> } {
+function initializeScales<T>({
+	dateDomain,
+	valueDomain,
+	chartWidth,
+	chartHeight
+}: {
+	dateDomain: T[];
+	valueDomain: [number, number];
+	chartWidth: number;
+	chartHeight: number;
+}): { xScale: d3.ScaleBand<T>; valueScale: d3.ScaleLinear<number, number> } {
 	const xScale = d3.scaleBand<T>().domain(dateDomain).range([0, chartWidth]).padding(0.1);
 	const valueScale = d3.scaleLinear().domain(valueDomain).range([chartHeight, 0]);
 	return { xScale, valueScale };
@@ -257,10 +292,13 @@ function initializeScales<T>(
 /**
  * Adds a `<title>` element to the SVG for accessibility purposes.
  */
-function createAccessibleTitle(
-	svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
-	title: string
-): void {
+function createAccessibleTitle({
+	svg,
+	title
+}: {
+	svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
+	title: string;
+}): void {
 	svg.append('title').text(title);
 }
 
@@ -294,30 +332,33 @@ function setupAndRenderChart<T>({
 	const chartWidth = width - margin.left - margin.right;
 	const chartHeight = height - margin.top - margin.bottom;
 
-	const preparedData = prepareAndValidateData(seriesData, dataKeys);
+	const preparedData = prepareAndValidateData({ seriesData, dataKeys });
 	if (!preparedData) return null;
 
-	const svg = createInitialSVG(chartContainer, width, height, merge);
+	const svg = createInitialSVG({ container: chartContainer, width, height, merge });
 	if (!svg) return null;
 
-	const chartGroup = createChartGroup(svg, margin);
+	const chartGroup = createChartGroup({ svg, margin });
 
 	const dateDomainUsed =
-		dateDomain || extractDateDomain(preparedData.seriesData, preparedData.dataKeys);
+		dateDomain ||
+		extractDateDomain({ seriesData: preparedData.seriesData, dataKeys: preparedData.dataKeys });
 	const valueDomainUsed =
 		valueDomain ||
-		computeMergedValueDomain(
-			[preparedData.seriesData],
-			[preparedData.dataKeys],
-			[chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped']
-		);
+		computeMergedValueDomain({
+			seriesDataArray: [preparedData.seriesData],
+			dataKeysArray: [preparedData.dataKeys],
+			variants: [
+				chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config?.variant || 'grouped'
+			]
+		});
 
-	const { xScale, valueScale } = initializeScales(
-		dateDomainUsed,
-		valueDomainUsed,
+	const { xScale, valueScale } = initializeScales({
+		dateDomain: dateDomainUsed,
+		valueDomain: valueDomainUsed,
 		chartWidth,
 		chartHeight
-	);
+	});
 
 	const colorScale = d3
 		.scaleOrdinal<string>()
@@ -326,7 +367,7 @@ function setupAndRenderChart<T>({
 
 	const chartTooltip = createTooltip(
 		chartContainer,
-		shouldRenderFeature(chartFeatures, 'tooltip'),
+		shouldRenderFeature({ chartFeatures, featureName: 'tooltip' }),
 		chartFeatures.find((feature) => feature.feature === 'tooltip')?.config
 	);
 
@@ -350,7 +391,13 @@ function setupAndRenderChart<T>({
 /**
  * Determines whether a specific feature should be rendered based on the provided chart features configuration.
  */
-function shouldRenderFeature(chartFeatures: any[], featureName: string): boolean {
+function shouldRenderFeature({
+	chartFeatures,
+	featureName
+}: {
+	chartFeatures: any[];
+	featureName: string;
+}): boolean {
 	return chartFeatures.some(({ feature, hide }) => feature === featureName && !hide);
 }
 
@@ -482,17 +529,19 @@ function computeDomains({
 	dataKeysArray: DataKeys[];
 	features: any[];
 }): { mergedDateDomain?: any[]; mergedValueDomain?: [number, number] } {
-	const mergedDateDomain = syncX ? computeMergedDateDomain(data, dataKeysArray) : undefined;
+	const mergedDateDomain = syncX
+		? computeMergedDateDomain({ seriesDataArray: data, dataKeysArray })
+		: undefined;
 	const mergedValueDomain = syncY
-		? computeMergedValueDomain(
-				data,
+		? computeMergedValueDomain({
+				seriesDataArray: data,
 				dataKeysArray,
-				features.map(
+				variants: features.map(
 					(chartFeatures) =>
 						chartFeatures.find((f: any) => f.feature === 'bar' && !f.hide)?.config?.variant ||
 						'grouped'
 				)
-			)
+			})
 		: undefined;
 	return { mergedDateDomain, mergedValueDomain };
 }
