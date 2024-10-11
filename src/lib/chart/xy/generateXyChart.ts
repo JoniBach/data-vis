@@ -216,6 +216,7 @@ const defaultDataKeys = [
 
 // Seeded Random Number Generator Class
 class SeededRandom {
+	seed: number;
 	constructor(seed) {
 		this.seed = seed % 2147483647;
 		if (this.seed <= 0) this.seed += 2147483646;
@@ -411,7 +412,7 @@ export function generateXyData(config, userDataKeys = null, seed = null, usedInd
 		}
 
 		for (let j = 0; j < numXPoints; j++) {
-			let randomChange = getRandomFloat() * variance * trendDirection;
+			const randomChange = getRandomFloat() * variance * trendDirection;
 
 			currentValue += randomChange;
 			currentMagnitude += getRandomFloat() * variance;
