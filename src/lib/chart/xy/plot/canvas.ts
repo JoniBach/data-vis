@@ -5,7 +5,7 @@ import { eventSystem } from './event.js';
 import type { CreateParams, DataKeys } from './types.js';
 
 // Utility function to escape HTML
-export function escapeHTML(str: any): string {
+export function escapeHTML(str: string): string {
 	if (str === null || str === undefined) {
 		return '';
 	}
@@ -17,20 +17,27 @@ export function escapeHTML(str: any): string {
 		.replace(/'/g, '&#39;');
 }
 
-export function createAxis(props: CreateParams, config?: any): void {
+interface AxisConfig {
+	xTickFormat?: string;
+	xTicks?: number;
+	yTickDecimals?: number;
+	yTicks?: number;
+}
+
+export function createAxis(props: CreateParams, config?: AxisConfig): void {
 	const { chartGroup, scales, chartHeight, xType } = props;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
 
 	// Set up tick formatting and scales conditionally based on xType
-	let xAxis: d3.Axis<any>;
+	let xAxis: d3.Axis<unknown>;
 
 	if (xType === 'date') {
 		const xTickFormatStr = config?.xTickFormat || '%m / %y';
 		let xTickFormat: (date: Date) => string;
 		try {
 			xTickFormat = d3.timeFormat(xTickFormatStr);
-		} catch (error) {
+		} catch {
 			console.warn(`Invalid date format "${xTickFormatStr}". Falling back to default '%m / %y'.`);
 			xTickFormat = d3.timeFormat('%m / %y');
 		}
@@ -41,7 +48,7 @@ export function createAxis(props: CreateParams, config?: any): void {
 		let xTickFormat: (n: number | { valueOf(): number }) => string;
 		try {
 			xTickFormat = d3.format(xTickFormatStr);
-		} catch (error) {
+		} catch {
 			console.warn(`Invalid number format "${xTickFormatStr}". Falling back to default '~s'.`);
 			xTickFormat = d3.format('~s');
 		}
@@ -75,7 +82,8 @@ export function createAxis(props: CreateParams, config?: any): void {
 }
 
 // Function to create grid lines
-export function createGrid(props: CreateParams, config?: any): void {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function createGrid(props: CreateParams, config?: unknown): void {
 	const { chartGroup, scales, chartHeight, chartWidth } = props;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
@@ -110,7 +118,13 @@ export function createGrid(props: CreateParams, config?: any): void {
 		.attr('stroke-dasharray', '2,2');
 }
 
-export function createLabel(props: CreateParams, config?: any): void {
+interface LabelConfig {
+	title?: string;
+	xAxis?: string;
+	yAxis?: string;
+}
+
+export function createLabel(props: CreateParams, config?: LabelConfig): void {
 	const { chartGroup, chartWidth, chartHeight, margin } = props;
 
 	if (config?.title) {
@@ -143,11 +157,22 @@ export function createLabel(props: CreateParams, config?: any): void {
 	}
 }
 
-export function createTooltip(props: {
+interface TooltipConfig {
+	background?: string;
+	border?: string;
+	padding?: string;
+	borderRadius?: string;
+}
+
+interface CreateTooltipProps {
 	container: HTMLElement;
 	showTooltip: boolean;
-	config?: any;
-}): d3.Selection<HTMLDivElement, unknown, null, undefined> {
+	config?: TooltipConfig;
+}
+
+export function createTooltip(
+	props: CreateTooltipProps
+): d3.Selection<HTMLDivElement, unknown, null, undefined> {
 	const { container, showTooltip, config } = props;
 	if (!showTooltip) {
 		return d3.select(document.createElement('div'));
@@ -167,13 +192,13 @@ export function createTooltip(props: {
 
 // Function to attach tooltip handlers
 export function attachTooltipHandlers(props: {
-	selection: d3.Selection<d3.BaseType, any, any, any>;
+	selection: d3.Selection<d3.BaseType, unknown, d3.BaseType, unknown>;
 	chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>;
 	dataKeys: DataKeys;
 }): void {
 	const { selection, chartTooltip, dataKeys } = props;
 	selection
-		.on('mouseover', function (event: MouseEvent, d: any) {
+		.on('mouseover', function (event: MouseEvent, d: unknown) {
 			eventSystem.trigger('tooltip', chartTooltip, d, dataKeys);
 		})
 		.on('mousemove', function (event: MouseEvent) {
@@ -191,7 +216,7 @@ export const handleTooltipShow = ({
 	dataKeys
 }: {
 	chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>;
-	data: any;
+	data: unknown;
 	dataKeys: DataKeys;
 }): void => {
 	try {

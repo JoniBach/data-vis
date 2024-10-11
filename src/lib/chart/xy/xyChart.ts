@@ -72,7 +72,7 @@ function validateSeriesData(props: PrepareAndValidateDataProps): ValidationResul
 		} else {
 			// Validate that all coordinate keys are present
 			const coordinateKeys = Object.values(dataKeys.coordinates);
-			const firstDataPoint = (firstSeries[dataKeys.data] as any[])[0];
+			const firstDataPoint = (firstSeries[dataKeys.data] as unknown[])[0];
 			if (firstDataPoint) {
 				coordinateKeys.forEach((key) => {
 					if (

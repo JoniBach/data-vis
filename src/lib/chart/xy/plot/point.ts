@@ -6,14 +6,16 @@ import type { CreateParams } from './types.js';
 
 type ChartType = 'line' | 'area';
 
-export const createArea = (props: CreateParams, config?: any) =>
+export const createArea = (props: CreateParams, config?: unknown) =>
 	createLineOrArea('area', props, config);
 
-export const createLine = (props: CreateParams, config?: any) =>
+export const createLine = (props: CreateParams, config?: unknown) =>
 	createLineOrArea('line', props, config);
 
 // Function to create line or area charts
-function createLineOrArea(type: ChartType, props: CreateParams, config?: any): void {
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function createLineOrArea(type: ChartType, props: CreateParams, config?: unknown): void {
 	const { seriesData, chartGroup, colorScale, scales, dataKeys, chartHeight } = props;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
@@ -32,12 +34,12 @@ function createLineOrArea(type: ChartType, props: CreateParams, config?: any): v
 	const generator =
 		type === 'line'
 			? d3
-					.line<any>()
+					.line<unknown>()
 					.defined((d) => d[yKey] !== null && d[yKey] !== undefined && !isNaN(yScale(d[yKey])))
 					.x((d) => xScale(d[xKey]))
 					.y((d) => yScale(d[yKey]))
 			: d3
-					.area<any>()
+					.area<unknown>()
 					.defined((d) => d[yKey] !== null && d[yKey] !== undefined && !isNaN(yScale(d[yKey])))
 					.x((d) => xScale(d[xKey]))
 					.y1((d) => yScale(d[yKey]))
@@ -49,8 +51,8 @@ function createLineOrArea(type: ChartType, props: CreateParams, config?: any): v
 	seriesData.forEach((series) => {
 		// Sort the data by the xKey
 		const sortedData = series[dataKeys.data]
-			.filter((d: any) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey])))
-			.sort((a: any, b: any) => d3.ascending(a[xKey], b[xKey]));
+			.filter((d: unknown) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey])))
+			.sort((a: unknown, b: unknown) => d3.ascending(a[xKey], b[xKey]));
 
 		group
 			.append('path')
@@ -64,7 +66,8 @@ function createLineOrArea(type: ChartType, props: CreateParams, config?: any): v
 }
 
 // Function to create points (scatter plots)
-export function createPoints(props: CreateParams, config?: any): void {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function createPoints(props: CreateParams, config?: unknown): void {
 	const { seriesData, chartGroup, colorScale, scales, chartTooltip, dataKeys } = props;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
@@ -79,7 +82,7 @@ export function createPoints(props: CreateParams, config?: any): void {
 			.selectAll(`circle.${series[dataKeys.name].replace(/\s+/g, '-')}`)
 			.data(
 				series[dataKeys.data].filter(
-					(d: any) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey]))
+					(d: unknown) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey]))
 				)
 			)
 			.join(
@@ -87,20 +90,27 @@ export function createPoints(props: CreateParams, config?: any): void {
 					enter
 						.append('circle')
 						.attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
-						.attr('cx', (d: any) => xScale(d[xKey]))
-						.attr('cy', (d: any) => yScale(d[yKey]))
+						.attr('cx', (d: unknown) => xScale(d[xKey]))
+						.attr('cy', (d: unknown) => yScale(d[yKey]))
 						.attr('r', 4)
 						.attr('fill', colorScale(series[dataKeys.name]))
 						.call((selection) => attachTooltipHandlers({ selection, chartTooltip, dataKeys })),
 				(update) =>
-					update.attr('cx', (d: any) => xScale(d[xKey])).attr('cy', (d: any) => yScale(d[yKey])),
+					update
+						.attr('cx', (d: unknown) => xScale(d[xKey]))
+						.attr('cy', (d: unknown) => yScale(d[yKey])),
 				(exit) => exit.remove()
 			);
 	});
 }
 
 // Function to create bubbles (bubble charts)
-export function createBubbles(props: CreateParams, config?: LineOrAreaConfig): void {
+interface BubbleConfig {
+	minRadius?: number;
+	maxRadius?: number;
+}
+
+export function createBubbles(props: CreateParams, config?: BubbleConfig): void {
 	const {
 		seriesData,
 		chartGroup,
@@ -126,10 +136,12 @@ export function createBubbles(props: CreateParams, config?: LineOrAreaConfig): v
 	const radiusScale = d3
 		.scaleSqrt()
 		.domain([
-			d3.min(seriesData, (series) => d3.min(series[dataKeys.data], (d: any) => d[magnitudeKey])) ||
-				0,
-			d3.max(seriesData, (series) => d3.max(series[dataKeys.data], (d: any) => d[magnitudeKey])) ||
-				1
+			d3.min(seriesData, (series) =>
+				d3.min(series[dataKeys.data], (d: { [key: string]: number }) => d[magnitudeKey])
+			) || 0,
+			d3.max(seriesData, (series) =>
+				d3.max(series[dataKeys.data], (d: { [key: string]: number }) => d[magnitudeKey])
+			) || 1
 		])
 		.range([minRadius, maxRadius]);
 
@@ -153,7 +165,7 @@ export function createBubbles(props: CreateParams, config?: LineOrAreaConfig): v
 			.selectAll(`circle.${series[dataKeys.name].replace(/\s+/g, '-')}`)
 			.data(
 				series[dataKeys.data].filter(
-					(d: any) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey]))
+					(d: unknown) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey]))
 				)
 			)
 			.join(
@@ -161,17 +173,17 @@ export function createBubbles(props: CreateParams, config?: LineOrAreaConfig): v
 					enter
 						.append('circle')
 						.attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
-						.attr('cx', (d: any) => xScale(d[xKey]))
-						.attr('cy', (d: any) => yScale(d[yKey]))
-						.attr('r', (d: any) => radiusScale(d[magnitudeKey]))
+						.attr('cx', (d: unknown) => xScale(d[xKey]))
+						.attr('cy', (d: unknown) => yScale(d[yKey]))
+						.attr('r', (d: unknown) => radiusScale(d[magnitudeKey]))
 						.attr('fill', colorScale(series[dataKeys.name]))
 						.attr('fill-opacity', 0.7)
 						.call((selection) => attachTooltipHandlers({ selection, chartTooltip, dataKeys })),
 				(update) =>
 					update
-						.attr('cx', (d: any) => xScale(d[xKey]))
-						.attr('cy', (d: any) => yScale(d[yKey]))
-						.attr('r', (d: any) => radiusScale(d[magnitudeKey])),
+						.attr('cx', (d: unknown) => xScale(d[xKey]))
+						.attr('cy', (d: unknown) => yScale(d[yKey]))
+						.attr('r', (d: unknown) => radiusScale(d[magnitudeKey])),
 				(exit) => exit.remove()
 			);
 	});
