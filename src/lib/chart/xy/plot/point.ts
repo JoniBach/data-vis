@@ -2,12 +2,12 @@
 import * as d3 from 'd3';
 import { attachTooltipHandlers } from './canvas.js';
 
-export const createArea = (params, config) => createLineOrArea('area', params, config);
-export const createLine = (params, config) => createLineOrArea('line', params, config);
+export const createArea = (props, config) => createLineOrArea('area', props, config);
+export const createLine = (props, config) => createLineOrArea('line', props, config);
 
 // Function to create line or area charts
-function createLineOrArea(type, params, config) {
-	const { seriesData, chartGroup, colorScale, scales, dataKeys, chartHeight } = params;
+function createLineOrArea(type, props, config) {
+	const { seriesData, chartGroup, colorScale, scales, dataKeys, chartHeight } = props;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
 
@@ -92,7 +92,7 @@ export function createPoints(props, config) {
 }
 
 // Function to create bubbles (bubble charts)
-export function createBubbles(params, config) {
+export function createBubbles(props, config) {
 	const {
 		seriesData,
 		chartGroup,
@@ -102,7 +102,7 @@ export function createBubbles(params, config) {
 		dataKeys,
 		chartHeight,
 		chartWidth
-	} = params;
+	} = props;
 
 	const xScale = scales['x'];
 	const yScale = scales['y'];

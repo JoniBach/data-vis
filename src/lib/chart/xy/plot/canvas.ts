@@ -15,8 +15,8 @@ export function escapeHTML(str) {
 		.replace(/'/g, '&#39;');
 }
 
-export function createAxis(params, config) {
-	const { chartGroup, scales, chartHeight, xType } = params;
+export function createAxis(props, config) {
+	const { chartGroup, scales, chartHeight, xType } = props;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
 
@@ -73,8 +73,8 @@ export function createAxis(params, config) {
 }
 
 // Function to create grid lines
-export function createGrid(params, config) {
-	const { chartGroup, scales, chartHeight, chartWidth } = params;
+export function createGrid(props, config) {
+	const { chartGroup, scales, chartHeight, chartWidth } = props;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
 
@@ -109,8 +109,8 @@ export function createGrid(params, config) {
 }
 
 // Function to create labels
-export function createLabel(params, config) {
-	const { chartGroup, chartWidth, chartHeight, margin } = params;
+export function createLabel(props, config) {
+	const { chartGroup, chartWidth, chartHeight, margin } = props;
 
 	if (config?.title) {
 		chartGroup
