@@ -2,13 +2,12 @@
 import * as d3 from 'd3';
 import { attachTooltipHandlers } from './canvas.js';
 
-export const createArea = (params) => createLineOrArea('area', params);
-export const createLine = (params) => createLineOrArea('line', params);
+export const createArea = (params, config) => createLineOrArea('area', params, config);
+export const createLine = (params, config) => createLineOrArea('line', params, config);
 
 // Function to create line or area charts
-function createLineOrArea(type, params) {
+function createLineOrArea(type, params, config) {
 	const { seriesData, chartGroup, colorScale, scales, dataKeys, chartHeight } = params;
-
 	const xScale = scales['x'];
 	const yScale = scales['y'];
 
@@ -58,9 +57,8 @@ function createLineOrArea(type, params) {
 }
 
 // Function to create points (scatter plots)
-export function createPoints(params) {
-	const { seriesData, chartGroup, colorScale, scales, chartTooltip, dataKeys } = params;
-
+export function createPoints(props, config) {
+	const { seriesData, chartGroup, colorScale, scales, chartTooltip, dataKeys } = props;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
 
@@ -86,7 +84,7 @@ export function createPoints(params) {
 						.attr('cy', (d) => yScale(d[yKey]))
 						.attr('r', 4)
 						.attr('fill', colorScale(series[dataKeys.name]))
-						.call((selection) => attachTooltipHandlers(selection, chartTooltip, dataKeys)),
+						.call((selection) => attachTooltipHandlers({ selection, chartTooltip, dataKeys })),
 				(update) => update.attr('cx', (d) => xScale(d[xKey])).attr('cy', (d) => yScale(d[yKey])),
 				(exit) => exit.remove()
 			);
@@ -94,7 +92,7 @@ export function createPoints(params) {
 }
 
 // Function to create bubbles (bubble charts)
-export function createBubbles(params, config = {}) {
+export function createBubbles(params, config) {
 	const {
 		seriesData,
 		chartGroup,
@@ -158,7 +156,7 @@ export function createBubbles(params, config = {}) {
 						.attr('r', (d) => radiusScale(d[magnitudeKey]))
 						.attr('fill', colorScale(series[dataKeys.name]))
 						.attr('fill-opacity', 0.7)
-						.call((selection) => attachTooltipHandlers(selection, chartTooltip, dataKeys)),
+						.call((selection) => attachTooltipHandlers({ selection, chartTooltip, dataKeys })),
 				(update) =>
 					update
 						.attr('cx', (d) => xScale(d[xKey]))

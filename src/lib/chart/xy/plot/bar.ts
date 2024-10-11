@@ -4,81 +4,15 @@ import { attachTooltipHandlers } from './canvas.js';
 import { prepareAndValidateData } from '../xyChart.js';
 
 export const createBars = (params, config) =>
-	createBarsVariant(config?.variant || 'grouped', params);
-
-// Main function to create bars (grouped, stacked, overlapped, or error bars)
-function createBarsVariant(type, params, config = {}) {
-	const {
-		seriesData,
-		chartGroup,
-		colorScale,
-		scales,
-		chartHeight,
-		chartWidth,
-		dataKeys,
-		chartTooltip
-	} = params;
-
-	// Validate the input data using the new validator
-	const preparedData = prepareAndValidateData({ seriesData, dataKeys });
-	if (!preparedData) return;
-
-	// Extract coordinate keys
-	const xKey = dataKeys.coordinates['x'];
-	const yKey = dataKeys.coordinates['y'];
-
-	// Add clipping path to prevent overflow
-	createClippingPath(chartGroup, chartWidth, chartHeight);
-
-	const barsGroup = chartGroup
-		.append('g')
-		.attr('class', 'bars-group')
-		.attr('clip-path', 'url(#clip)');
-	const fillOpacity = config.fillOpacity ?? 0.5;
-
-	switch (type) {
-		case 'stacked':
-			createStackedBars(
-				preparedData.seriesData,
-				barsGroup,
-				params,
-				fillOpacity,
-				dataKeys,
-				chartHeight,
-				xKey,
-				yKey
-			);
-			break;
-		case 'error':
-			createErrorBars(
-				preparedData.seriesData,
-				barsGroup,
-				params,
-				fillOpacity,
-				dataKeys,
-				chartHeight,
-				xKey,
-				yKey
-			);
-			break;
-		default:
-			createNonStackedBars(
-				type,
-				preparedData.seriesData,
-				barsGroup,
-				params,
-				fillOpacity,
-				dataKeys,
-				chartHeight,
-				xKey,
-				yKey
-			);
-			break;
-	}
-}
+	createBarsVariant({
+		params,
+		config
+	});
 
 // Helper function to create clipping path
-function createClippingPath(chartGroup, chartWidth, chartHeight) {
+function createClippingPath(props) {
+	const { chartGroup, chartWidth, chartHeight } = props;
+
 	chartGroup
 		.append('defs')
 		.append('clipPath')
@@ -90,17 +24,83 @@ function createClippingPath(chartGroup, chartWidth, chartHeight) {
 		.attr('y', 0);
 }
 
+// Main function to create bars (grouped, stacked, overlapped, or error bars)
+function createBarsVariant(props) {
+	const { params, config } = props;
+	const {
+		seriesData,
+		chartGroup,
+		colorScale,
+		scales,
+		chartHeight,
+		chartWidth,
+		dataKeys,
+		chartTooltip
+	} = params;
+
+	const type = config?.variant || 'grouped';
+
+	// Validate the input data using the new validator
+	const preparedData = prepareAndValidateData({ seriesData, dataKeys });
+	if (!preparedData) return;
+
+	// Extract coordinate keys
+	const xKey = dataKeys.coordinates['x'];
+	const yKey = dataKeys.coordinates['y'];
+
+	// Add clipping path to prevent overflow
+	createClippingPath({ chartGroup, chartWidth, chartHeight });
+
+	const barsGroup = chartGroup
+		.append('g')
+		.attr('class', 'bars-group')
+		.attr('clip-path', 'url(#clip)');
+	const fillOpacity = config.fillOpacity ?? 0.5;
+
+	switch (type) {
+		case 'stacked':
+			createStackedBars({
+				seriesData: preparedData.seriesData,
+				barsGroup,
+				params,
+				fillOpacity,
+				dataKeys,
+				chartHeight,
+				xKey,
+				yKey
+			});
+			break;
+		case 'error':
+			createErrorBars({
+				seriesData: preparedData.seriesData,
+				barsGroup,
+				params,
+				fillOpacity,
+				dataKeys,
+				chartHeight,
+				xKey,
+				yKey
+			});
+			break;
+		default:
+			createNonStackedBars({
+				type,
+				seriesData: preparedData.seriesData,
+				barsGroup,
+				params,
+				fillOpacity,
+				dataKeys,
+				chartHeight,
+				xKey,
+				yKey
+			});
+			break;
+	}
+}
+
 // Function to create error bars
-export function createErrorBars(
-	seriesData,
-	barsGroup,
-	params,
-	fillOpacity,
-	dataKeys,
-	chartHeight,
-	xKey,
-	yKey
-) {
+function createErrorBars(props) {
+	const { seriesData, barsGroup, params, fillOpacity, dataKeys, chartHeight, xKey, yKey } = props;
 	const { scales, colorScale } = params;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
@@ -135,26 +135,33 @@ export function createErrorBars(
 			bars.each((d, i, nodes) => {
 				const bar = d3.select(nodes[i]);
 				const xPos =
-					getXPosition(xScale, d[xKey]) + (seriesScale ? seriesScale(series[dataKeys.name]) : 0);
+					getXPosition({ xScale, xValue: d[xKey] }) +
+					(seriesScale ? seriesScale(series[dataKeys.name]) : 0);
 				const yPos = yScale(d[yKey]);
 				const height = chartHeight - yScale(d[yKey]);
 				const width = seriesScale ? seriesScale.bandwidth() : 10; // Fallback width if not scaleBand
 				const fillColor = colorScale(series[dataKeys.name]);
 
-				createBar(
-					bar,
+				createBar({
+					selection: bar,
 					d,
-					xPos,
-					yPos,
+					x: xPos,
+					y: yPos,
 					height,
 					width,
 					fillColor,
 					fillOpacity,
-					params.chartTooltip,
+					chartTooltip: params.chartTooltip,
 					dataKeys
-				);
+				});
 
-				addErrorBars(barsGroup, xPos, width, yPos, magnitudeScale(d[magnitudeKey]));
+				addErrorBars({
+					barsGroup,
+					xPos,
+					width,
+					yPos,
+					errorMagnitude: magnitudeScale(d[magnitudeKey])
+				});
 			});
 		});
 	} catch (error) {
@@ -163,7 +170,8 @@ export function createErrorBars(
 }
 
 // Helper function to add error bars (lines and caps)
-function addErrorBars(barsGroup, xPos, width, yPos, errorMagnitude) {
+function addErrorBars(props) {
+	const { barsGroup, xPos, width, yPos, errorMagnitude } = props;
 	const errorLineGroup = barsGroup.append('g').attr('class', 'error-bars-group');
 
 	// Vertical line
@@ -198,22 +206,14 @@ function addErrorBars(barsGroup, xPos, width, yPos, errorMagnitude) {
 }
 
 // Function to create stacked bars
-export function createStackedBars(
-	seriesData,
-	barsGroup,
-	params,
-	fillOpacity,
-	dataKeys,
-	chartHeight,
-	xKey,
-	yKey
-) {
+function createStackedBars(props) {
+	const { seriesData, barsGroup, params, fillOpacity, dataKeys, chartHeight, xKey, yKey } = props;
 	const { scales, colorScale } = params;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
 
 	try {
-		const stackedData = prepareStackedData(seriesData, dataKeys, xKey, yKey);
+		const stackedData = prepareStackedData({ seriesData, dataKeys, xKey, yKey });
 
 		stackedData.forEach((layer, layerIndex) => {
 			const seriesName = seriesData[layerIndex][dataKeys.name];
@@ -225,24 +225,24 @@ export function createStackedBars(
 
 			bars.each((d, i, nodes) => {
 				const bar = d3.select(nodes[i]);
-				const xPos = getXPosition(xScale, d.data[xKey]);
+				const xPos = getXPosition({ xScale, xValue: d.data[xKey] });
 				const yPos = yScale(d[1]);
 				const height = Math.abs(yScale(d[0]) - yScale(d[1]));
 				const width = xScale.bandwidth ? xScale.bandwidth() : 10; // Fallback width if not scaleBand
 				const fillColor = colorScale(seriesName);
 
-				createBar(
-					bar,
+				createBar({
+					selection: bar,
 					d,
-					xPos,
-					yPos,
+					x: xPos,
+					y: yPos,
 					height,
 					width,
 					fillColor,
 					fillOpacity,
-					params.chartTooltip,
+					chartTooltip: params.chartTooltip,
 					dataKeys
-				);
+				});
 			});
 		});
 	} catch (error) {
@@ -251,17 +251,9 @@ export function createStackedBars(
 }
 
 // Function to create grouped or overlapped bars
-export function createNonStackedBars(
-	type,
-	seriesData,
-	barsGroup,
-	params,
-	fillOpacity,
-	dataKeys,
-	chartHeight,
-	xKey,
-	yKey
-) {
+function createNonStackedBars(props) {
+	const { type, seriesData, barsGroup, params, fillOpacity, dataKeys, chartHeight, xKey, yKey } =
+		props;
 	const { scales, colorScale } = params;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
@@ -285,7 +277,7 @@ export function createNonStackedBars(
 			bars.each((d, i, nodes) => {
 				const bar = d3.select(nodes[i]);
 				const xPos =
-					getXPosition(xScale, d[xKey]) +
+					getXPosition({ xScale, xValue: d[xKey] }) +
 					(type === 'grouped' && seriesScale ? seriesScale(series[dataKeys.name]) : 0);
 				const yPos = yScale(d[yKey]);
 				const height = chartHeight - yScale(d[yKey]);
@@ -296,18 +288,18 @@ export function createNonStackedBars(
 						: 10; // Fallback width
 				const fillColor = colorScale(series[dataKeys.name]);
 
-				createBar(
-					bar,
+				createBar({
+					selection: bar,
 					d,
-					xPos,
-					yPos,
+					x: xPos,
+					y: yPos,
 					height,
 					width,
 					fillColor,
 					fillOpacity,
-					params.chartTooltip,
+					chartTooltip: params.chartTooltip,
 					dataKeys
-				);
+				});
 			});
 		});
 	} catch (error) {
@@ -316,18 +308,9 @@ export function createNonStackedBars(
 }
 
 // General function to create a bar with tooltip
-export function createBar(
-	selection,
-	d,
-	x,
-	y,
-	height,
-	width,
-	fillColor,
-	fillOpacity,
-	chartTooltip,
-	dataKeys
-) {
+function createBar(props) {
+	const { selection, d, x, y, height, width, fillColor, fillOpacity, chartTooltip, dataKeys } =
+		props;
 	selection
 		.attr('x', x)
 		.attr('y', y)
@@ -336,11 +319,11 @@ export function createBar(
 		.attr('fill', fillColor)
 		.attr('fill-opacity', fillOpacity);
 
-	attachTooltipHandlers(selection, chartTooltip, dataKeys);
+	attachTooltipHandlers({ selection, chartTooltip, dataKeys });
 }
 
 // Helper function to prepare stacked data
-export function prepareStackedData(seriesData, dataKeys, xKey, yKey) {
+export function prepareStackedData({ seriesData, dataKeys, xKey, yKey }) {
 	if (!Array.isArray(seriesData) || seriesData.length === 0) {
 		throw new Error('Invalid seriesData: must be a non-empty array');
 	}
@@ -371,7 +354,8 @@ export function prepareStackedData(seriesData, dataKeys, xKey, yKey) {
 }
 
 // Helper function to handle different types for x-axis
-function getXPosition(xScale, xValue) {
+function getXPosition(props) {
+	const { xScale, xValue } = props;
 	if (xValue instanceof Date) {
 		return xScale(xValue.getTime());
 	} else if (typeof xValue === 'number' || typeof xValue === 'string') {

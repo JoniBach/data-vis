@@ -73,7 +73,7 @@ export function createAxis(params, config) {
 }
 
 // Function to create grid lines
-export function createGrid(params) {
+export function createGrid(params, config) {
 	const { chartGroup, scales, chartHeight, chartWidth } = params;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
@@ -143,7 +143,8 @@ export function createLabel(params, config) {
 }
 
 // Function to create tooltip
-export function createTooltip(container, showTooltip, config) {
+export function createTooltip(props) {
+	const { container, showTooltip, config } = props;
 	if (!showTooltip) {
 		return d3.select(document.createElement('div'));
 	}
@@ -161,7 +162,8 @@ export function createTooltip(container, showTooltip, config) {
 }
 
 // Function to attach tooltip handlers
-export function attachTooltipHandlers(selection, chartTooltip, dataKeys) {
+export function attachTooltipHandlers(props) {
+	const { selection, chartTooltip, dataKeys } = props;
 	selection
 		.on('mouseover', function (event, d) {
 			eventSystem.trigger('tooltip', chartTooltip, d, dataKeys);
@@ -175,13 +177,13 @@ export function attachTooltipHandlers(selection, chartTooltip, dataKeys) {
 }
 
 // Tooltip Handlers
-export const handleTooltipShow = (chartTooltip, d, dataKeys) => {
+export const handleTooltipShow = ({ chartTooltip, data, dataKeys }) => {
 	try {
 		const xKey = dataKeys.coordinates['x'];
 		const yKey = dataKeys.coordinates['y'];
 
-		const xValue = d[xKey];
-		const yValue = d[yKey];
+		const xValue = data[xKey];
+		const yValue = data[yKey];
 
 		const xStr = xValue instanceof Date ? d3.timeFormat('%b %Y')(xValue) : escapeHTML(xValue);
 		const yStr = escapeHTML(yValue);
@@ -192,10 +194,10 @@ export const handleTooltipShow = (chartTooltip, d, dataKeys) => {
 	}
 };
 
-export const handleTooltipMove = (chartTooltip, event) => {
+export const handleTooltipMove = ({ chartTooltip, event }) => {
 	chartTooltip.style('top', `${event.pageY - 10}px`).style('left', `${event.pageX + 10}px`);
 };
 
-export const handleTooltipHide = (chartTooltip) => {
+export const handleTooltipHide = ({ chartTooltip }) => {
 	chartTooltip.style('visibility', 'hidden');
 };

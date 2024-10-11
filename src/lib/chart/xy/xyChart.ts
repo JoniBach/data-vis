@@ -10,12 +10,7 @@ import {
 	handleTooltipMove,
 	handleTooltipHide
 } from '../xy/plot/canvas.js';
-import {
-	createBubbles,
-	createPoints,
-	createArea,
-	createLine
-} from '../xy/plot/point.js';
+import { createBubbles, createPoints, createArea, createLine } from '../xy/plot/point.js';
 import { eventSystem } from './plot/event.js';
 
 // **1. Preparation Phase**
@@ -313,11 +308,11 @@ function setupAndRenderChart(props) {
 		.domain(preparedData.seriesData.map((d) => d[preparedData.dataKeys.name]))
 		.range(d3.schemeCategory10);
 
-	const chartTooltip = createTooltip(
-		chartContainer,
-		shouldRenderFeature({ chartFeatures, featureName: 'tooltip' }),
-		chartFeatures.find((feature) => feature.feature === 'tooltip')?.config
-	);
+	const chartTooltip = createTooltip({
+		container: chartContainer,
+		showTooltip: shouldRenderFeature({ chartFeatures, featureName: 'tooltip' }),
+		config: chartFeatures.find((feature) => feature.feature === 'tooltip')?.config
+	});
 
 	return {
 		createParams: {
@@ -373,14 +368,18 @@ function renderFeatures(props) {
 			if (selection && selection.on) {
 				if (['point', 'bubbles', 'bar'].includes(feature)) {
 					selection
-						.on('mouseover', (event, d) => {
-							handleTooltipShow(createParams.chartTooltip, d, createParams.dataKeys);
+						.on('mouseover', (event, data) => {
+							handleTooltipShow({
+								chartTooltip: createParams.chartTooltip,
+								data,
+								dataKeys: createParams.dataKeys
+							});
 						})
 						.on('mousemove', (event) => {
-							handleTooltipMove(createParams.chartTooltip, event);
+							handleTooltipMove({ chartTooltip: createParams.chartTooltip, event });
 						})
 						.on('mouseout', () => {
-							handleTooltipHide(createParams.chartTooltip);
+							handleTooltipHide({ chartTooltip: createParams.chartTooltip });
 						});
 				}
 			}
@@ -396,14 +395,14 @@ function renderFeatures(props) {
  * Sets up event handlers to enable interactivity within the chart, such as tooltips and event responses.
  */
 function initializeEventHandlers() {
-	eventSystem.on('tooltip', (tooltip, data, dataKeys) => {
-		handleTooltipShow(tooltip, data, dataKeys);
+	eventSystem.on('tooltip', (chartTooltip, data, dataKeys) => {
+		handleTooltipShow({ chartTooltip, data, dataKeys });
 	});
-	eventSystem.on('tooltipMove', (tooltip, event) => {
-		handleTooltipMove(tooltip, event);
+	eventSystem.on('tooltipMove', (chartTooltip, event) => {
+		handleTooltipMove({ chartTooltip, event });
 	});
-	eventSystem.on('tooltipHide', (tooltip) => {
-		handleTooltipHide(tooltip);
+	eventSystem.on('tooltipHide', (chartTooltip) => {
+		handleTooltipHide({ chartTooltip });
 	});
 }
 
