@@ -1,12 +1,19 @@
-// Imports
+// point.ts
+
 import * as d3 from 'd3';
 import { attachTooltipHandlers } from './canvas.js';
+import type { CreateParams } from './types.js';
 
-export const createArea = (props, config) => createLineOrArea('area', props, config);
-export const createLine = (props, config) => createLineOrArea('line', props, config);
+type ChartType = 'line' | 'area';
+
+export const createArea = (props: CreateParams, config?: any) =>
+	createLineOrArea('area', props, config);
+
+export const createLine = (props: CreateParams, config?: any) =>
+	createLineOrArea('line', props, config);
 
 // Function to create line or area charts
-function createLineOrArea(type, props, config) {
+function createLineOrArea(type: ChartType, props: CreateParams, config?: any): void {
 	const { seriesData, chartGroup, colorScale, scales, dataKeys, chartHeight } = props;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
@@ -25,12 +32,12 @@ function createLineOrArea(type, props, config) {
 	const generator =
 		type === 'line'
 			? d3
-					.line()
+					.line<any>()
 					.defined((d) => d[yKey] !== null && d[yKey] !== undefined && !isNaN(yScale(d[yKey])))
 					.x((d) => xScale(d[xKey]))
 					.y((d) => yScale(d[yKey]))
 			: d3
-					.area()
+					.area<any>()
 					.defined((d) => d[yKey] !== null && d[yKey] !== undefined && !isNaN(yScale(d[yKey])))
 					.x((d) => xScale(d[xKey]))
 					.y1((d) => yScale(d[yKey]))
@@ -42,8 +49,8 @@ function createLineOrArea(type, props, config) {
 	seriesData.forEach((series) => {
 		// Sort the data by the xKey
 		const sortedData = series[dataKeys.data]
-			.filter((d) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey])))
-			.sort((a, b) => d3.ascending(a[xKey], b[xKey]));
+			.filter((d: any) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey])))
+			.sort((a: any, b: any) => d3.ascending(a[xKey], b[xKey]));
 
 		group
 			.append('path')
@@ -57,7 +64,7 @@ function createLineOrArea(type, props, config) {
 }
 
 // Function to create points (scatter plots)
-export function createPoints(props, config) {
+export function createPoints(props: CreateParams, config?: any): void {
 	const { seriesData, chartGroup, colorScale, scales, chartTooltip, dataKeys } = props;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
@@ -72,7 +79,7 @@ export function createPoints(props, config) {
 			.selectAll(`circle.${series[dataKeys.name].replace(/\s+/g, '-')}`)
 			.data(
 				series[dataKeys.data].filter(
-					(d) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey]))
+					(d: any) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey]))
 				)
 			)
 			.join(
@@ -80,19 +87,20 @@ export function createPoints(props, config) {
 					enter
 						.append('circle')
 						.attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
-						.attr('cx', (d) => xScale(d[xKey]))
-						.attr('cy', (d) => yScale(d[yKey]))
+						.attr('cx', (d: any) => xScale(d[xKey]))
+						.attr('cy', (d: any) => yScale(d[yKey]))
 						.attr('r', 4)
 						.attr('fill', colorScale(series[dataKeys.name]))
 						.call((selection) => attachTooltipHandlers({ selection, chartTooltip, dataKeys })),
-				(update) => update.attr('cx', (d) => xScale(d[xKey])).attr('cy', (d) => yScale(d[yKey])),
+				(update) =>
+					update.attr('cx', (d: any) => xScale(d[xKey])).attr('cy', (d: any) => yScale(d[yKey])),
 				(exit) => exit.remove()
 			);
 	});
 }
 
 // Function to create bubbles (bubble charts)
-export function createBubbles(props, config) {
+export function createBubbles(props: CreateParams, config?: LineOrAreaConfig): void {
 	const {
 		seriesData,
 		chartGroup,
@@ -112,14 +120,16 @@ export function createBubbles(props, config) {
 	const yKey = dataKeys.coordinates['y'];
 	const magnitudeKey = dataKeys.magnitude;
 
-	const minRadius = config.minRadius ?? 5;
-	const maxRadius = config.maxRadius ?? 20;
+	const minRadius = config?.minRadius ?? 5;
+	const maxRadius = config?.maxRadius ?? 20;
 
 	const radiusScale = d3
 		.scaleSqrt()
 		.domain([
-			d3.min(seriesData, (series) => d3.min(series[dataKeys.data], (d) => d[magnitudeKey])) || 0,
-			d3.max(seriesData, (series) => d3.max(series[dataKeys.data], (d) => d[magnitudeKey])) || 1
+			d3.min(seriesData, (series) => d3.min(series[dataKeys.data], (d: any) => d[magnitudeKey])) ||
+				0,
+			d3.max(seriesData, (series) => d3.max(series[dataKeys.data], (d: any) => d[magnitudeKey])) ||
+				1
 		])
 		.range([minRadius, maxRadius]);
 
@@ -143,7 +153,7 @@ export function createBubbles(props, config) {
 			.selectAll(`circle.${series[dataKeys.name].replace(/\s+/g, '-')}`)
 			.data(
 				series[dataKeys.data].filter(
-					(d) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey]))
+					(d: any) => d[xKey] !== null && d[yKey] !== null && !isNaN(yScale(d[yKey]))
 				)
 			)
 			.join(
@@ -151,17 +161,17 @@ export function createBubbles(props, config) {
 					enter
 						.append('circle')
 						.attr('class', series[dataKeys.name].replace(/\s+/g, '-'))
-						.attr('cx', (d) => xScale(d[xKey]))
-						.attr('cy', (d) => yScale(d[yKey]))
-						.attr('r', (d) => radiusScale(d[magnitudeKey]))
+						.attr('cx', (d: any) => xScale(d[xKey]))
+						.attr('cy', (d: any) => yScale(d[yKey]))
+						.attr('r', (d: any) => radiusScale(d[magnitudeKey]))
 						.attr('fill', colorScale(series[dataKeys.name]))
 						.attr('fill-opacity', 0.7)
 						.call((selection) => attachTooltipHandlers({ selection, chartTooltip, dataKeys })),
 				(update) =>
 					update
-						.attr('cx', (d) => xScale(d[xKey]))
-						.attr('cy', (d) => yScale(d[yKey]))
-						.attr('r', (d) => radiusScale(d[magnitudeKey])),
+						.attr('cx', (d: any) => xScale(d[xKey]))
+						.attr('cy', (d: any) => yScale(d[yKey]))
+						.attr('r', (d: any) => radiusScale(d[magnitudeKey])),
 				(exit) => exit.remove()
 			);
 	});

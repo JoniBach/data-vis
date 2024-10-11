@@ -1,9 +1,11 @@
-// Imports
+// canvas.ts
+
 import * as d3 from 'd3';
 import { eventSystem } from './event.js';
+import type { CreateParams, DataKeys } from './types.js';
 
 // Utility function to escape HTML
-export function escapeHTML(str) {
+export function escapeHTML(str: any): string {
 	if (str === null || str === undefined) {
 		return '';
 	}
@@ -15,17 +17,17 @@ export function escapeHTML(str) {
 		.replace(/'/g, '&#39;');
 }
 
-export function createAxis(props, config) {
+export function createAxis(props: CreateParams, config?: any): void {
 	const { chartGroup, scales, chartHeight, xType } = props;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
 
 	// Set up tick formatting and scales conditionally based on xType
-	let xAxis;
+	let xAxis: d3.Axis<any>;
 
 	if (xType === 'date') {
 		const xTickFormatStr = config?.xTickFormat || '%m / %y';
-		let xTickFormat;
+		let xTickFormat: (date: Date) => string;
 		try {
 			xTickFormat = d3.timeFormat(xTickFormatStr);
 		} catch (error) {
@@ -36,7 +38,7 @@ export function createAxis(props, config) {
 		xAxis = d3.axisBottom(xScale).ticks(xTicks).tickFormat(xTickFormat);
 	} else if (xType === 'number') {
 		const xTickFormatStr = config?.xTickFormat || '~s';
-		let xTickFormat;
+		let xTickFormat: (n: number | { valueOf(): number }) => string;
 		try {
 			xTickFormat = d3.format(xTickFormatStr);
 		} catch (error) {
@@ -73,7 +75,7 @@ export function createAxis(props, config) {
 }
 
 // Function to create grid lines
-export function createGrid(props, config) {
+export function createGrid(props: CreateParams, config?: any): void {
 	const { chartGroup, scales, chartHeight, chartWidth } = props;
 	const xScale = scales['x'];
 	const yScale = scales['y'];
@@ -108,8 +110,7 @@ export function createGrid(props, config) {
 		.attr('stroke-dasharray', '2,2');
 }
 
-// Function to create labels
-export function createLabel(props, config) {
+export function createLabel(props: CreateParams, config?: any): void {
 	const { chartGroup, chartWidth, chartHeight, margin } = props;
 
 	if (config?.title) {
@@ -142,8 +143,11 @@ export function createLabel(props, config) {
 	}
 }
 
-// Function to create tooltip
-export function createTooltip(props) {
+export function createTooltip(props: {
+	container: HTMLElement;
+	showTooltip: boolean;
+	config?: any;
+}): d3.Selection<HTMLDivElement, unknown, null, undefined> {
 	const { container, showTooltip, config } = props;
 	if (!showTooltip) {
 		return d3.select(document.createElement('div'));
@@ -162,13 +166,17 @@ export function createTooltip(props) {
 }
 
 // Function to attach tooltip handlers
-export function attachTooltipHandlers(props) {
+export function attachTooltipHandlers(props: {
+	selection: d3.Selection<d3.BaseType, any, any, any>;
+	chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>;
+	dataKeys: DataKeys;
+}): void {
 	const { selection, chartTooltip, dataKeys } = props;
 	selection
-		.on('mouseover', function (event, d) {
+		.on('mouseover', function (event: MouseEvent, d: any) {
 			eventSystem.trigger('tooltip', chartTooltip, d, dataKeys);
 		})
-		.on('mousemove', function (event) {
+		.on('mousemove', function (event: MouseEvent) {
 			eventSystem.trigger('tooltipMove', chartTooltip, event);
 		})
 		.on('mouseout', function () {
@@ -177,7 +185,15 @@ export function attachTooltipHandlers(props) {
 }
 
 // Tooltip Handlers
-export const handleTooltipShow = ({ chartTooltip, data, dataKeys }) => {
+export const handleTooltipShow = ({
+	chartTooltip,
+	data,
+	dataKeys
+}: {
+	chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>;
+	data: any;
+	dataKeys: DataKeys;
+}): void => {
 	try {
 		const xKey = dataKeys.coordinates['x'];
 		const yKey = dataKeys.coordinates['y'];
@@ -194,10 +210,20 @@ export const handleTooltipShow = ({ chartTooltip, data, dataKeys }) => {
 	}
 };
 
-export const handleTooltipMove = ({ chartTooltip, event }) => {
+export const handleTooltipMove = ({
+	chartTooltip,
+	event
+}: {
+	chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>;
+	event: MouseEvent;
+}): void => {
 	chartTooltip.style('top', `${event.pageY - 10}px`).style('left', `${event.pageX + 10}px`);
 };
 
-export const handleTooltipHide = ({ chartTooltip }) => {
+export const handleTooltipHide = ({
+	chartTooltip
+}: {
+	chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>;
+}): void => {
 	chartTooltip.style('visibility', 'hidden');
 };

@@ -1,16 +1,32 @@
-// Imports
-import * as d3 from 'd3';
-import { attachTooltipHandlers } from './canvas.js';
-import { prepareAndValidateData } from '../xyChart.js';
+// bar.ts
 
-export const createBars = (params, config) =>
+import * as d3 from 'd3';
+import { prepareAndValidateData } from '../xyChart.js';
+import { attachTooltipHandlers } from './canvas.js';
+import type { CreateParams, DataKeys } from './types.js';
+
+interface BarConfig {
+	variant?: 'grouped' | 'stacked' | 'overlapped' | 'error';
+	fillOpacity?: number;
+}
+
+interface CreateBarsProps {
+	params: CreateParams;
+	config: BarConfig;
+}
+
+export const createBars = (params: CreateParams, config: BarConfig) =>
 	createBarsVariant({
 		params,
 		config
 	});
 
 // Helper function to create clipping path
-function createClippingPath(props) {
+function createClippingPath(props: {
+	chartGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
+	chartWidth: number;
+	chartHeight: number;
+}): void {
 	const { chartGroup, chartWidth, chartHeight } = props;
 
 	chartGroup
@@ -25,7 +41,7 @@ function createClippingPath(props) {
 }
 
 // Main function to create bars (grouped, stacked, overlapped, or error bars)
-function createBarsVariant(props) {
+function createBarsVariant(props: CreateBarsProps): void {
 	const { params, config } = props;
 	const {
 		seriesData,
@@ -99,7 +115,16 @@ function createBarsVariant(props) {
 }
 
 // Function to create error bars
-function createErrorBars(props) {
+function createErrorBars(props: {
+	seriesData: d3.Series[];
+	barsGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
+	params: CreateParams;
+	fillOpacity: number;
+	dataKeys: DataKeys;
+	chartHeight: number;
+	xKey: string;
+	yKey: string;
+}): void {
 	const { seriesData, barsGroup, params, fillOpacity, dataKeys, chartHeight, xKey, yKey } = props;
 	const { scales, colorScale } = params;
 	const xScale = scales['x'];
@@ -109,7 +134,7 @@ function createErrorBars(props) {
 		// Only define seriesScale if xScale has a bandwidth function (scaleBand)
 		const seriesScale = xScale.bandwidth
 			? d3
-					.scaleBand()
+					.scaleBand<string>()
 					.domain(seriesData.map((d) => d[dataKeys.name]))
 					.range([0, xScale.bandwidth()])
 					.padding(0.05)
@@ -170,7 +195,13 @@ function createErrorBars(props) {
 }
 
 // Helper function to add error bars (lines and caps)
-function addErrorBars(props) {
+function addErrorBars(props: {
+	barsGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
+	xPos: number;
+	width: number;
+	yPos: number;
+	errorMagnitude: number;
+}): void {
 	const { barsGroup, xPos, width, yPos, errorMagnitude } = props;
 	const errorLineGroup = barsGroup.append('g').attr('class', 'error-bars-group');
 
@@ -206,7 +237,16 @@ function addErrorBars(props) {
 }
 
 // Function to create stacked bars
-function createStackedBars(props) {
+function createStackedBars(props: {
+	seriesData: d3.Series[];
+	barsGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
+	params: CreateParams;
+	fillOpacity: number;
+	dataKeys: DataKeys;
+	chartHeight: number;
+	xKey: string;
+	yKey: string;
+}): void {
 	const { seriesData, barsGroup, params, fillOpacity, dataKeys, chartHeight, xKey, yKey } = props;
 	const { scales, colorScale } = params;
 	const xScale = scales['x'];
@@ -251,7 +291,17 @@ function createStackedBars(props) {
 }
 
 // Function to create grouped or overlapped bars
-function createNonStackedBars(props) {
+function createNonStackedBars(props: {
+	type: string;
+	seriesData: d3.Series[];
+	barsGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
+	params: CreateParams;
+	fillOpacity: number;
+	dataKeys: DataKeys;
+	chartHeight: number;
+	xKey: string;
+	yKey: string;
+}): void {
 	const { type, seriesData, barsGroup, params, fillOpacity, dataKeys, chartHeight, xKey, yKey } =
 		props;
 	const { scales, colorScale } = params;
@@ -261,7 +311,7 @@ function createNonStackedBars(props) {
 	try {
 		const seriesScale = xScale.bandwidth
 			? d3
-					.scaleBand()
+					.scaleBand<string>()
 					.domain(seriesData.map((d) => d[dataKeys.name]))
 					.range([0, xScale.bandwidth()])
 					.padding(0.05)
@@ -308,7 +358,18 @@ function createNonStackedBars(props) {
 }
 
 // General function to create a bar with tooltip
-function createBar(props) {
+function createBar(props: {
+	selection: d3.Selection<SVGRectElement, any, any, any>;
+	d: any;
+	x: number;
+	y: number;
+	height: number;
+	width: number;
+	fillColor: string;
+	fillOpacity: number;
+	chartTooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>;
+	dataKeys: DataKeys;
+}): void {
 	const { selection, d, x, y, height, width, fillColor, fillOpacity, chartTooltip, dataKeys } =
 		props;
 	selection
@@ -323,7 +384,13 @@ function createBar(props) {
 }
 
 // Helper function to prepare stacked data
-export function prepareStackedData({ seriesData, dataKeys, xKey, yKey }) {
+export function prepareStackedData(props: {
+	seriesData: d3.Series[];
+	dataKeys: DataKeys;
+	xKey: string;
+	yKey: string;
+}): any[] {
+	const { seriesData, dataKeys, xKey, yKey } = props;
 	if (!Array.isArray(seriesData) || seriesData.length === 0) {
 		throw new Error('Invalid seriesData: must be a non-empty array');
 	}
@@ -335,7 +402,7 @@ export function prepareStackedData({ seriesData, dataKeys, xKey, yKey }) {
 	const seriesNames = seriesData.map((d) => d[dataKeys.name]);
 
 	const dataArray = seriesData[0][dataKeys.data].map((_, i) => {
-		const obj = {
+		const obj: any = {
 			[xKey]: seriesData[0][dataKeys.data][i][xKey]
 		};
 		seriesData.forEach((series) => {
@@ -354,7 +421,7 @@ export function prepareStackedData({ seriesData, dataKeys, xKey, yKey }) {
 }
 
 // Helper function to handle different types for x-axis
-function getXPosition(props) {
+function getXPosition(props: { xScale: any; xValue: any }): number {
 	const { xScale, xValue } = props;
 	if (xValue instanceof Date) {
 		return xScale(xValue.getTime());
