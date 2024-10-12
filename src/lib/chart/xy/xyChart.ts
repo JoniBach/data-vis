@@ -39,9 +39,6 @@ import { initializeScaledChartGroup } from './lifecycle/3_initialization.js';
  * Sets up and renders the chart elements based on the data and configurations.
  */
 
-/**
- * Sets up and renders the chart elements based on the data and configurations.
- */
 function setupAndRenderChart(props: SetupAndRenderChartProps): {
 	createParams: CreateParams;
 	chartGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
@@ -113,6 +110,7 @@ function setupAndRenderChart(props: SetupAndRenderChartProps): {
 		chartGroup
 	};
 }
+
 // **5. Feature Enrichment Phase**
 
 /**
