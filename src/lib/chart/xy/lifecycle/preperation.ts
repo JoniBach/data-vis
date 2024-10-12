@@ -1,34 +1,10 @@
 // **1. Preparation Phase**
 
-import type {
-	Margin,
-	ValidationResult,
-	PrepareValidDataProps,
-	GetCoordinateValueProps,
-	DataKeys,
-	Series
-} from '../types.js';
+import type { PrepareValidDataProps, DataKeys, Series } from '../types.js';
 
-/**
- * Validates the margin object to ensure it has valid numerical values.
- */
-function validateMargin(props: { margin: Margin }): ValidationResult {
-	const { margin } = props;
-	const requiredProps: (keyof Margin)[] = ['top', 'right', 'bottom', 'left'];
-	const errors = requiredProps.reduce((acc: string[], prop) => {
-		if (typeof margin[prop] !== 'number') {
-			acc.push(`Margin property '${prop}' must be a number.`);
-		}
-		return acc;
-	}, []);
-
-	return { valid: errors.length === 0, errors };
-}
-
-/**
- * Validates the series data to ensure it meets the required structure.
- */
-function validateSeriesData(props: PrepareValidDataProps): ValidationResult {
+export function prepareValidData(
+	props: PrepareValidDataProps
+): { seriesData: Series[]; dataKeys: DataKeys } | null {
 	const { seriesData, dataKeys } = props;
 	const errors: string[] = [];
 
@@ -55,31 +31,11 @@ function validateSeriesData(props: PrepareValidDataProps): ValidationResult {
 			}
 		}
 	}
-	return { valid: errors.length === 0, errors };
-}
 
-/**
- * Retrieves the coordinate value, converting Date objects to timestamps if necessary.
- */
-function getCoordinateValue(props: GetCoordinateValueProps): number | string {
-	const { value } = props;
-	if (value instanceof Date) {
-		return value.getTime();
-	}
-	return value;
-}
-
-/**
- * Prepares and validates the data for further processing.
- */
-function prepareValidData(
-	props: PrepareValidDataProps
-): { seriesData: Series[]; dataKeys: DataKeys } | null {
-	const { seriesData, dataKeys } = props;
-	const validation = validateSeriesData({ seriesData, dataKeys });
-	if (!validation.valid) {
-		console.error('Data validation failed:', validation.errors);
+	if (errors.length > 0) {
+		console.error('Data validation failed:', errors);
 		return null;
 	}
+
 	return { seriesData, dataKeys };
 }

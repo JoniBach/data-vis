@@ -15,18 +15,6 @@ import {
 import { eventSystem } from './plot/event.js';
 import { createArea, createLine, createBubbles, createPoints } from './plot/point.js';
 import type {
-	// **1. Preparation Phase**
-	PrepareValidDataProps,
-	DataKeys,
-	Series,
-
-	// **2. Domain Calculation Phase**
-
-	// the rest
-	GetCoordinateValueProps,
-	ComputeMergedValueDomainProps,
-	ComputeMergedXDomainProps,
-	ExtractXDomainProps,
 	CreateInitialSVGProps,
 	CreateChartGroupProps,
 	InitializeScalesProps,
@@ -36,177 +24,17 @@ import type {
 	FeatureRegistry,
 	RenderFeaturesProps,
 	InitializeChartProps,
-	ComputeDomainsProps,
 	CreateMultiSeriesChartProps,
 	CreateDataSeriesChartProps
 } from './types.js';
 
 // **1. Preparation Phase**
-
-export function prepareValidData(
-	props: PrepareValidDataProps
-): { seriesData: Series[]; dataKeys: DataKeys } | null {
-	const { seriesData, dataKeys } = props;
-	const errors: string[] = [];
-
-	if (!Array.isArray(seriesData) || seriesData.length === 0) {
-		errors.push('seriesData must be a non-empty array.');
-	} else {
-		const firstSeries = seriesData[0];
-		if (!firstSeries || !firstSeries[dataKeys.data]) {
-			errors.push(`Data key '${dataKeys.data}' is missing in the first series.`);
-		} else {
-			// Validate that all coordinate keys are present
-			const coordinateKeys = Object.values(dataKeys.coordinates);
-			const firstDataPoint = (firstSeries[dataKeys.data] as unknown[])[0];
-			if (firstDataPoint) {
-				coordinateKeys.forEach((key) => {
-					if (
-						typeof firstDataPoint === 'object' &&
-						firstDataPoint !== null &&
-						!(key in firstDataPoint)
-					) {
-						errors.push(`Coordinate key '${key}' is missing in the data points.`);
-					}
-				});
-			}
-		}
-	}
-
-	if (errors.length > 0) {
-		console.error('Data validation failed:', errors);
-		return null;
-	}
-
-	return { seriesData, dataKeys };
-}
+import { prepareValidData } from './lifecycle/preperation.js';
 
 // **2. Domain Calculation Phase**
-
-/**
- * Computes the merged value domain for multiple series, considering stacking variants.
- */
-
-function getCoordinateValue(props: GetCoordinateValueProps): number | string {
-	const { value } = props;
-	if (value instanceof Date) {
-		return value.getTime();
-	}
-	return value;
-}
-function computeMergedValueDomain(props: ComputeMergedValueDomainProps): [number, number] {
-	const { seriesDataArray, dataKeysArray, variants } = props;
-	let minValue = Infinity;
-	let maxValue = -Infinity;
-
-	const allKeysSet = new Set<number | string>();
-	seriesDataArray.forEach((seriesData, index) => {
-		const dataKeys = dataKeysArray[index];
-		const xKey = dataKeys.coordinates['x'];
-
-		seriesData.forEach((series) => {
-			const dataPoints = series[dataKeys.data] as unknown[];
-			dataPoints.forEach((d) => {
-				allKeysSet.add(getCoordinateValue({ value: d[xKey] }));
-			});
-		});
-	});
-	const allKeys = Array.from(allKeysSet);
-
-	allKeys.forEach((key) => {
-		let dateMaxPositive = -Infinity;
-		let dateMinNegative = Infinity;
-
-		seriesDataArray.forEach((seriesData, index) => {
-			const variant = variants[index];
-			const dataKeys = dataKeysArray[index];
-			const xKey = dataKeys.coordinates['x'];
-			const yKey = dataKeys.coordinates['y'];
-
-			if (variant === 'stacked') {
-				let chartPositive = 0;
-				let chartNegative = 0;
-
-				seriesData.forEach((series) => {
-					const dataPoint = (series[dataKeys.data] as unknown[]).find(
-						(d) => getCoordinateValue({ value: d[xKey] }) === key
-					);
-					if (dataPoint) {
-						const value = dataPoint[yKey];
-						if (value >= 0) {
-							chartPositive += value;
-						} else {
-							chartNegative += value;
-						}
-					}
-				});
-
-				dateMaxPositive = Math.max(dateMaxPositive, chartPositive);
-				dateMinNegative = Math.min(dateMinNegative, chartNegative);
-			} else {
-				seriesData.forEach((series) => {
-					const dataPoint = (series[dataKeys.data] as unknown[]).find(
-						(d) => getCoordinateValue({ value: d[xKey] }) === key
-					);
-					if (dataPoint) {
-						const value = dataPoint[yKey];
-						dateMaxPositive = Math.max(dateMaxPositive, value);
-						dateMinNegative = Math.min(dateMinNegative, value);
-					}
-				});
-			}
-		});
-
-		maxValue = Math.max(maxValue, dateMaxPositive);
-		minValue = Math.min(minValue, dateMinNegative);
-	});
-
-	return [Math.min(minValue, 0), Math.max(maxValue, 0)];
-}
-
-/**
- * Computes the merged x-domain for multiple series.
- */
-function computeMergedXDomain(props: ComputeMergedXDomainProps): unknown[] {
-	const { seriesDataArray, dataKeysArray } = props;
-	const allKeysSet = new Set<number | string>();
-	seriesDataArray.forEach((seriesData, index) => {
-		const dataKeys = dataKeysArray[index];
-		const xKey = dataKeys.coordinates['x'];
-		seriesData.forEach((series) => {
-			(series[dataKeys.data] as unknown[]).forEach((d) => {
-				allKeysSet.add(getCoordinateValue({ value: d[xKey] }));
-			});
-		});
-	});
-
-	const uniqueKeys = Array.from(allKeysSet);
-	uniqueKeys.sort((a, b) => {
-		if (typeof a === 'number' && typeof b === 'number') return a - b;
-		if (typeof a === 'string' && typeof b === 'string') return a.localeCompare(b);
-		return a.toString().localeCompare(b.toString());
-	});
-
-	return uniqueKeys.map((key) => (typeof key === 'number' ? new Date(key) : key));
-}
-
-/**
- * Extracts the unique x-axis keys from a single series.
- */
-function extractXDomain(props: ExtractXDomainProps): unknown[] {
-	const { seriesData, dataKeys } = props;
-	const keysSet = new Set<number | string>();
-	const xKey = dataKeys.coordinates['x'];
-	seriesData.forEach((series) => {
-		(series[dataKeys.data] as unknown[]).forEach((d) => {
-			keysSet.add(getCoordinateValue({ value: d[xKey] }));
-		});
-	});
-	return Array.from(keysSet);
-}
+import { computeDomains } from './lifecycle/domain.js';
 
 // **3. Initialization Phase**
-
 /**
  * Creates the initial SVG element within the specified container.
  */
@@ -304,19 +132,18 @@ function setupAndRenderChart(props: SetupAndRenderChartProps): {
 
 	const chartGroup = createChartGroup({ svg, margin });
 
-	const xDomainUsed =
-		domains?.['x'] ||
-		extractXDomain({ seriesData: preparedData.seriesData, dataKeys: preparedData.dataKeys });
-	const yDomainUsed =
-		domains?.['y'] ||
-		computeMergedValueDomain({
-			seriesDataArray: [preparedData.seriesData],
-			dataKeysArray: [preparedData.dataKeys],
-			variants: [
-				(chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config as { variant?: string })
-					?.variant || 'grouped'
-			]
-		});
+	// Use computeDomains for xDomain and yDomain calculations
+	const { mergedXDomain, mergedYDomain } = computeDomains({
+		syncX: !domains?.['x'], // If no existing xDomain, we need to compute it
+		syncY: !domains?.['y'], // If no existing yDomain, we need to compute it
+		data: [preparedData.seriesData],
+		dataKeysArray: [preparedData.dataKeys],
+		features: [chartFeatures]
+	});
+
+	// Use the computed domains or fall back to existing ones if available
+	const xDomainUsed = domains?.['x'] || mergedXDomain;
+	const yDomainUsed = domains?.['y'] || mergedYDomain;
 
 	const scales = initializeScales({
 		domains: { x: xDomainUsed, y: yDomainUsed },
@@ -475,34 +302,6 @@ export function initializeChart(props: InitializeChartProps): void {
 	});
 
 	initializeEventHandlers();
-}
-
-/**
- * Computes merged domains for x and y axes if synchronization is enabled.
- */
-function computeDomains(props: ComputeDomainsProps): {
-	mergedXDomain?: unknown[];
-	mergedYDomain?: [number, number];
-} {
-	const { syncX, syncY, data, dataKeysArray, features } = props;
-	const mergedXDomain = syncX
-		? computeMergedXDomain({ seriesDataArray: data, dataKeysArray })
-		: undefined;
-	const mergedYDomain = syncY
-		? computeMergedValueDomain({
-				seriesDataArray: data,
-				dataKeysArray,
-				variants: features.map(
-					(chartFeatures) =>
-						(
-							chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config as {
-								variant?: string;
-							}
-						)?.variant || 'grouped'
-				)
-			})
-		: undefined;
-	return { mergedXDomain, mergedYDomain };
 }
 
 // **8. Multi-Series Chart Creation Phase**
