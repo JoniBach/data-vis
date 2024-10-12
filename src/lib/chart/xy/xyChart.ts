@@ -15,12 +15,8 @@ import {
 import { eventSystem } from './plot/event.js';
 import { createArea, createLine, createBubbles, createPoints } from './plot/point.js';
 import type {
-	CreateInitialSVGProps,
-	CreateChartGroupProps,
-	InitializeScalesProps,
 	SetupAndRenderChartProps,
 	CreateParams,
-	ShouldRenderFeatureProps,
 	FeatureRegistry,
 	RenderFeaturesProps,
 	InitializeChartProps,
@@ -29,87 +25,19 @@ import type {
 } from './types.js';
 
 // **1. Preparation Phase**
-import { prepareValidData } from './lifecycle/preperation.js';
+import { prepareValidData } from './lifecycle/2_preperation.js';
 
 // **2. Domain Calculation Phase**
-import { computeDomains } from './lifecycle/domain.js';
+import { computeDomains } from './lifecycle/1_domain.js';
 
 // **3. Initialization Phase**
-/**
- * Creates the initial SVG element within the specified container.
- */
-function createInitialSVG(
-	props: CreateInitialSVGProps
-): d3.Selection<SVGSVGElement, unknown, null, undefined> | null {
-	const { container, width, height, merge } = props;
-	if (!(container instanceof HTMLElement)) {
-		throw new Error('Invalid container provided. It must be an instance of HTMLElement.');
-	}
-
-	if (merge) {
-		const existingSvg = d3.select(container).select<SVGSVGElement>('svg');
-		if (!existingSvg.empty()) {
-			return existingSvg;
-		}
-	} else {
-		d3.select(container).selectAll('*').remove();
-	}
-
-	return d3
-		.select(container)
-		.append('svg')
-		.attr('width', width)
-		.attr('height', height)
-		.attr('role', 'img')
-		.attr('aria-label', 'Chart');
-}
-
-/**
- * Appends a <g> element to the SVG to contain the chart elements, applying the specified margins.
- */
-function createChartGroup(
-	props: CreateChartGroupProps
-): d3.Selection<SVGGElement, unknown, null, undefined> {
-	const { svg, margin } = props;
-	return svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
-}
-
-/**
- * Initializes the scales based on the domains and chart dimensions.
- */
-function initializeScales(props: InitializeScalesProps): { x: unknown; y: unknown } {
-	const { domains, chartWidth, chartHeight, xType } = props;
-	const scales: { x: unknown; y: unknown } = {
-		x: undefined,
-		y: undefined
-	};
-
-	const xDomain = domains['x'];
-
-	if (xType === 'date') {
-		scales['x'] = d3
-			.scaleTime()
-			.domain(d3.extent(xDomain as Date[]) as [Date, Date])
-			.range([0, chartWidth]);
-	} else if (xType === 'number') {
-		scales['x'] = d3
-			.scaleLinear()
-			.domain(d3.extent(xDomain as number[]) as [number, number])
-			.range([0, chartWidth]);
-	} else {
-		scales['x'] = d3
-			.scaleBand<string>()
-			.domain(xDomain as string[])
-			.range([0, chartWidth])
-			.padding(0.1);
-	}
-
-	scales['y'] = d3.scaleLinear().domain(domains['y']).range([chartHeight, 0]);
-
-	return scales;
-}
+import { initializeScaledChartGroup } from './lifecycle/3_initialization.js';
 
 // **4. Data Binding & Chart Rendering Phase**
+
+/**
+ * Sets up and renders the chart elements based on the data and configurations.
+ */
 
 /**
  * Sets up and renders the chart elements based on the data and configurations.
@@ -127,11 +55,6 @@ function setupAndRenderChart(props: SetupAndRenderChartProps): {
 	const preparedData = prepareValidData({ seriesData, dataKeys });
 	if (!preparedData) return null;
 
-	const svg = createInitialSVG({ container: chartContainer, width, height, merge });
-	if (!svg) return null;
-
-	const chartGroup = createChartGroup({ svg, margin });
-
 	// Use computeDomains for xDomain and yDomain calculations
 	const { mergedXDomain, mergedYDomain } = computeDomains({
 		syncX: !domains?.['x'], // If no existing xDomain, we need to compute it
@@ -145,12 +68,22 @@ function setupAndRenderChart(props: SetupAndRenderChartProps): {
 	const xDomainUsed = domains?.['x'] || mergedXDomain;
 	const yDomainUsed = domains?.['y'] || mergedYDomain;
 
-	const scales = initializeScales({
+	// Call the combined function to create the chart group and initialize scales
+	const chartAndScales = initializeScaledChartGroup({
+		margin,
+		chartContainer,
+		width,
+		height,
+		merge,
 		domains: { x: xDomainUsed, y: yDomainUsed },
 		chartWidth,
 		chartHeight,
 		xType: props.xType
 	});
+
+	if (!chartAndScales) return null;
+
+	const { chartGroup, scales } = chartAndScales;
 
 	const colorScale = d3
 		.scaleOrdinal<string>()
@@ -159,7 +92,7 @@ function setupAndRenderChart(props: SetupAndRenderChartProps): {
 
 	const chartTooltip = createTooltip({
 		container: chartContainer,
-		showTooltip: shouldRenderFeature({ chartFeatures, featureName: 'tooltip' }),
+		showTooltip: chartFeatures.some(({ feature, hide }) => feature === 'tooltip' && !hide),
 		config: chartFeatures.find((feature) => feature.feature === 'tooltip')?.config
 	});
 
@@ -180,15 +113,6 @@ function setupAndRenderChart(props: SetupAndRenderChartProps): {
 		chartGroup
 	};
 }
-
-/**
- * Determines whether a specific feature should be rendered based on the provided chart features configuration.
- */
-function shouldRenderFeature(props: ShouldRenderFeatureProps): boolean {
-	const { chartFeatures, featureName } = props;
-	return chartFeatures.some(({ feature, hide }) => feature === featureName && !hide);
-}
-
 // **5. Feature Enrichment Phase**
 
 /**

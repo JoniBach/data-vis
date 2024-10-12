@@ -75,8 +75,11 @@ export interface CreateInitialSVGProps {
 
 // Create chart group props
 export interface CreateChartGroupProps {
-	svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
 	margin: Margin;
+	chartContainer: HTMLElement;
+	width: number;
+	height: number;
+	merge?: boolean;
 }
 
 // Initialize scales props
