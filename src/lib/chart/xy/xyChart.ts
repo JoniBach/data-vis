@@ -43,13 +43,12 @@ function setupAndRenderChart(props: SetupAndRenderChartProps): {
 	createParams: CreateParams;
 	chartGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
 } | null {
-	const { chartContainer, seriesData, height, chartFeatures, dataKeys, domains, config, merge } =
+	const { chartContainer, height, chartFeatures, dataKeys, domains, config, merge, preparedData } =
 		props;
 	const { width, margin } = config;
 	const chartWidth = width - margin.left - margin.right;
 	const chartHeight = height - margin.top - margin.bottom;
 
-	const preparedData = prepareValidData({ seriesData, dataKeys });
 	if (!preparedData) return null;
 
 	// Use computeDomains for xDomain and yDomain calculations
@@ -274,9 +273,11 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 		y: syncY ? mergedDomains.y : undefined
 	};
 
+	const preparedData = prepareValidData({ seriesData, dataKeys });
+
 	const result = setupAndRenderChart({
+		preparedData,
 		chartContainer,
-		seriesData,
 		height: chartHeight,
 		chartFeatures,
 		dataKeys,

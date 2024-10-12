@@ -94,7 +94,7 @@ export interface InitializeScalesProps {
 export interface SetupAndRenderChartProps {
 	xType: 'string' | 'number' | 'date' | undefined;
 	chartContainer: HTMLElement;
-	seriesData: Series[];
+	preparedData: { seriesData: Series[]; dataKeys: DataKeys };
 	height: number;
 	chartFeatures: ChartFeature[];
 	dataKeys: DataKeys;
