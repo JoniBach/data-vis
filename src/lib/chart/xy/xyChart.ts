@@ -15,11 +15,12 @@ import {
 import { eventSystem } from './plot/event.js';
 import { createArea, createLine, createBubbles, createPoints } from './plot/point.js';
 import type {
-	Margin,
-	ValidationResult,
+	// **1. Preparation Phase**
+	// Margin,
 	PrepareAndValidateDataProps,
 	GetCoordinateValueProps,
 	DataKeys,
+	Series,
 	ComputeMergedValueDomainProps,
 	ComputeMergedXDomainProps,
 	ExtractXDomainProps,
@@ -34,35 +35,18 @@ import type {
 	InitializeChartProps,
 	ComputeDomainsProps,
 	CreateMultiSeriesChartProps,
-	CreateDataSeriesChartProps,
-	Series
+	CreateDataSeriesChartProps
 } from './types.js';
 
 // **1. Preparation Phase**
 
-/**
- * Validates the margin object to ensure it has valid numerical values.
- */
-function validateMargin(props: { margin: Margin }): ValidationResult {
-	const { margin } = props;
-	const requiredProps: (keyof Margin)[] = ['top', 'right', 'bottom', 'left'];
-	const errors = requiredProps.reduce((acc: string[], prop) => {
-		if (typeof margin[prop] !== 'number') {
-			acc.push(`Margin property '${prop}' must be a number.`);
-		}
-		return acc;
-	}, []);
-
-	return { valid: errors.length === 0, errors };
-}
-
-/**
- * Validates the series data to ensure it meets the required structure.
- */
-function validateSeriesData(props: PrepareAndValidateDataProps): ValidationResult {
+export function prepareAndValidateData(
+	props: PrepareAndValidateDataProps
+): { seriesData: Series[]; dataKeys: DataKeys } | null {
 	const { seriesData, dataKeys } = props;
 	const errors: string[] = [];
 
+	// Validation logic
 	if (!Array.isArray(seriesData) || seriesData.length === 0) {
 		errors.push('seriesData must be a non-empty array.');
 	} else {
@@ -86,33 +70,23 @@ function validateSeriesData(props: PrepareAndValidateDataProps): ValidationResul
 			}
 		}
 	}
-	return { valid: errors.length === 0, errors };
+
+	// Return null if validation fails
+	if (errors.length > 0) {
+		console.error('Data validation failed:', errors);
+		return null;
+	}
+
+	// Return data if validation passes
+	return { seriesData, dataKeys };
 }
 
-/**
- * Retrieves the coordinate value, converting Date objects to timestamps if necessary.
- */
 function getCoordinateValue(props: GetCoordinateValueProps): number | string {
 	const { value } = props;
 	if (value instanceof Date) {
 		return value.getTime();
 	}
 	return value;
-}
-
-/**
- * Prepares and validates the data for further processing.
- */
-export function prepareAndValidateData(
-	props: PrepareAndValidateDataProps
-): { seriesData: Series[]; dataKeys: DataKeys } | null {
-	const { seriesData, dataKeys } = props;
-	const validation = validateSeriesData({ seriesData, dataKeys });
-	if (!validation.valid) {
-		console.error('Data validation failed:', validation.errors);
-		return null;
-	}
-	return { seriesData, dataKeys };
 }
 
 // **2. Domain Calculation Phase**
@@ -269,11 +243,6 @@ function createChartGroup(
 	props: CreateChartGroupProps
 ): d3.Selection<SVGGElement, unknown, null, undefined> {
 	const { svg, margin } = props;
-	const validation = validateMargin({ margin });
-	if (!validation.valid) {
-		throw new Error(`Margin validation failed: ${validation.errors?.join(', ')}`);
-	}
-
 	return svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 }
 

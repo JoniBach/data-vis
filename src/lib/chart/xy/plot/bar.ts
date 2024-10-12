@@ -47,10 +47,6 @@ function createBarsVariant(props: CreateBarsProps): void {
 
 	const type = config?.variant || 'grouped';
 
-	// Validate the input data using the new validator
-	const preparedData = prepareAndValidateData({ seriesData, dataKeys });
-	if (!preparedData) return;
-
 	// Extract coordinate keys
 	const xKey = dataKeys.coordinates['x'];
 	const yKey = dataKeys.coordinates['y'];
@@ -67,7 +63,7 @@ function createBarsVariant(props: CreateBarsProps): void {
 	switch (type) {
 		case 'stacked':
 			createStackedBars({
-				seriesData: preparedData.seriesData,
+				seriesData: seriesData,
 				barsGroup,
 				params,
 				fillOpacity,
@@ -79,7 +75,7 @@ function createBarsVariant(props: CreateBarsProps): void {
 			break;
 		case 'error':
 			createErrorBars({
-				seriesData: preparedData.seriesData,
+				seriesData: seriesData,
 				barsGroup,
 				params,
 				fillOpacity,
@@ -92,7 +88,7 @@ function createBarsVariant(props: CreateBarsProps): void {
 		default:
 			createNonStackedBars({
 				type,
-				seriesData: preparedData.seriesData,
+				seriesData: seriesData,
 				barsGroup,
 				params,
 				fillOpacity,
