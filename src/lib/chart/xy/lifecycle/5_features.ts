@@ -1,12 +1,12 @@
 // **5. Feature Enrichment Phase**
 
 import { handleTooltipShow, handleTooltipMove, handleTooltipHide } from '../plot/canvas.js';
-import type { RenderFeaturesProps } from '../types.js';
+import type { ApplyChartFeaturesProps } from '../types.js';
 
 /**
  * Renders additional chart features such as grids, axes, labels, and data representations.
  */
-export function renderFeatures(props: RenderFeaturesProps): void {
+export function applyChartFeatures(props: ApplyChartFeaturesProps): void {
 	const { params, featureRegistry } = props;
 	const { createParams, chartFeatures } = params;
 	chartFeatures.forEach(({ feature, hide, config }) => {

@@ -2,13 +2,13 @@
 
 import * as d3 from 'd3';
 import { createTooltip } from '../plot/canvas.js';
-import type { SetupAndRenderChartProps, CreateParams } from '../types.js';
+import type { FinalizeChartRenderingProps, CreateParams } from '../types.js';
 
 /**
  * Sets up and renders the chart elements based on the data and configurations.
  */
 
-export function setupAndRenderChart(props: SetupAndRenderChartProps): {
+export function finalizeChartRendering(props: FinalizeChartRenderingProps): {
 	createParams: CreateParams;
 	chartGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
 } | null {

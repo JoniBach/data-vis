@@ -7,26 +7,26 @@ import { createGrid, createAxis, createLabel } from './plot/canvas.js';
 import { createArea, createLine, createBubbles, createPoints } from './plot/point.js';
 import type {
 	FeatureRegistry,
-	RenderFeaturesProps,
+	ApplyChartFeaturesProps,
 	InitializeChartProps,
 	CreateMultiSeriesChartProps,
 	CreateDataSeriesChartProps
 } from './types.js';
 
 // **1. Preparation Phase**
-import { prepareValidData } from './lifecycle/2_preperation.js';
+import { validateAndPrepareData } from './lifecycle/1_preperation.js';
 
 // **2. Domain Calculation Phase**
-import { computeDomains } from './lifecycle/1_domain.js';
+import { calculateDomains } from './lifecycle/2_domain.js';
 
 // **3. Initialization Phase**
-import { initializeScaledChartGroup } from './lifecycle/3_initialization.js';
+import { createScaledChartGroup } from './lifecycle/3_initialization.js';
 
 // **4. Data Binding & Chart Rendering Phase**
-import { setupAndRenderChart } from './lifecycle/4_binding.js';
+import { finalizeChartRendering } from './lifecycle/4_binding.js';
 
 // **5. Feature Enrichment Phase**
-import { renderFeatures } from './lifecycle/5_features.js';
+import { applyChartFeatures } from './lifecycle/5_features.js';
 
 // **6. Interactivity Phase**
 import { initializeEventHandlers } from './lifecycle/6_interactions.js';
@@ -51,7 +51,7 @@ const featureRegistry: FeatureRegistry = {
 /**
  * Sets up and renders a chart for a single data series.
  */
-function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeaturesProps | null {
+function createDataSeriesChart(props: CreateDataSeriesChartProps): ApplyChartFeaturesProps | null {
 	const {
 		seriesData,
 		i,
@@ -76,7 +76,7 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 	if (!merge) container.appendChild(chartContainer);
 
 	const chartHeight = squash ? height / data.length : height;
-	const preparedData = prepareValidData({ seriesData, dataKeys });
+	const preparedData = validateAndPrepareData({ seriesData, dataKeys });
 	if (!preparedData) return null;
 
 	// Use the merged or individual domains depending on syncX and syncY
@@ -89,7 +89,7 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 	const newChartHeight = chartHeight - margin.top - margin.bottom;
 
 	// Call the combined function to create the chart group and initialize scales
-	const chartAndScales = initializeScaledChartGroup({
+	const chartAndScales = createScaledChartGroup({
 		margin,
 		chartContainer,
 		width,
@@ -103,7 +103,7 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 
 	if (!chartAndScales) return null;
 
-	const result = setupAndRenderChart({
+	const result = finalizeChartRendering({
 		preparedData,
 		chartContainer,
 		height: chartHeight,
@@ -128,8 +128,8 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 /**
  * Handles the creation of charts for multiple data series, optionally merging them into a single chart or rendering them separately.
  */
-function createMultiSeriesChart(props: CreateMultiSeriesChartProps): RenderFeaturesProps[] {
-	const allCreateParams: RenderFeaturesProps[] = [];
+function createMultiSeriesChart(props: CreateMultiSeriesChartProps): ApplyChartFeaturesProps[] {
+	const allCreateParams: ApplyChartFeaturesProps[] = [];
 	props.data.forEach((seriesData, i) => {
 		const result = createDataSeriesChart({ ...props, seriesData, i });
 		if (result) {
@@ -146,7 +146,7 @@ export function initializeChart(props: InitializeChartProps): void {
 	const { container, data, dataKeysArray, features, config } = props;
 	const { height, squash, syncX, syncY, merge } = config;
 
-	const { mergedXDomain, mergedYDomain } = computeDomains({
+	const { mergedXDomain, mergedYDomain } = calculateDomains({
 		syncX: !!syncX,
 		syncY: !!syncY,
 		data,
@@ -173,7 +173,7 @@ export function initializeChart(props: InitializeChartProps): void {
 	});
 
 	allCreateParams.forEach((params) => {
-		renderFeatures({ params, featureRegistry });
+		applyChartFeatures({ params, featureRegistry });
 	});
 
 	initializeEventHandlers();

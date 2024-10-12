@@ -3,7 +3,7 @@
 import type {
 	GetCoordinateValueProps,
 	ComputeMergedValueDomainProps,
-	ComputeDomainsProps,
+	CalculateDomainsProps,
 	ComputeMergedXDomainProps
 } from '../types.js';
 
@@ -146,7 +146,7 @@ function extractXDomain({ seriesData, dataKeys }) {
 /**
  * Computes merged domains for x and y axes if synchronization is enabled.
  */
-export function computeDomains(props: ComputeDomainsProps): {
+export function calculateDomains(props: CalculateDomainsProps): {
 	mergedXDomain?: unknown[];
 	mergedYDomain?: [number, number];
 } {

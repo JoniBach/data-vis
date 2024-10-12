@@ -1,9 +1,9 @@
 // **1. Preparation Phase**
 
-import type { PrepareValidDataProps, DataKeys, Series } from '../types.js';
+import type { ValidateAndPrepareDataProps, DataKeys, Series } from '../types.js';
 
-export function prepareValidData(
-	props: PrepareValidDataProps
+export function validateAndPrepareData(
+	props: ValidateAndPrepareDataProps
 ): { seriesData: Series[]; dataKeys: DataKeys } | null {
 	const { seriesData, dataKeys } = props;
 	const errors: string[] = [];

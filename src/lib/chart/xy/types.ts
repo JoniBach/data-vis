@@ -36,7 +36,7 @@ export interface Series {
 }
 
 // Prepare and validate data props
-export interface PrepareValidDataProps {
+export interface ValidateAndPrepareDataProps {
 	seriesData: Series[];
 	dataKeys: DataKeys;
 }
@@ -91,7 +91,7 @@ export interface InitializeScalesProps {
 }
 
 // Setup and render chart props
-export interface SetupAndRenderChartProps {
+export interface FinalizeChartRenderingProps {
 	xType: 'string' | 'number' | 'date' | undefined;
 	chartContainer: HTMLElement;
 	preparedData: { seriesData: Series[]; dataKeys: DataKeys };
@@ -116,7 +116,7 @@ export interface ShouldRenderFeatureProps {
 }
 
 // Render features props
-export interface RenderFeaturesProps {
+export interface ApplyChartFeaturesProps {
 	params: {
 		createParams: CreateParams;
 		chartFeatures: ChartFeature[];
@@ -138,7 +138,7 @@ export interface InitializeChartProps {
 }
 
 // Compute domains props
-export interface ComputeDomainsProps {
+export interface CalculateDomainsProps {
 	syncX: boolean;
 	syncY: boolean;
 	data: Series[][];

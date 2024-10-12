@@ -5,7 +5,7 @@ import type { CreateChartGroupProps, InitializeScalesProps } from '../types.js';
 /**
  * Creates the chart group and initializes the scales based on the provided props.
  */
-export function initializeScaledChartGroup(props: {
+export function createScaledChartGroup(props: {
 	margin: CreateChartGroupProps['margin'];
 	chartContainer: CreateChartGroupProps['chartContainer'];
 	width: CreateChartGroupProps['width'];
