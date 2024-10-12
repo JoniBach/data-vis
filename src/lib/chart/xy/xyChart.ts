@@ -16,11 +16,14 @@ import { eventSystem } from './plot/event.js';
 import { createArea, createLine, createBubbles, createPoints } from './plot/point.js';
 import type {
 	// **1. Preparation Phase**
-	// Margin,
 	PrepareValidDataProps,
-	GetCoordinateValueProps,
 	DataKeys,
 	Series,
+
+	// **2. Domain Calculation Phase**
+
+	// the rest
+	GetCoordinateValueProps,
 	ComputeMergedValueDomainProps,
 	ComputeMergedXDomainProps,
 	ExtractXDomainProps,
@@ -46,7 +49,6 @@ export function prepareValidData(
 	const { seriesData, dataKeys } = props;
 	const errors: string[] = [];
 
-	// Validation logic
 	if (!Array.isArray(seriesData) || seriesData.length === 0) {
 		errors.push('seriesData must be a non-empty array.');
 	} else {
@@ -71,15 +73,19 @@ export function prepareValidData(
 		}
 	}
 
-	// Return null if validation fails
 	if (errors.length > 0) {
 		console.error('Data validation failed:', errors);
 		return null;
 	}
 
-	// Return data if validation passes
 	return { seriesData, dataKeys };
 }
+
+// **2. Domain Calculation Phase**
+
+/**
+ * Computes the merged value domain for multiple series, considering stacking variants.
+ */
 
 function getCoordinateValue(props: GetCoordinateValueProps): number | string {
 	const { value } = props;
@@ -88,12 +94,6 @@ function getCoordinateValue(props: GetCoordinateValueProps): number | string {
 	}
 	return value;
 }
-
-// **2. Domain Calculation Phase**
-
-/**
- * Computes the merged value domain for multiple series, considering stacking variants.
- */
 function computeMergedValueDomain(props: ComputeMergedValueDomainProps): [number, number] {
 	const { seriesDataArray, dataKeysArray, variants } = props;
 	let minValue = Infinity;
