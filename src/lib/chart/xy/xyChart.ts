@@ -3,14 +3,7 @@
 // Imports
 import * as d3 from 'd3';
 import { createBars } from './plot/bar.js';
-import {
-	createGrid,
-	createAxis,
-	createLabel,
-	handleTooltipShow,
-	handleTooltipMove,
-	handleTooltipHide
-} from './plot/canvas.js';
+import { createGrid, createAxis, createLabel } from './plot/canvas.js';
 import { createArea, createLine, createBubbles, createPoints } from './plot/point.js';
 import type {
 	FeatureRegistry,
@@ -35,6 +28,11 @@ import { setupAndRenderChart } from './lifecycle/4_binding.js';
 // **5. Feature Enrichment Phase**
 import { renderFeatures } from './lifecycle/5_features.js';
 
+// **6. Interactivity Phase**
+import { initializeEventHandlers } from './lifecycle/6_interactions.js';
+
+// **7. Multi-Series Phase**
+
 /**
  * A registry mapping feature names to their corresponding rendering functions.
  */
@@ -49,71 +47,6 @@ const featureRegistry: FeatureRegistry = {
 	point: createPoints,
 	bar: createBars
 };
-
-// **6. Interactivity Phase**
-import { initializeEventHandlers } from './lifecycle/6_interactions.js';
-
-/**
- * Sets up event handlers to enable interactivity within the chart, such as tooltips and event responses.
- */
-
-// **7. Unified Chart Creation Phase**
-
-/**
- * Serves as the main entry point for chart creation, handling domain computations, rendering, and interactivity setup.
- */
-export function initializeChart(props: InitializeChartProps): void {
-	const { container, data, dataKeysArray, features, config } = props;
-	const { height, squash, syncX, syncY, merge } = config;
-
-	const { mergedXDomain, mergedYDomain } = computeDomains({
-		syncX: !!syncX,
-		syncY: !!syncY,
-		data,
-		dataKeysArray,
-		features
-	});
-
-	if (!merge) {
-		d3.select(container).selectAll('*').remove();
-	}
-
-	const allCreateParams = createMultiSeriesChart({
-		container,
-		data,
-		dataKeysArray,
-		features,
-		config,
-		mergedDomains: { x: mergedXDomain, y: mergedYDomain },
-		merge: !!merge,
-		squash: !!squash,
-		height,
-		syncX: !!syncX,
-		syncY: !!syncY
-	});
-
-	allCreateParams.forEach((params) => {
-		renderFeatures({ params, featureRegistry });
-	});
-
-	initializeEventHandlers();
-}
-
-// **8. Multi-Series Chart Creation Phase**
-
-/**
- * Handles the creation of charts for multiple data series, optionally merging them into a single chart or rendering them separately.
- */
-function createMultiSeriesChart(props: CreateMultiSeriesChartProps): RenderFeaturesProps[] {
-	const allCreateParams: RenderFeaturesProps[] = [];
-	props.data.forEach((seriesData, i) => {
-		const result = createDataSeriesChart({ ...props, seriesData, i });
-		if (result) {
-			allCreateParams.push(result);
-		}
-	});
-	return allCreateParams;
-}
 
 /**
  * Sets up and renders a chart for a single data series.
@@ -190,6 +123,60 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 	}
 
 	return null;
+}
+
+/**
+ * Handles the creation of charts for multiple data series, optionally merging them into a single chart or rendering them separately.
+ */
+function createMultiSeriesChart(props: CreateMultiSeriesChartProps): RenderFeaturesProps[] {
+	const allCreateParams: RenderFeaturesProps[] = [];
+	props.data.forEach((seriesData, i) => {
+		const result = createDataSeriesChart({ ...props, seriesData, i });
+		if (result) {
+			allCreateParams.push(result);
+		}
+	});
+	return allCreateParams;
+}
+
+/**
+ * Serves as the main entry point for chart creation, handling domain computations, rendering, and interactivity setup.
+ */
+export function initializeChart(props: InitializeChartProps): void {
+	const { container, data, dataKeysArray, features, config } = props;
+	const { height, squash, syncX, syncY, merge } = config;
+
+	const { mergedXDomain, mergedYDomain } = computeDomains({
+		syncX: !!syncX,
+		syncY: !!syncY,
+		data,
+		dataKeysArray,
+		features
+	});
+
+	if (!merge) {
+		d3.select(container).selectAll('*').remove();
+	}
+
+	const allCreateParams = createMultiSeriesChart({
+		container,
+		data,
+		dataKeysArray,
+		features,
+		config,
+		mergedDomains: { x: mergedXDomain, y: mergedYDomain },
+		merge: !!merge,
+		squash: !!squash,
+		height,
+		syncX: !!syncX,
+		syncY: !!syncY
+	});
+
+	allCreateParams.forEach((params) => {
+		renderFeatures({ params, featureRegistry });
+	});
+
+	initializeEventHandlers();
 }
 
 export default initializeChart;
