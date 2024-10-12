@@ -43,28 +43,19 @@ function setupAndRenderChart(props: SetupAndRenderChartProps): {
 	createParams: CreateParams;
 	chartGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
 } | null {
-	const { chartContainer, height, chartFeatures, dataKeys, domains, config, merge, preparedData } =
-		props;
-	const { width, margin } = config;
-	const chartWidth = width - margin.left - margin.right;
-	const chartHeight = height - margin.top - margin.bottom;
-
-	if (!preparedData) return null;
-
-	// Call the combined function to create the chart group and initialize scales
-	const chartAndScales = initializeScaledChartGroup({
-		margin,
-		chartContainer,
-		width,
-		height,
-		merge,
-		domains,
-		chartWidth,
+	const {
 		chartHeight,
-		xType: props.xType
-	});
-
-	if (!chartAndScales) return null;
+		chartWidth,
+		chartContainer,
+		height,
+		chartFeatures,
+		dataKeys,
+		domains,
+		config,
+		merge,
+		preparedData,
+		chartAndScales
+	} = props;
 
 	const { chartGroup, scales } = chartAndScales;
 
@@ -247,6 +238,7 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 		syncX,
 		syncY
 	} = props;
+	const { width, margin } = config;
 
 	const chartFeatures = features[i];
 	const dataKeys = dataKeysArray[i];
@@ -275,6 +267,26 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 	const xDomainUsed = domains?.['x'] || mergedXDomain;
 	const yDomainUsed = domains?.['y'] || mergedYDomain;
 
+	const newChartWidth = width - margin.left - margin.right;
+	const newChartHeight = height - margin.top - margin.bottom;
+
+	if (!preparedData) return null;
+
+	// Call the combined function to create the chart group and initialize scales
+	const chartAndScales = initializeScaledChartGroup({
+		margin,
+		chartContainer,
+		width,
+		height,
+		merge,
+		domains,
+		chartWidth: newChartWidth,
+		chartHeight: newChartHeight,
+		xType: props.xType
+	});
+
+	if (!chartAndScales) return null;
+
 	const result = setupAndRenderChart({
 		preparedData,
 		chartContainer,
@@ -284,7 +296,10 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 		domains: { x: xDomainUsed, y: yDomainUsed },
 		config,
 		merge,
-		xType: undefined
+		xType: undefined,
+		chartWidth: newChartWidth,
+		chartHeight: newChartHeight,
+		chartAndScales
 	});
 
 	if (result) {
