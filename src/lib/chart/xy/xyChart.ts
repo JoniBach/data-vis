@@ -11,7 +11,6 @@ import {
 	handleTooltipMove,
 	handleTooltipHide
 } from './plot/canvas.js';
-import { eventSystem } from './plot/event.js';
 import { createArea, createLine, createBubbles, createPoints } from './plot/point.js';
 import type {
 	FeatureRegistry,
@@ -34,6 +33,7 @@ import { initializeScaledChartGroup } from './lifecycle/3_initialization.js';
 import { setupAndRenderChart } from './lifecycle/4_binding.js';
 
 // **5. Feature Enrichment Phase**
+import { renderFeatures } from './lifecycle/5_features.js';
 
 /**
  * A registry mapping feature names to their corresponding rendering functions.
@@ -50,61 +50,12 @@ const featureRegistry: FeatureRegistry = {
 	bar: createBars
 };
 
-/**
- * Renders additional chart features such as grids, axes, labels, and data representations.
- */
-function renderFeatures(props: RenderFeaturesProps): void {
-	const { createParams, chartFeatures } = props;
-	chartFeatures.forEach(({ feature, hide, config }) => {
-		if (hide) return;
-		const featureFunction = featureRegistry[feature];
-		if (featureFunction) {
-			const selection = featureFunction(createParams, config) as d3.Selection<
-				SVGGElement,
-				unknown,
-				null,
-				undefined
-			>;
-			if (selection && selection.on) {
-				if (['point', 'bubbles', 'bar'].includes(feature)) {
-					selection
-						.on('mouseover', (event: MouseEvent, data: unknown) => {
-							handleTooltipShow({
-								chartTooltip: createParams.chartTooltip,
-								data,
-								dataKeys: createParams.dataKeys
-							});
-						})
-						.on('mousemove', (event: MouseEvent) => {
-							handleTooltipMove({ chartTooltip: createParams.chartTooltip, event });
-						})
-						.on('mouseout', () => {
-							handleTooltipHide({ chartTooltip: createParams.chartTooltip });
-						});
-				}
-			}
-		} else {
-			console.warn(`Feature function not found for feature: ${feature}`);
-		}
-	});
-}
-
 // **6. Interactivity Phase**
+import { initializeEventHandlers } from './lifecycle/6_interactions.js';
 
 /**
  * Sets up event handlers to enable interactivity within the chart, such as tooltips and event responses.
  */
-function initializeEventHandlers(): void {
-	eventSystem.on('tooltip', (chartTooltip, data, dataKeys) => {
-		handleTooltipShow({ chartTooltip, data, dataKeys });
-	});
-	eventSystem.on('tooltipMove', (chartTooltip, event) => {
-		handleTooltipMove({ chartTooltip, event });
-	});
-	eventSystem.on('tooltipHide', (chartTooltip) => {
-		handleTooltipHide({ chartTooltip });
-	});
-}
 
 // **7. Unified Chart Creation Phase**
 
@@ -141,8 +92,8 @@ export function initializeChart(props: InitializeChartProps): void {
 		syncY: !!syncY
 	});
 
-	allCreateParams.forEach((paramsAndFeatures) => {
-		renderFeatures(paramsAndFeatures);
+	allCreateParams.forEach((params) => {
+		renderFeatures({ params, featureRegistry });
 	});
 
 	initializeEventHandlers();

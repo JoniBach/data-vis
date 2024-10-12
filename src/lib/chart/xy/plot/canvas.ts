@@ -1,8 +1,8 @@
 // canvas.ts
 
 import * as d3 from 'd3';
-import { eventSystem } from './event.js';
 import type { CreateParams, DataKeys } from './types.js';
+import { eventSystem } from '../lifecycle/6_interactions.js';
 
 // Utility function to escape HTML
 export function escapeHTML(str: string): string {

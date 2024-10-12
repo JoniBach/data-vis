@@ -117,12 +117,16 @@ export interface ShouldRenderFeatureProps {
 
 // Render features props
 export interface RenderFeaturesProps {
-	createParams: CreateParams;
-	chartFeatures: ChartFeature[];
+	params: {
+		createParams: CreateParams;
+		chartFeatures: ChartFeature[];
+		featureRegistry: FeatureRegistry;
+	};
+	featureRegistry: FeatureRegistry;
 }
 
 // Initialize event handlers props
-export interface InitializeEventHandlersProps {}
+export type InitializeEventHandlersProps = unknown;
 
 // Initialize chart props
 export interface InitializeChartProps {
