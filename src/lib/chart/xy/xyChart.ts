@@ -4,7 +4,6 @@
 import * as d3 from 'd3';
 import { createBars } from './plot/bar.js';
 import {
-	createTooltip,
 	createGrid,
 	createAxis,
 	createLabel,
@@ -15,8 +14,6 @@ import {
 import { eventSystem } from './plot/event.js';
 import { createArea, createLine, createBubbles, createPoints } from './plot/point.js';
 import type {
-	SetupAndRenderChartProps,
-	CreateParams,
 	FeatureRegistry,
 	RenderFeaturesProps,
 	InitializeChartProps,
@@ -34,59 +31,7 @@ import { computeDomains } from './lifecycle/1_domain.js';
 import { initializeScaledChartGroup } from './lifecycle/3_initialization.js';
 
 // **4. Data Binding & Chart Rendering Phase**
-
-/**
- * Sets up and renders the chart elements based on the data and configurations.
- */
-
-function setupAndRenderChart(props: SetupAndRenderChartProps): {
-	createParams: CreateParams;
-	chartGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
-} | null {
-	const {
-		chartHeight,
-		chartWidth,
-		chartContainer,
-		height,
-		chartFeatures,
-		dataKeys,
-		domains,
-		config,
-		merge,
-		preparedData,
-		chartAndScales
-	} = props;
-
-	const { chartGroup, scales } = chartAndScales;
-
-	const colorScale = d3
-		.scaleOrdinal<string>()
-		.domain(preparedData.seriesData.map((d) => d[dataKeys.name] as string))
-		.range(d3.schemeCategory10);
-
-	const chartTooltip = createTooltip({
-		container: chartContainer,
-		showTooltip: chartFeatures.some(({ feature, hide }) => feature === 'tooltip' && !hide),
-		config: chartFeatures.find((feature) => feature.feature === 'tooltip')?.config
-	});
-
-	return {
-		createParams: {
-			seriesData: preparedData.seriesData,
-			chartGroup,
-			colorScale,
-			scales,
-			chartTooltip,
-			chartHeight,
-			chartWidth,
-			dataKeys: preparedData.dataKeys,
-			xType: props.xType,
-			...config,
-			margin: config.margin
-		},
-		chartGroup
-	};
-}
+import { setupAndRenderChart } from './lifecycle/4_binding.js';
 
 // **5. Feature Enrichment Phase**
 
@@ -238,8 +183,8 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 		syncX,
 		syncY
 	} = props;
-	const { width, margin } = config;
 
+	const { width, margin } = config;
 	const chartFeatures = features[i];
 	const dataKeys = dataKeysArray[i];
 
@@ -247,37 +192,24 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 	if (!merge) container.appendChild(chartContainer);
 
 	const chartHeight = squash ? height / data.length : height;
+	const preparedData = prepareValidData({ seriesData, dataKeys });
+	if (!preparedData) return null;
+
+	// Use the merged or individual domains depending on syncX and syncY
 	const domains = {
-		x: syncX ? mergedDomains.x : undefined,
-		y: syncY ? mergedDomains.y : undefined
+		x: syncX ? mergedDomains.x : mergedDomains.x[i], // For unsynced X domain, use the ith domain
+		y: syncY ? mergedDomains.y : mergedDomains.y[i] // For unsynced Y domain, use the ith domain
 	};
 
-	const preparedData = prepareValidData({ seriesData, dataKeys });
-
-	// Use computeDomains for xDomain and yDomain calculations
-	const { mergedXDomain, mergedYDomain } = computeDomains({
-		syncX: !domains?.['x'], // If no existing xDomain, we need to compute it
-		syncY: !domains?.['y'], // If no existing yDomain, we need to compute it
-		data: [preparedData.seriesData],
-		dataKeysArray: [preparedData.dataKeys],
-		features: [chartFeatures]
-	});
-
-	// Use the computed domains or fall back to existing ones if available
-	const xDomainUsed = domains?.['x'] || mergedXDomain;
-	const yDomainUsed = domains?.['y'] || mergedYDomain;
-
 	const newChartWidth = width - margin.left - margin.right;
-	const newChartHeight = height - margin.top - margin.bottom;
-
-	if (!preparedData) return null;
+	const newChartHeight = chartHeight - margin.top - margin.bottom;
 
 	// Call the combined function to create the chart group and initialize scales
 	const chartAndScales = initializeScaledChartGroup({
 		margin,
 		chartContainer,
 		width,
-		height,
+		height: chartHeight,
 		merge,
 		domains,
 		chartWidth: newChartWidth,
@@ -293,10 +225,10 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 		height: chartHeight,
 		chartFeatures,
 		dataKeys,
-		domains: { x: xDomainUsed, y: yDomainUsed },
+		domains, // Pass the correct domains based on syncX and syncY
 		config,
 		merge,
-		xType: undefined,
+		xType: props.xType,
 		chartWidth: newChartWidth,
 		chartHeight: newChartHeight,
 		chartAndScales
@@ -305,6 +237,7 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 	if (result) {
 		return { createParams: result.createParams, chartFeatures };
 	}
+
 	return null;
 }
 

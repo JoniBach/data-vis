@@ -114,6 +114,35 @@ function computeMergedXDomain(props: ComputeMergedXDomainProps): unknown[] {
 	return uniqueKeys.map((key) => (typeof key === 'number' ? new Date(key) : key));
 }
 
+function computeYDomain({ seriesData, dataKeys }) {
+	const yKey = dataKeys.coordinates.y;
+	let minY = Infinity,
+		maxY = -Infinity;
+
+	seriesData.forEach((series) => {
+		series[dataKeys.data].forEach((d) => {
+			const yValue = d[yKey];
+			if (yValue < minY) minY = yValue;
+			if (yValue > maxY) maxY = yValue;
+		});
+	});
+
+	return [minY, maxY];
+}
+
+function extractXDomain({ seriesData, dataKeys }) {
+	const xKey = dataKeys.coordinates.x;
+	const xValues = new Set<number | string>();
+
+	seriesData.forEach((series) => {
+		series[dataKeys.data].forEach((d) => {
+			xValues.add(d[xKey]);
+		});
+	});
+
+	return Array.from(xValues); // Return an array of unique x-values
+}
+
 /**
  * Computes merged domains for x and y axes if synchronization is enabled.
  */
@@ -122,9 +151,13 @@ export function computeDomains(props: ComputeDomainsProps): {
 	mergedYDomain?: [number, number];
 } {
 	const { syncX, syncY, data, dataKeysArray, features } = props;
+
+	// Compute the merged X domain if syncX is true, otherwise compute individual X domains
 	const mergedXDomain = syncX
 		? computeMergedXDomain({ seriesDataArray: data, dataKeysArray })
-		: undefined;
+		: data.map((seriesData, i) => extractXDomain({ seriesData, dataKeys: dataKeysArray[i] }));
+
+	// Compute the merged Y domain if syncY is true, otherwise compute individual Y domains
 	const mergedYDomain = syncY
 		? computeMergedValueDomain({
 				seriesDataArray: data,
@@ -138,6 +171,7 @@ export function computeDomains(props: ComputeDomainsProps): {
 						)?.variant || 'grouped'
 				)
 			})
-		: undefined;
+		: data.map((seriesData, i) => computeYDomain({ seriesData, dataKeys: dataKeysArray[i] }));
+
 	return { mergedXDomain, mergedYDomain };
 }

@@ -98,9 +98,15 @@ export interface SetupAndRenderChartProps {
 	height: number;
 	chartFeatures: ChartFeature[];
 	dataKeys: DataKeys;
-	domains: { x?: unknown[]; y?: [number, number] };
+	domains: { x?: unknown[]; y?: [number, number] | number };
 	config: ChartConfig;
 	merge?: boolean;
+	chartWidth: number;
+	chartHeight: number;
+	chartAndScales: {
+		chartGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
+		scales: { x: unknown; y: unknown };
+	};
 }
 
 // Should render feature props
