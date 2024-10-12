@@ -3,7 +3,7 @@
 import type {
 	Margin,
 	ValidationResult,
-	PrepareAndValidateDataProps,
+	PrepareValidDataProps,
 	GetCoordinateValueProps,
 	DataKeys,
 	Series
@@ -28,7 +28,7 @@ function validateMargin(props: { margin: Margin }): ValidationResult {
 /**
  * Validates the series data to ensure it meets the required structure.
  */
-function validateSeriesData(props: PrepareAndValidateDataProps): ValidationResult {
+function validateSeriesData(props: PrepareValidDataProps): ValidationResult {
 	const { seriesData, dataKeys } = props;
 	const errors: string[] = [];
 
@@ -72,8 +72,8 @@ function getCoordinateValue(props: GetCoordinateValueProps): number | string {
 /**
  * Prepares and validates the data for further processing.
  */
-function prepareAndValidateData(
-	props: PrepareAndValidateDataProps
+function prepareValidData(
+	props: PrepareValidDataProps
 ): { seriesData: Series[]; dataKeys: DataKeys } | null {
 	const { seriesData, dataKeys } = props;
 	const validation = validateSeriesData({ seriesData, dataKeys });
@@ -82,12 +82,4 @@ function prepareAndValidateData(
 		return null;
 	}
 	return { seriesData, dataKeys };
-}
-
-export default function handlePreperationStage({ value, margin, seriesData, dataKeys }) {
-	const validMargin = validateMargin({ margin });
-	const preparedData = prepareAndValidateData({ seriesData, dataKeys });
-	const coordinateValue = getCoordinateValue({ value });
-
-	return { validMargin, preparedData, coordinateValue };
 }

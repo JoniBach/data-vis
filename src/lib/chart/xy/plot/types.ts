@@ -35,7 +35,7 @@ export interface Series {
 }
 
 // Prepare and validate data props
-export interface PrepareAndValidateDataProps {
+export interface PrepareValidDataProps {
 	seriesData: Series[];
 	dataKeys: DataKeys;
 }

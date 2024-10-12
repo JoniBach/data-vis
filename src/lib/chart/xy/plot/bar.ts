@@ -1,7 +1,7 @@
 // bar.ts
 
 import * as d3 from 'd3';
-import { prepareAndValidateData } from '../xyChart.js';
+import { prepareValidData } from '../xyChart.js';
 import { attachTooltipHandlers } from './canvas.js';
 import type { CreateParams, DataKeys, Series } from './types.js';
 

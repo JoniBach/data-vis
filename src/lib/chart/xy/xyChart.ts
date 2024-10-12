@@ -17,7 +17,7 @@ import { createArea, createLine, createBubbles, createPoints } from './plot/poin
 import type {
 	// **1. Preparation Phase**
 	// Margin,
-	PrepareAndValidateDataProps,
+	PrepareValidDataProps,
 	GetCoordinateValueProps,
 	DataKeys,
 	Series,
@@ -40,8 +40,8 @@ import type {
 
 // **1. Preparation Phase**
 
-export function prepareAndValidateData(
-	props: PrepareAndValidateDataProps
+export function prepareValidData(
+	props: PrepareValidDataProps
 ): { seriesData: Series[]; dataKeys: DataKeys } | null {
 	const { seriesData, dataKeys } = props;
 	const errors: string[] = [];
@@ -296,7 +296,7 @@ function setupAndRenderChart(props: SetupAndRenderChartProps): {
 	const chartWidth = width - margin.left - margin.right;
 	const chartHeight = height - margin.top - margin.bottom;
 
-	const preparedData = prepareAndValidateData({ seriesData, dataKeys });
+	const preparedData = prepareValidData({ seriesData, dataKeys });
 	if (!preparedData) return null;
 
 	const svg = createInitialSVG({ container: chartContainer, width, height, merge });

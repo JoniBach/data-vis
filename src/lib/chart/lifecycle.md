@@ -96,7 +96,7 @@ initializeChart (Step 7: Unified Chart Creation Phase)
 ├── createMultiSeriesChart (Step 8: Multi-Series Chart Creation Phase)
 │   ├── createDataSeriesChart (Step 8: Multi-Series Chart Creation Phase)
 │   │   ├── setupAndRenderChart (Step 4: Data Binding & Chart Rendering Phase)
-│   │   │   ├── prepareAndValidateData (Step 1: Preparation Phase)
+│   │   │   ├── prepareValidData (Step 1: Preparation Phase)
 │   │   │   │   ├── validateSeriesData (Step 1: Preparation Phase)
 │   │   │   │   ├── validateMargin (Step 1: Preparation Phase)
 │   │   │   ├── createInitialSVG (Step 3: Initialization Phase)
@@ -133,7 +133,7 @@ initializeChart (Step 7: Unified Chart Creation Phase)
 ### **Proposed  Lifecycle Methodology in Action**
 ```
 initializeChart (Unified Entry Point)
-├── prepareAndValidateData (Step 1: Preparation Phase)
+├── prepareValidData (Step 1: Preparation Phase)
 │    └── Validates input data and ensures all required structure is present.
 ├── computeDomains (Step 2: Domain Calculation Phase)
 │    ├── computeMergedXDomain (Step 2a: Compute x-domain across all series)
