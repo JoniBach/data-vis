@@ -51,19 +51,6 @@ function setupAndRenderChart(props: SetupAndRenderChartProps): {
 
 	if (!preparedData) return null;
 
-	// Use computeDomains for xDomain and yDomain calculations
-	const { mergedXDomain, mergedYDomain } = computeDomains({
-		syncX: !domains?.['x'], // If no existing xDomain, we need to compute it
-		syncY: !domains?.['y'], // If no existing yDomain, we need to compute it
-		data: [preparedData.seriesData],
-		dataKeysArray: [preparedData.dataKeys],
-		features: [chartFeatures]
-	});
-
-	// Use the computed domains or fall back to existing ones if available
-	const xDomainUsed = domains?.['x'] || mergedXDomain;
-	const yDomainUsed = domains?.['y'] || mergedYDomain;
-
 	// Call the combined function to create the chart group and initialize scales
 	const chartAndScales = initializeScaledChartGroup({
 		margin,
@@ -71,7 +58,7 @@ function setupAndRenderChart(props: SetupAndRenderChartProps): {
 		width,
 		height,
 		merge,
-		domains: { x: xDomainUsed, y: yDomainUsed },
+		domains,
 		chartWidth,
 		chartHeight,
 		xType: props.xType
@@ -275,13 +262,26 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): RenderFeature
 
 	const preparedData = prepareValidData({ seriesData, dataKeys });
 
+	// Use computeDomains for xDomain and yDomain calculations
+	const { mergedXDomain, mergedYDomain } = computeDomains({
+		syncX: !domains?.['x'], // If no existing xDomain, we need to compute it
+		syncY: !domains?.['y'], // If no existing yDomain, we need to compute it
+		data: [preparedData.seriesData],
+		dataKeysArray: [preparedData.dataKeys],
+		features: [chartFeatures]
+	});
+
+	// Use the computed domains or fall back to existing ones if available
+	const xDomainUsed = domains?.['x'] || mergedXDomain;
+	const yDomainUsed = domains?.['y'] || mergedYDomain;
+
 	const result = setupAndRenderChart({
 		preparedData,
 		chartContainer,
 		height: chartHeight,
 		chartFeatures,
 		dataKeys,
-		domains,
+		domains: { x: xDomainUsed, y: yDomainUsed },
 		config,
 		merge,
 		xType: undefined

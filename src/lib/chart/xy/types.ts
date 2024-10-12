@@ -84,7 +84,7 @@ export interface CreateChartGroupProps {
 
 // Initialize scales props
 export interface InitializeScalesProps {
-	domains: { x: unknown[]; y: [number, number] };
+	domains: { x?: unknown[]; y?: unknown[] };
 	chartWidth: number;
 	chartHeight: number;
 	xType?: 'date' | 'number' | 'string';
