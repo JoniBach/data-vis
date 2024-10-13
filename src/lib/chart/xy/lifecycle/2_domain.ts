@@ -1,5 +1,4 @@
-// **2. Domain Calculation Phase**
-
+// **Domain Calculation Phase**
 import type {
 	GetCoordinateValueProps,
 	ComputeMergedValueDomainProps,
@@ -8,9 +7,8 @@ import type {
 } from '../types.js';
 
 /**
- * Computes the merged value domain for multiple series, considering stacking variants.
+ * Helper function to get a coordinate value from a data point.
  */
-
 function getCoordinateValue(props: GetCoordinateValueProps): number | string {
 	const { value } = props;
 	if (value instanceof Date) {
@@ -18,81 +16,11 @@ function getCoordinateValue(props: GetCoordinateValueProps): number | string {
 	}
 	return value;
 }
-function computeMergedValueDomain(props: ComputeMergedValueDomainProps): [number, number] {
-	const { seriesDataArray, dataKeysArray, variants } = props;
-	let minValue = Infinity;
-	let maxValue = -Infinity;
-
-	const allKeysSet = new Set<number | string>();
-	seriesDataArray.forEach((seriesData, index) => {
-		const dataKeys = dataKeysArray[index];
-		const xKey = dataKeys.coordinates['x'];
-
-		seriesData.forEach((series) => {
-			const dataPoints = series[dataKeys.data] as unknown[];
-			dataPoints.forEach((d) => {
-				allKeysSet.add(getCoordinateValue({ value: d[xKey] }));
-			});
-		});
-	});
-	const allKeys = Array.from(allKeysSet);
-
-	allKeys.forEach((key) => {
-		let dateMaxPositive = -Infinity;
-		let dateMinNegative = Infinity;
-
-		seriesDataArray.forEach((seriesData, index) => {
-			const variant = variants[index];
-			const dataKeys = dataKeysArray[index];
-			const xKey = dataKeys.coordinates['x'];
-			const yKey = dataKeys.coordinates['y'];
-
-			if (variant === 'stacked') {
-				let chartPositive = 0;
-				let chartNegative = 0;
-
-				seriesData.forEach((series) => {
-					const dataPoint = (series[dataKeys.data] as unknown[]).find(
-						(d) => getCoordinateValue({ value: d[xKey] }) === key
-					);
-					if (dataPoint) {
-						const value = dataPoint[yKey];
-						if (value >= 0) {
-							chartPositive += value;
-						} else {
-							chartNegative += value;
-						}
-					}
-				});
-
-				dateMaxPositive = Math.max(dateMaxPositive, chartPositive);
-				dateMinNegative = Math.min(dateMinNegative, chartNegative);
-			} else {
-				seriesData.forEach((series) => {
-					const dataPoint = (series[dataKeys.data] as unknown[]).find(
-						(d) => getCoordinateValue({ value: d[xKey] }) === key
-					);
-					if (dataPoint) {
-						const value = dataPoint[yKey];
-						dateMaxPositive = Math.max(dateMaxPositive, value);
-						dateMinNegative = Math.min(dateMinNegative, value);
-					}
-				});
-			}
-		});
-
-		maxValue = Math.max(maxValue, dateMaxPositive);
-		minValue = Math.min(minValue, dateMinNegative);
-	});
-
-	return [Math.min(minValue, 0), Math.max(maxValue, 0)];
-}
 
 /**
- * Computes the merged x-domain for multiple series.
+ * Helper function to collect all unique x-values from series data.
  */
-function computeMergedXDomain(props: ComputeMergedXDomainProps): unknown[] {
-	const { seriesDataArray, dataKeysArray } = props;
+function collectUniqueXValues(seriesDataArray, dataKeysArray): Set<number | string> {
 	const allKeysSet = new Set<number | string>();
 	seriesDataArray.forEach((seriesData, index) => {
 		const dataKeys = dataKeysArray[index];
@@ -103,6 +31,132 @@ function computeMergedXDomain(props: ComputeMergedXDomainProps): unknown[] {
 			});
 		});
 	});
+	return allKeysSet;
+}
+
+/**
+ * Computes the merged value domain for multiple series, considering stacking variants.
+ */
+function computeMergedValueDomain(props: ComputeMergedValueDomainProps): [number, number] {
+	const { seriesDataArray, dataKeysArray, variants } = props;
+
+	const allKeys = Array.from(collectUniqueXValues(seriesDataArray, dataKeysArray));
+	let minValue = Infinity;
+	let maxValue = -Infinity;
+
+	allKeys.forEach((key) => {
+		const { dateMaxPositive, dateMinNegative } = calculateStackedDomains(
+			seriesDataArray,
+			dataKeysArray,
+			variants,
+			key
+		);
+		maxValue = Math.max(maxValue, dateMaxPositive);
+		minValue = Math.min(minValue, dateMinNegative);
+	});
+
+	return [Math.min(minValue, 0), Math.max(maxValue, 0)];
+}
+
+/**
+ * Calculates stacked domains for a given key (x-value).
+ */
+function calculateStackedDomains(
+	seriesDataArray,
+	dataKeysArray,
+	variants,
+	targetKey: number | string
+): { dateMaxPositive: number; dateMinNegative: number } {
+	let dateMaxPositive = -Infinity;
+	let dateMinNegative = Infinity;
+
+	seriesDataArray.forEach((seriesData, index) => {
+		const variant = variants[index];
+		const dataKeys = dataKeysArray[index];
+		const xKey = dataKeys.coordinates['x'];
+		const yKey = dataKeys.coordinates['y'];
+
+		if (variant === 'stacked') {
+			const { chartPositive, chartNegative } = computeStackedValues(
+				seriesData,
+				xKey,
+				yKey,
+				targetKey,
+				dataKeys
+			);
+			dateMaxPositive = Math.max(dateMaxPositive, chartPositive);
+			dateMinNegative = Math.min(dateMinNegative, chartNegative);
+			return;
+		}
+
+		calculateNonStackedDomains(seriesData, xKey, yKey, targetKey, dataKeys, (value) => {
+			dateMaxPositive = Math.max(dateMaxPositive, value);
+			dateMinNegative = Math.min(dateMinNegative, value);
+		});
+	});
+
+	return { dateMaxPositive, dateMinNegative };
+}
+
+/**
+ * Helper function to calculate non-stacked domains for a given key (x-value).
+ */
+function calculateNonStackedDomains(
+	seriesData,
+	xKey,
+	yKey,
+	targetKey: number | string,
+	dataKeys,
+	updateFn: (value: number) => void
+) {
+	seriesData.forEach((series) => {
+		const dataPoint = findDataPoint(series, xKey, targetKey, dataKeys);
+		if (dataPoint) {
+			const value = dataPoint[yKey];
+			updateFn(value);
+		}
+	});
+}
+
+/**
+ * Helper function to find a data point by x-key.
+ */
+function findDataPoint(series, xKey, targetKey, dataKeys) {
+	return (series[dataKeys.data] as unknown[]).find(
+		(d) => getCoordinateValue({ value: d[xKey] }) === targetKey
+	);
+}
+
+/**
+ * Computes stacked positive and negative values for a given x-value.
+ */
+function computeStackedValues(
+	seriesData,
+	xKey,
+	yKey,
+	targetKey: number | string,
+	dataKeys
+): { chartPositive: number; chartNegative: number } {
+	let chartPositive = 0;
+	let chartNegative = 0;
+
+	seriesData.forEach((series) => {
+		const dataPoint = findDataPoint(series, xKey, targetKey, dataKeys);
+		if (dataPoint) {
+			const value = dataPoint[yKey];
+			value >= 0 ? (chartPositive += value) : (chartNegative += value);
+		}
+	});
+
+	return { chartPositive, chartNegative };
+}
+
+/**
+ * Computes the merged x-domain for multiple series.
+ */
+function computeMergedXDomain(props: ComputeMergedXDomainProps): unknown[] {
+	const { seriesDataArray, dataKeysArray } = props;
+	const allKeysSet = collectUniqueXValues(seriesDataArray, dataKeysArray);
 
 	const uniqueKeys = Array.from(allKeysSet);
 	uniqueKeys.sort((a, b) => {
@@ -114,7 +168,10 @@ function computeMergedXDomain(props: ComputeMergedXDomainProps): unknown[] {
 	return uniqueKeys.map((key) => (typeof key === 'number' ? new Date(key) : key));
 }
 
-function computeYDomain({ seriesData, dataKeys }) {
+/**
+ * Computes the Y domain for individual series.
+ */
+function computeYDomain({ seriesData, dataKeys }): [number, number] {
 	const yKey = dataKeys.coordinates.y;
 	let minY = Infinity,
 		maxY = -Infinity;
@@ -130,7 +187,10 @@ function computeYDomain({ seriesData, dataKeys }) {
 	return [minY, maxY];
 }
 
-function extractXDomain({ seriesData, dataKeys }) {
+/**
+ * Extracts unique x-values for individual series.
+ */
+function extractXDomain({ seriesData, dataKeys }): unknown[] {
 	const xKey = dataKeys.coordinates.x;
 	const xValues = new Set<number | string>();
 
