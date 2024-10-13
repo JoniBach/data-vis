@@ -1,9 +1,5 @@
 // **Domain Calculation Phase**
-import type {
-	GetCoordinateValueProps,
-	CalculateDomainsProps,
-	ComputeMergedXDomainProps
-} from '../types.js';
+import type { GetCoordinateValueProps, CalculateDomainsProps } from '../types.js';
 
 // **1. Data Extraction Phase**
 /**
@@ -44,21 +40,39 @@ function collectUniqueXValues(seriesDataArray, dataKeysArray): Set<number | stri
 
 // **4. Calculate Y-Domain Range Phase**
 /**
- * Computes the Y domain for individual series.
+ * Computes the Y domain for individual or stacked series.
  */
-function calculateYDomain(seriesDataArray, dataKeysArray): [number, number][] {
+function calculateYDomain(seriesDataArray, dataKeysArray, variants): [number, number][] {
 	return seriesDataArray.map((seriesData, index) => {
 		const yKey = dataKeysArray[index].coordinates.y;
 		let minY = Infinity;
 		let maxY = -Infinity;
+		let stackedValues = new Map<number | string, number>();
 
 		seriesData.forEach((series) => {
 			(series[dataKeysArray[index].data] as unknown[]).forEach((d) => {
+				const xValue = getCoordinateValue({ value: d[dataKeysArray[index].coordinates.x] });
 				const yValue = d[yKey];
-				if (yValue < minY) minY = yValue;
-				if (yValue > maxY) maxY = yValue;
+
+				if (variants[index] === 'stacked') {
+					// Accumulate stacked values by x-coordinate
+					const currentStackedValue = stackedValues.get(xValue) || 0;
+					stackedValues.set(xValue, currentStackedValue + yValue);
+				} else {
+					// For non-stacked, calculate min and max directly
+					if (yValue < minY) minY = yValue;
+					if (yValue > maxY) maxY = yValue;
+				}
 			});
 		});
+
+		// Update minY and maxY for stacked values if applicable
+		if (variants[index] === 'stacked') {
+			stackedValues.forEach((stackedValue) => {
+				if (stackedValue < minY) minY = stackedValue;
+				if (stackedValue > maxY) maxY = stackedValue;
+			});
+		}
 
 		return [Math.min(0, minY), Math.max(0, maxY)];
 	});
@@ -100,57 +114,7 @@ function synchronizeDomains(
 	return { mergedXDomain, mergedYDomain };
 }
 
-// **6. Calculate Stacked Domains Phase (Optional)**
-/**
- * Calculates stacked domains for a given key (x-value).
- */
-function calculateStackedDomains(seriesDataArray, dataKeysArray, variants) {
-	let dateMaxPositive = -Infinity;
-	let dateMinNegative = Infinity;
-
-	seriesDataArray.forEach((seriesData, index) => {
-		const variant = variants[index];
-		const xKey = dataKeysArray[index].coordinates['x'];
-		const yKey = dataKeysArray[index].coordinates['y'];
-
-		if (variant === 'stacked') {
-			const { chartPositive, chartNegative } = computeStackedValues(
-				seriesData,
-				xKey,
-				yKey,
-				dataKeysArray[index]
-			);
-			dateMaxPositive = Math.max(dateMaxPositive, chartPositive);
-			dateMinNegative = Math.min(dateMinNegative, chartNegative);
-		}
-	});
-
-	return { dateMaxPositive, dateMinNegative };
-}
-
-/**
- * Computes stacked positive and negative values for a given x-value.
- */
-function computeStackedValues(
-	seriesData,
-	xKey,
-	yKey,
-	dataKeys
-): { chartPositive: number; chartNegative: number } {
-	let chartPositive = 0;
-	let chartNegative = 0;
-
-	seriesData.forEach((series) => {
-		(series[dataKeys.data] as unknown[]).forEach((d) => {
-			const value = d[yKey];
-			value >= 0 ? (chartPositive += value) : (chartNegative += value);
-		});
-	});
-
-	return { chartPositive, chartNegative };
-}
-
-// **7. Validate and Set Default Domains Phase**
+// **6. Validate and Set Default Domains Phase**
 /**
  * Validates domain values and sets default values if required.
  */
@@ -168,7 +132,7 @@ function validateAndSetDefaults(xDomain: unknown[], yDomain: [number, number]) {
 	return { xDomain, yDomain };
 }
 
-// **8. Finalize Domains Phase**
+// **7. Finalize Domains Phase**
 /**
  * Finalizes and returns the domains for rendering.
  */
@@ -201,52 +165,27 @@ export function calculateDomains(props: CalculateDomainsProps): {
 	);
 
 	// **4. Calculate Y-Domain Range Phase**
-	const yDomains = calculateYDomain(extractedData.seriesDataArray, extractedData.dataKeysArray);
-
-	// **5. Synchronize Domains Phase (Optional)**
-	const synchronizedDomains = synchronizeDomains(syncX, syncY, uniqueXValues, yDomains);
-
-	// **6. Calculate Stacked Domains Phase (Optional)**
 	const variants = features.map(
 		(feature) => feature.find((f) => f.feature === 'bar' && !f.hide)?.config.variant || 'grouped'
 	);
-	const stackedDomains = calculateStackedDomains(
+	const yDomains = calculateYDomain(
 		extractedData.seriesDataArray,
 		extractedData.dataKeysArray,
 		variants
 	);
 
-	// **7. Validate and Set Default Domains Phase**
+	// **5. Synchronize Domains Phase (Optional)**
+	const synchronizedDomains = synchronizeDomains(syncX, syncY, uniqueXValues, yDomains);
+
+	// **6. Validate and Set Default Domains Phase**
 	const validatedDomains = validateAndSetDefaults(
 		synchronizedDomains.mergedXDomain ?? Array.from(uniqueXValues),
 		synchronizedDomains.mergedYDomain ?? [
-			stackedDomains.dateMinNegative,
-			stackedDomains.dateMaxPositive
+			Math.min(...yDomains.map(([min]) => min)),
+			Math.max(...yDomains.map(([, max]) => max))
 		]
 	);
 
-	// **8. Finalize Domains Phase**
+	// **7. Finalize Domains Phase**
 	return finalizeDomains(validatedDomains);
 }
-
-/**
- * This phase exists to identify and standardize the coordinate keys that will be used throughout
- * the domain calculation process. By identifying the `x` and `y` coordinate keys upfront, we can
- * effectively decouple the rest of the domain calculation from any hardcoded assumptions about 
- * which data keys are relevant. This contributes to a flexible and reusable system.
-
- * The goal of this step is to ensure that we know which properties of the data points represent
- * the coordinates for plotting. This identification is particularly crucial when dealing with 
- * multi-coordinate chart systems, where different coordinate types (e.g., Cartesian, Polar, 
- * Geographic) can each have their own respective coordinate keys.
-
- * By dynamically identifying coordinate keys using the provided data keys, we can abstract away 
- * the specific details of the coordinate system being used. For example, instead of relying on 
- * hardcoded keys like `x` and `y`, the system can handle `angle` and `radius` for polar plots or 
- * `latitude` and `longitude` for geographic maps. This abstraction allows the charting library to
- * remain **coordinate-system agnostic**, thereby supporting multiple chart types with a unified 
- * workflow.
-
- * The result of this step is a set of identified keys that can be passed along to the remaining 
- * lifecycle stages to ensure consistency when accessing and processing coordinate data.
- */
