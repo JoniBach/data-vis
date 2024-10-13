@@ -1,7 +1,8 @@
+// **Initialization Phase**
 import * as d3 from 'd3';
 import type { CreateChartGroupProps, InitializeScalesProps } from '../types.js';
 
-// ** Refactored Function **
+// ** Main Entry Function: createScaledChartGroup **
 /**
  * Creates the chart group and initializes the scales based on the provided props.
  */
@@ -19,29 +20,41 @@ export function createScaledChartGroup(props: {
 	chartGroup: d3.Selection<SVGGElement, unknown, null, undefined> | null;
 	scales: { x: unknown; y: unknown };
 } {
-	const { margin, chartContainer, width, height, merge, domains, chartWidth, chartHeight, xType } =
-		props;
+	const coordinateType = 'cartesian';
 
-	// Create the SVG and chart group using existing createChartGroup
+	if (coordinateType === 'cartesian') {
+		return createCartesianChartGroup(props);
+	}
+
+	// Placeholder for other coordinate systems
+	throw new Error('Unsupported coordinate system type');
+}
+
+// ** Cartesian Chart Group Orchestration Function **
+/**
+ * Creates the SVG container, chart group, and initializes Cartesian-specific scales.
+ */
+function createCartesianChartGroup(props) {
 	const chartGroup = createChartGroup({
-		margin,
-		chartContainer,
-		width,
-		height,
-		merge
+		margin: configureCartesianMargins(props.margin),
+		chartContainer: props.chartContainer,
+		width: props.width,
+		height: props.height,
+		merge: props.merge
 	});
 
-	// Initialize the scales using the existing initializeScales
-	const scales = initializeScales({
-		domains,
-		chartWidth,
-		chartHeight,
-		xType
-	});
+	const scales = initializeCartesianScales(
+		props.domains.x,
+		props.domains.y,
+		props.chartWidth,
+		props.chartHeight,
+		props.xType
+	);
 
 	return { chartGroup, scales };
 }
 
+// ** Step 3a: Create Initial SVG Container **
 /**
  * Creates the initial SVG element within the specified container.
  */
@@ -71,6 +84,7 @@ function createInitialSVG(
 		.attr('aria-label', 'Chart');
 }
 
+// ** Step 3b: Create Chart Group **
 /**
  * Appends a <g> element to the SVG to contain the chart elements, applying the specified margins.
  */
@@ -83,17 +97,15 @@ function createChartGroup(
 	return svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 }
 
+// ** Step 3c: Initialize Cartesian Scales **
 /**
- * Initializes the scales based on the domains and chart dimensions.
+ * Initializes the scales for Cartesian coordinates based on the domains and chart dimensions.
  */
-function initializeScales(props: InitializeScalesProps): { x: unknown; y: unknown } {
-	const { domains, chartWidth, chartHeight, xType } = props;
-	const scales: { x: unknown; y: unknown } = {
+function initializeCartesianScales(xDomain, yDomain, chartWidth, chartHeight, xType) {
+	const scales = {
 		x: undefined,
 		y: undefined
 	};
-
-	const xDomain = domains['x'];
 
 	if (xType === 'date') {
 		scales['x'] = d3
@@ -113,7 +125,31 @@ function initializeScales(props: InitializeScalesProps): { x: unknown; y: unknow
 			.padding(0.1);
 	}
 
-	scales['y'] = d3.scaleLinear().domain(domains['y']).range([chartHeight, 0]);
+	scales['y'] = d3.scaleLinear().domain(yDomain).range([chartHeight, 0]);
 
 	return scales;
 }
+
+// ** Utility Function: Configure Cartesian Margins **
+/**
+ * Configures default margins for Cartesian charts, ensuring appropriate space for axes.
+ */
+function configureCartesianMargins(margin) {
+	return {
+		top: margin.top ?? 20,
+		right: margin.right ?? 30,
+		bottom: margin.bottom ?? 50,
+		left: margin.left ?? 40
+	};
+}
+
+/**
+ * This phase exists to lay the foundational structure of the chart by creating the necessary
+ * SVG containers, group elements, and initializing scales. The purpose is to establish a reliable
+ * and consistent environment for rendering visual elements, abstracting the complexity of setting up
+ * scalable containers. By handling the chart group and scale initialization here, we decouple
+ * the specifics of setting up the environment from data binding and rendering, which enhances
+ * modularity, scalability, and maintainability. This phase is designed to soon be **coordinate-system agnostic**,
+ * allowing flexibility for various chart types, such as Cartesian or Polar, by making necessary
+ * initializations adaptable for each coordinate system.
+ */
