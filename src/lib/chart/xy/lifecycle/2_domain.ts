@@ -230,3 +230,14 @@ export function calculateDomains(props: CalculateDomainsProps): {
 	// **7. Finalize Domains Phase**
 	return finalizeDomains(validatedDomains);
 }
+/**
+ * This phase is responsible for calculating the X and Y domains for the chart, based on the input datasets and series
+ * configurations. Domains define the range of values that are represented on each axis, which is essential for proper
+ * scaling and rendering of data points. In multi-series charts, this phase ensures that domains are calculated and
+ * synchronized across all series to maintain consistency, even when datasets vary in structure or scale.
+ *
+ * The purpose of this step is to accurately compute the boundaries (min and max values) for both axes, handling
+ * complexities such as stacking data series or ensuring that synchronized domains are applied when needed. This is
+ * especially important for visualizations with multiple datasets, where each series might have different coordinate
+ * values, yet must be aligned on a common scale.
+ */
