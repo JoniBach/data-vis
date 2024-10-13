@@ -1,6 +1,44 @@
 // **Domain Calculation Phase**
 import type { GetCoordinateValueProps, CalculateDomainsProps } from '../types.js';
 
+// **Validation Phase**
+/**
+ * Validates the configuration and input properties to ensure they are suitable for domain calculation.
+ */
+function validateConfiguration(props: CalculateDomainsProps) {
+	const { syncX, syncY, data, dataKeysArray, features } = props;
+
+	// Validate data and dataKeysArray are arrays of the same length
+	if (!Array.isArray(data) || !Array.isArray(dataKeysArray)) {
+		throw new Error('Invalid input: data and dataKeysArray must both be arrays.');
+	}
+	if (data.length !== dataKeysArray.length) {
+		throw new Error('Mismatch: data and dataKeysArray must have the same length.');
+	}
+
+	// Validate dataKeysArray has valid coordinates
+	dataKeysArray.forEach((dataKeys, index) => {
+		if (!dataKeys.coordinates || !('x' in dataKeys.coordinates) || !('y' in dataKeys.coordinates)) {
+			throw new Error(
+				`Invalid dataKeys at index ${index}: coordinates must include both 'x' and 'y' keys.`
+			);
+		}
+		if (!('data' in dataKeys)) {
+			throw new Error(`Invalid dataKeys at index ${index}: 'data' key is required.`);
+		}
+	});
+
+	// Validate syncX and syncY are boolean values
+	if (typeof syncX !== 'boolean' || typeof syncY !== 'boolean') {
+		throw new Error('Invalid input: syncX and syncY must be boolean values.');
+	}
+
+	// Validate features is an array
+	if (!Array.isArray(features)) {
+		throw new Error('Invalid input: features must be an array.');
+	}
+}
+
 // **1. Data Extraction Phase**
 /**
  * Extracts series data and associated keys for further calculation.
@@ -151,6 +189,9 @@ export function calculateDomains(props: CalculateDomainsProps): {
 	mergedXDomain?: unknown[];
 	mergedYDomain?: [number, number];
 } {
+	// **Validation Phase**
+	validateConfiguration(props);
+
 	const { syncX, syncY, data, dataKeysArray, features } = props;
 
 	// **1. Data Extraction Phase**

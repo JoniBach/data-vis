@@ -1,12 +1,58 @@
 // **5. Feature Enrichment Phase**
+import * as d3 from 'd3';
 
 import { handleTooltipShow, handleTooltipMove, handleTooltipHide } from '../plot/canvas.js';
 import type { ApplyChartFeaturesProps } from '../types.js';
+
+// **Validation Phase**
+/**
+ * Validates the configuration and properties for applying chart features.
+ */
+function validateApplyChartFeaturesConfiguration(props: ApplyChartFeaturesProps) {
+	const { params, featureRegistry } = props;
+	const { createParams, chartFeatures } = params;
+
+	// Validate createParams contains necessary properties
+	if (!createParams || typeof createParams !== 'object') {
+		throw new Error('Invalid createParams: must be an object containing chart configuration.');
+	}
+	if (!(createParams.chartTooltip instanceof d3.selection)) {
+		throw new Error('Invalid chartTooltip in createParams: must be an instance of HTMLElement.');
+	}
+	if (typeof createParams.dataKeys !== 'object' || createParams.dataKeys === null) {
+		throw new Error('Invalid dataKeys in createParams: must be an object.');
+	}
+	// Validate chartFeatures is an array
+	if (!Array.isArray(chartFeatures)) {
+		throw new Error('Invalid chartFeatures: must be an array.');
+	}
+
+	// Validate each feature in chartFeatures has valid properties
+	chartFeatures.forEach(({ feature, hide, config }, index) => {
+		if (typeof feature !== 'string') {
+			throw new Error(`Invalid feature at index ${index}: feature must be a string.`);
+		}
+		if (typeof hide !== 'boolean') {
+			throw new Error(`Invalid hide value at index ${index}: hide must be a boolean.`);
+		}
+		if (config && typeof config !== 'object') {
+			throw new Error(`Invalid config at index ${index}: config must be an object.`);
+		}
+	});
+
+	// Validate featureRegistry is an object
+	if (!featureRegistry || typeof featureRegistry !== 'object') {
+		throw new Error('Invalid featureRegistry: must be an object.');
+	}
+}
 
 /**
  * Renders additional chart features such as grids, axes, labels, and data representations.
  */
 export function applyChartFeatures(props: ApplyChartFeaturesProps): void {
+	// **Validation Phase**
+	validateApplyChartFeaturesConfiguration(props);
+
 	const { params, featureRegistry } = props;
 	const { createParams, chartFeatures } = params;
 	chartFeatures.forEach(({ feature, hide, config }) => {

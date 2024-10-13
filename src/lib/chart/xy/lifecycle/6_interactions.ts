@@ -8,6 +8,23 @@ type ListenerMap = {
 	tooltipHide: (chartTooltip: any) => void;
 };
 
+// **Validation Phase**
+/**
+ * Validates the configuration and input properties for initializing event handlers and setting up the event system.
+ */
+function validateEventSystemConfiguration(): void {
+	// Validate that eventSystem is properly structured
+	if (typeof eventSystem.listeners !== 'object' || eventSystem.listeners === null) {
+		throw new Error('Invalid eventSystem: listeners must be an object.');
+	}
+	if (typeof eventSystem.on !== 'function') {
+		throw new Error('Invalid eventSystem: on must be a function.');
+	}
+	if (typeof eventSystem.trigger !== 'function') {
+		throw new Error('Invalid eventSystem: trigger must be a function.');
+	}
+}
+
 // (9/10): Good modular event system, but could expand for future interactivity needs.
 export const eventSystem = {
 	listeners: {} as ListenerMap,
@@ -27,6 +44,9 @@ export const eventSystem = {
 // data: make the important params
 
 export function initializeEventHandlers(): void {
+	// **Validation Phase**
+	validateEventSystemConfiguration();
+
 	eventSystem.on('tooltip', (chartTooltip, data, dataKeys) => {
 		handleTooltipShow({ chartTooltip, data, dataKeys });
 	});

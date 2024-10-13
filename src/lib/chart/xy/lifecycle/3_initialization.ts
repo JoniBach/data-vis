@@ -2,6 +2,61 @@
 import * as d3 from 'd3';
 import type { CreateChartGroupProps, InitializeScalesProps } from '../types.js';
 
+// **Validation Phase**
+/**
+ * Validates the configuration and input properties to ensure they are suitable for chart group creation and scale initialization.
+ */
+function validateInitializationConfiguration(props: {
+	margin: CreateChartGroupProps['margin'];
+	chartContainer: CreateChartGroupProps['chartContainer'];
+	width: CreateChartGroupProps['width'];
+	height: CreateChartGroupProps['height'];
+	merge: CreateChartGroupProps['merge'];
+	domains: InitializeScalesProps['domains'];
+	chartWidth: InitializeScalesProps['chartWidth'];
+	chartHeight: InitializeScalesProps['chartHeight'];
+	xType: InitializeScalesProps['xType'];
+}) {
+	const { margin, chartContainer, width, height, merge, domains, chartWidth, chartHeight, xType } =
+		props;
+
+	// Validate chartContainer is an instance of HTMLElement
+	if (!(chartContainer instanceof HTMLElement)) {
+		throw new Error('Invalid chartContainer: must be an instance of HTMLElement.');
+	}
+
+	// Validate width and height are positive numbers
+	if (typeof width !== 'number' || width <= 0) {
+		throw new Error('Invalid width: must be a positive number.');
+	}
+	if (typeof height !== 'number' || height <= 0) {
+		throw new Error('Invalid height: must be a positive number.');
+	}
+
+	// Validate merge is a boolean value
+	if (typeof merge !== 'boolean') {
+		throw new Error('Invalid merge: must be a boolean value.');
+	}
+
+	// Validate domains is an object with x and y domains
+	if (!domains || typeof domains !== 'object' || !('x' in domains) || !('y' in domains)) {
+		throw new Error('Invalid domains: must include both x and y domains.');
+	}
+
+	// Validate chartWidth and chartHeight are positive numbers
+	if (typeof chartWidth !== 'number' || chartWidth <= 0) {
+		throw new Error('Invalid chartWidth: must be a positive number.');
+	}
+	if (typeof chartHeight !== 'number' || chartHeight <= 0) {
+		throw new Error('Invalid chartHeight: must be a positive number.');
+	}
+
+	// Validate xType is a valid type ('date', 'number', or 'string')
+	if (!['date', 'number', 'string'].includes(xType)) {
+		throw new Error(`Invalid xType: must be 'date', 'number', or 'string'.`);
+	}
+}
+
 // ** Main Entry Function: createScaledChartGroup **
 /**
  * Creates the chart group and initializes the scales based on the provided props.
@@ -20,6 +75,9 @@ export function createScaledChartGroup(props: {
 	chartGroup: d3.Selection<SVGGElement, unknown, null, undefined> | null;
 	scales: { x: unknown; y: unknown };
 } {
+	// **Validation Phase**
+	validateInitializationConfiguration(props);
+
 	const coordinateType = 'cartesian';
 
 	if (coordinateType === 'cartesian') {

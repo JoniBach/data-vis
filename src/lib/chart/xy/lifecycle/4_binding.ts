@@ -46,7 +46,6 @@ export function finalizeChartRendering(props: FinalizeChartRenderingProps): {
 			chartHeight,
 			chartWidth,
 			dataKeys: preparedData.dataKeys,
-			xType: props.xType,
 			...config,
 			margin: config.margin
 		},
