@@ -76,13 +76,15 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): ApplyChartFea
 	if (!merge) container.appendChild(chartContainer);
 
 	const chartHeight = squash ? height / data.length : height;
+
+	// Call the updated validateAndPrepareData function
 	const preparedData = validateAndPrepareData({ seriesData, dataKeys });
 	if (!preparedData) return null;
 
-	// Use the merged or individual domains depending on syncX and syncY
+	// The rest of the code proceeds as usual...
 	const domains = {
-		x: syncX ? mergedDomains.x : mergedDomains.x[i], // For unsynced X domain, use the ith domain
-		y: syncY ? mergedDomains.y : mergedDomains.y[i] // For unsynced Y domain, use the ith domain
+		x: syncX ? mergedDomains.x : mergedDomains.x[i],
+		y: syncY ? mergedDomains.y : mergedDomains.y[i]
 	};
 
 	const newChartWidth = width - margin.left - margin.right;
@@ -109,7 +111,7 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): ApplyChartFea
 		height: chartHeight,
 		chartFeatures,
 		dataKeys,
-		domains, // Pass the correct domains based on syncX and syncY
+		domains,
 		config,
 		merge,
 		xType: props.xType,
