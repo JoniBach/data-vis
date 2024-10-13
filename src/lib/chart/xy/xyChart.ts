@@ -69,54 +69,57 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): ApplyChartFea
 	} = props;
 
 	const { width, margin } = config;
-	const chartFeatures = features[i];
-	const dataKeys = dataKeysArray[i];
 
-	const chartContainer = merge ? container : document.createElement('div');
-	if (!merge) container.appendChild(chartContainer);
+	// Adjust chart height based on whether charts are squashed or not
+	const adjustedChartHeight = squash ? height / data.length : height;
+	const availableWidth = width - margin.left - margin.right;
+	const availableHeight = adjustedChartHeight - margin.top - margin.bottom;
 
-	const chartHeight = squash ? height / data.length : height;
-
-	// Call the updated validateAndPrepareData function
-	const preparedData = validateAndPrepareData({ seriesData, dataKeys });
-	if (!preparedData) return null;
-
-	// The rest of the code proceeds as usual...
+	// Determine the domain for x and y axes
 	const domains = {
 		x: syncX ? mergedDomains.x : mergedDomains.x[i],
 		y: syncY ? mergedDomains.y : mergedDomains.y[i]
 	};
 
-	const newChartWidth = width - margin.left - margin.right;
-	const newChartHeight = chartHeight - margin.top - margin.bottom;
+	const chartFeatures = features[i];
+	const dataKeys = dataKeysArray[i];
 
-	// Call the combined function to create the chart group and initialize scales
+	// Create a new container if not merging, otherwise use the provided container
+	const chartContainer = merge ? container : document.createElement('div');
+	if (!merge) container.appendChild(chartContainer);
+
+	// Validate and prepare data
+	const preparedData = validateAndPrepareData({ seriesData, dataKeys });
+	if (!preparedData) return null;
+
+	// Create the chart group and initialize scales
 	const chartAndScales = createScaledChartGroup({
 		margin,
 		chartContainer,
 		width,
-		height: chartHeight,
+		height: adjustedChartHeight,
 		merge,
 		domains,
-		chartWidth: newChartWidth,
-		chartHeight: newChartHeight,
+		chartWidth: availableWidth,
+		chartHeight: availableHeight,
 		xType: props.xType
 	});
 
 	if (!chartAndScales) return null;
 
+	// Finalize the chart rendering
 	const result = finalizeChartRendering({
 		preparedData,
 		chartContainer,
-		height: chartHeight,
+		height: adjustedChartHeight,
 		chartFeatures,
 		dataKeys,
 		domains,
 		config,
 		merge,
 		xType: props.xType,
-		chartWidth: newChartWidth,
-		chartHeight: newChartHeight,
+		chartWidth: availableWidth,
+		chartHeight: availableHeight,
 		chartAndScales
 	});
 
