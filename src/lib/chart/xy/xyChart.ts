@@ -65,7 +65,8 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): ApplyChartFea
 		height,
 		data,
 		syncX,
-		syncY
+		syncY,
+		xType
 	} = props;
 
 	const { width, margin } = config;
@@ -102,7 +103,7 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): ApplyChartFea
 		domains,
 		chartWidth: availableWidth,
 		chartHeight: availableHeight,
-		xType: props.xType
+		xType
 	});
 
 	if (!chartAndScales) return null;
