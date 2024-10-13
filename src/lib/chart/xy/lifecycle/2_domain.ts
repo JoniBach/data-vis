@@ -1,32 +1,40 @@
 // **Domain Calculation Phase**
 import type {
 	GetCoordinateValueProps,
-	ComputeMergedValueDomainProps,
 	CalculateDomainsProps,
 	ComputeMergedXDomainProps
 } from '../types.js';
 
+// **1. Data Extraction Phase**
+/**
+ * Extracts series data and associated keys for further calculation.
+ */
+function extractInputData(seriesDataArray, dataKeysArray) {
+	return { seriesDataArray, dataKeysArray };
+}
+
+// **2. Key Identification Phase**
 /**
  * Helper function to get a coordinate value from a data point.
  */
 function getCoordinateValue(props: GetCoordinateValueProps): number | string {
 	const { value } = props;
 	if (value instanceof Date) {
-		return value.getTime();
+		return value.getTime(); // Convert date to timestamp for consistency
 	}
-	return value;
+	return value; // Return numeric or string values as-is
 }
 
+// **3. Collect Unique X-Values Phase**
 /**
  * Helper function to collect all unique x-values from series data.
  */
 function collectUniqueXValues(seriesDataArray, dataKeysArray): Set<number | string> {
 	const allKeysSet = new Set<number | string>();
 	seriesDataArray.forEach((seriesData, index) => {
-		const dataKeys = dataKeysArray[index];
-		const xKey = dataKeys.coordinates['x'];
+		const xKey = dataKeysArray[index].coordinates['x'];
 		seriesData.forEach((series) => {
-			(series[dataKeys.data] as unknown[]).forEach((d) => {
+			(series[dataKeysArray[index].data] as unknown[]).forEach((d) => {
 				allKeysSet.add(getCoordinateValue({ value: d[xKey] }));
 			});
 		});
@@ -34,97 +42,90 @@ function collectUniqueXValues(seriesDataArray, dataKeysArray): Set<number | stri
 	return allKeysSet;
 }
 
+// **4. Calculate Y-Domain Range Phase**
 /**
- * Computes the merged value domain for multiple series, considering stacking variants.
+ * Computes the Y domain for individual series.
  */
-function computeMergedValueDomain(props: ComputeMergedValueDomainProps): [number, number] {
-	const { seriesDataArray, dataKeysArray, variants } = props;
+function calculateYDomain(seriesDataArray, dataKeysArray): [number, number][] {
+	return seriesDataArray.map((seriesData, index) => {
+		const yKey = dataKeysArray[index].coordinates.y;
+		let minY = Infinity;
+		let maxY = -Infinity;
 
-	const allKeys = Array.from(collectUniqueXValues(seriesDataArray, dataKeysArray));
-	let minValue = Infinity;
-	let maxValue = -Infinity;
+		seriesData.forEach((series) => {
+			(series[dataKeysArray[index].data] as unknown[]).forEach((d) => {
+				const yValue = d[yKey];
+				if (yValue < minY) minY = yValue;
+				if (yValue > maxY) maxY = yValue;
+			});
+		});
 
-	allKeys.forEach((key) => {
-		const { dateMaxPositive, dateMinNegative } = calculateStackedDomains(
-			seriesDataArray,
-			dataKeysArray,
-			variants,
-			key
-		);
-		maxValue = Math.max(maxValue, dateMaxPositive);
-		minValue = Math.min(minValue, dateMinNegative);
+		return [Math.min(0, minY), Math.max(0, maxY)];
 	});
-
-	return [Math.min(minValue, 0), Math.max(maxValue, 0)];
 }
 
+// **5. Synchronize Domains Phase (Optional)**
+/**
+ * Synchronizes X and Y domains across multiple series if sync is enabled.
+ */
+function synchronizeDomains(
+	syncX: boolean,
+	syncY: boolean,
+	uniqueXValues: Set<number | string>,
+	yDomains: [number, number][]
+) {
+	let mergedXDomain: unknown[] | null = null;
+	let mergedYDomain: [number, number] | null = null;
+
+	if (syncX) {
+		mergedXDomain = Array.from(uniqueXValues).sort((a, b) => {
+			if (typeof a === 'number' && typeof b === 'number') return a - b;
+			if (typeof a === 'string' && typeof b === 'string') return a.localeCompare(b);
+			return a.toString().localeCompare(b.toString());
+		});
+	}
+
+	if (syncY) {
+		let minY = Infinity;
+		let maxY = -Infinity;
+
+		yDomains.forEach(([min, max]) => {
+			if (min < minY) minY = min;
+			if (max > maxY) maxY = max;
+		});
+
+		mergedYDomain = [Math.min(0, minY), Math.max(0, maxY)];
+	}
+
+	return { mergedXDomain, mergedYDomain };
+}
+
+// **6. Calculate Stacked Domains Phase (Optional)**
 /**
  * Calculates stacked domains for a given key (x-value).
  */
-function calculateStackedDomains(
-	seriesDataArray,
-	dataKeysArray,
-	variants,
-	targetKey: number | string
-): { dateMaxPositive: number; dateMinNegative: number } {
+function calculateStackedDomains(seriesDataArray, dataKeysArray, variants) {
 	let dateMaxPositive = -Infinity;
 	let dateMinNegative = Infinity;
 
 	seriesDataArray.forEach((seriesData, index) => {
 		const variant = variants[index];
-		const dataKeys = dataKeysArray[index];
-		const xKey = dataKeys.coordinates['x'];
-		const yKey = dataKeys.coordinates['y'];
+		const xKey = dataKeysArray[index].coordinates['x'];
+		const yKey = dataKeysArray[index].coordinates['y'];
 
 		if (variant === 'stacked') {
 			const { chartPositive, chartNegative } = computeStackedValues(
 				seriesData,
 				xKey,
 				yKey,
-				targetKey,
-				dataKeys
+				dataKeysArray[index]
 			);
 			dateMaxPositive = Math.max(dateMaxPositive, chartPositive);
 			dateMinNegative = Math.min(dateMinNegative, chartNegative);
-			return;
 		}
-
-		calculateNonStackedDomains(seriesData, xKey, yKey, targetKey, dataKeys, (value) => {
-			dateMaxPositive = Math.max(dateMaxPositive, value);
-			dateMinNegative = Math.min(dateMinNegative, value);
-		});
 	});
 
 	return { dateMaxPositive, dateMinNegative };
-}
-
-/**
- * Helper function to calculate non-stacked domains for a given key (x-value).
- */
-function calculateNonStackedDomains(
-	seriesData,
-	xKey,
-	yKey,
-	targetKey: number | string,
-	dataKeys,
-	updateFn: (value: number) => void
-) {
-	seriesData.forEach((series) => {
-		const dataPoint = findDataPoint(series, xKey, targetKey, dataKeys);
-		if (dataPoint) {
-			const value = dataPoint[yKey];
-			updateFn(value);
-		}
-	});
-}
-
-/**
- * Helper function to find a data point by x-key.
- */
-function findDataPoint(series, xKey, targetKey, dataKeys) {
-	return (series[dataKeys.data] as unknown[]).find(
-		(d) => getCoordinateValue({ value: d[xKey] }) === targetKey
-	);
 }
 
 /**
@@ -134,77 +135,53 @@ function computeStackedValues(
 	seriesData,
 	xKey,
 	yKey,
-	targetKey: number | string,
 	dataKeys
 ): { chartPositive: number; chartNegative: number } {
 	let chartPositive = 0;
 	let chartNegative = 0;
 
 	seriesData.forEach((series) => {
-		const dataPoint = findDataPoint(series, xKey, targetKey, dataKeys);
-		if (dataPoint) {
-			const value = dataPoint[yKey];
+		(series[dataKeys.data] as unknown[]).forEach((d) => {
+			const value = d[yKey];
 			value >= 0 ? (chartPositive += value) : (chartNegative += value);
-		}
+		});
 	});
 
 	return { chartPositive, chartNegative };
 }
 
+// **7. Validate and Set Default Domains Phase**
 /**
- * Computes the merged x-domain for multiple series.
+ * Validates domain values and sets default values if required.
  */
-function computeMergedXDomain(props: ComputeMergedXDomainProps): unknown[] {
-	const { seriesDataArray, dataKeysArray } = props;
-	const allKeysSet = collectUniqueXValues(seriesDataArray, dataKeysArray);
+function validateAndSetDefaults(xDomain: unknown[], yDomain: [number, number]) {
+	if (!xDomain || xDomain.length === 0) {
+		console.warn('X Domain is empty, defaulting to [0, 1]');
+		xDomain = [0, 1];
+	}
 
-	const uniqueKeys = Array.from(allKeysSet);
-	uniqueKeys.sort((a, b) => {
-		if (typeof a === 'number' && typeof b === 'number') return a - b;
-		if (typeof a === 'string' && typeof b === 'string') return a.localeCompare(b);
-		return a.toString().localeCompare(b.toString());
-	});
+	if (!yDomain || yDomain.includes(Infinity) || yDomain.includes(-Infinity)) {
+		console.warn('Y Domain contains invalid values, defaulting to [0, 1]');
+		yDomain = [0, 1];
+	}
 
-	return uniqueKeys.map((key) => (typeof key === 'number' ? new Date(key) : key));
+	return { xDomain, yDomain };
 }
 
+// **8. Finalize Domains Phase**
 /**
- * Computes the Y domain for individual series.
+ * Finalizes and returns the domains for rendering.
  */
-function computeYDomain({ seriesData, dataKeys }): [number, number] {
-	const yKey = dataKeys.coordinates.y;
-	let minY = Infinity,
-		maxY = -Infinity;
-
-	seriesData.forEach((series) => {
-		series[dataKeys.data].forEach((d) => {
-			const yValue = d[yKey];
-			if (yValue < minY) minY = yValue;
-			if (yValue > maxY) maxY = yValue;
-		});
-	});
-
-	return [minY, maxY];
+function finalizeDomains({ xDomain, yDomain }) {
+	return {
+		mergedXDomain: xDomain,
+		mergedYDomain: yDomain
+	};
 }
 
+// **Main Entry Function: calculateDomains**
 /**
- * Extracts unique x-values for individual series.
- */
-function extractXDomain({ seriesData, dataKeys }): unknown[] {
-	const xKey = dataKeys.coordinates.x;
-	const xValues = new Set<number | string>();
-
-	seriesData.forEach((series) => {
-		series[dataKeys.data].forEach((d) => {
-			xValues.add(d[xKey]);
-		});
-	});
-
-	return Array.from(xValues); // Return an array of unique x-values
-}
-
-/**
- * Computes merged domains for x and y axes if synchronization is enabled.
+ * Orchestrates the domain calculation lifecycle.
  */
 export function calculateDomains(props: CalculateDomainsProps): {
 	mergedXDomain?: unknown[];
@@ -212,26 +189,64 @@ export function calculateDomains(props: CalculateDomainsProps): {
 } {
 	const { syncX, syncY, data, dataKeysArray, features } = props;
 
-	// Compute the merged X domain if syncX is true, otherwise compute individual X domains
-	const mergedXDomain = syncX
-		? computeMergedXDomain({ seriesDataArray: data, dataKeysArray })
-		: data.map((seriesData, i) => extractXDomain({ seriesData, dataKeys: dataKeysArray[i] }));
+	// **1. Data Extraction Phase**
+	const extractedData = extractInputData(data, dataKeysArray);
 
-	// Compute the merged Y domain if syncY is true, otherwise compute individual Y domains
-	const mergedYDomain = syncY
-		? computeMergedValueDomain({
-				seriesDataArray: data,
-				dataKeysArray,
-				variants: features.map(
-					(chartFeatures) =>
-						(
-							chartFeatures.find((f) => f.feature === 'bar' && !f.hide)?.config as {
-								variant?: string;
-							}
-						)?.variant || 'grouped'
-				)
-			})
-		: data.map((seriesData, i) => computeYDomain({ seriesData, dataKeys: dataKeysArray[i] }));
+	// **2. Key Identification Phase**
 
-	return { mergedXDomain, mergedYDomain };
+	// **3. Collect Unique X-Values Phase**
+	const uniqueXValues = collectUniqueXValues(
+		extractedData.seriesDataArray,
+		extractedData.dataKeysArray
+	);
+
+	// **4. Calculate Y-Domain Range Phase**
+	const yDomains = calculateYDomain(extractedData.seriesDataArray, extractedData.dataKeysArray);
+
+	// **5. Synchronize Domains Phase (Optional)**
+	const synchronizedDomains = synchronizeDomains(syncX, syncY, uniqueXValues, yDomains);
+
+	// **6. Calculate Stacked Domains Phase (Optional)**
+	const variants = features.map(
+		(feature) => feature.find((f) => f.feature === 'bar' && !f.hide)?.config.variant || 'grouped'
+	);
+	const stackedDomains = calculateStackedDomains(
+		extractedData.seriesDataArray,
+		extractedData.dataKeysArray,
+		variants
+	);
+
+	// **7. Validate and Set Default Domains Phase**
+	const validatedDomains = validateAndSetDefaults(
+		synchronizedDomains.mergedXDomain ?? Array.from(uniqueXValues),
+		synchronizedDomains.mergedYDomain ?? [
+			stackedDomains.dateMinNegative,
+			stackedDomains.dateMaxPositive
+		]
+	);
+
+	// **8. Finalize Domains Phase**
+	return finalizeDomains(validatedDomains);
 }
+
+/**
+ * This phase exists to identify and standardize the coordinate keys that will be used throughout
+ * the domain calculation process. By identifying the `x` and `y` coordinate keys upfront, we can
+ * effectively decouple the rest of the domain calculation from any hardcoded assumptions about 
+ * which data keys are relevant. This contributes to a flexible and reusable system.
+
+ * The goal of this step is to ensure that we know which properties of the data points represent
+ * the coordinates for plotting. This identification is particularly crucial when dealing with 
+ * multi-coordinate chart systems, where different coordinate types (e.g., Cartesian, Polar, 
+ * Geographic) can each have their own respective coordinate keys.
+
+ * By dynamically identifying coordinate keys using the provided data keys, we can abstract away 
+ * the specific details of the coordinate system being used. For example, instead of relying on 
+ * hardcoded keys like `x` and `y`, the system can handle `angle` and `radius` for polar plots or 
+ * `latitude` and `longitude` for geographic maps. This abstraction allows the charting library to
+ * remain **coordinate-system agnostic**, thereby supporting multiple chart types with a unified 
+ * workflow.
+
+ * The result of this step is a set of identified keys that can be passed along to the remaining 
+ * lifecycle stages to ensure consistency when accessing and processing coordinate data.
+ */
