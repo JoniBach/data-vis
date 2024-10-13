@@ -42,7 +42,10 @@ export function createAxis(props: CreateParams, config?: AxisConfig): void {
 			xTickFormat = d3.timeFormat('%m / %y');
 		}
 		const xTicks = config?.xTicks || 5;
-		xAxis = d3.axisBottom(xScale).ticks(xTicks).tickFormat(xTickFormat);
+		xAxis = d3
+			.axisBottom(xScale)
+			.ticks(xTicks)
+			.tickFormat((d) => xTickFormat(new Date(d as string)));
 	} else if (xType === 'number') {
 		const xTickFormatStr = config?.xTickFormat || '~s';
 		let xTickFormat: (n: number | { valueOf(): number }) => string;
@@ -208,8 +211,6 @@ export function attachTooltipHandlers(props: {
 			eventSystem.trigger('tooltipHide', chartTooltip);
 		});
 }
-
-// Tooltip Handlers
 export const handleTooltipShow = ({
 	chartTooltip,
 	data,
@@ -223,9 +224,15 @@ export const handleTooltipShow = ({
 		const xKey = dataKeys.coordinates['x'];
 		const yKey = dataKeys.coordinates['y'];
 
-		const xValue = data[xKey];
+		let xValue = data[xKey];
 		const yValue = data[yKey];
 
+		// Check if xValue is a string in ISO format and parse it
+		if (typeof xValue === 'string' && !isNaN(Date.parse(xValue))) {
+			xValue = new Date(xValue);
+		}
+
+		// Format values for display
 		const xStr = xValue instanceof Date ? d3.timeFormat('%b %Y')(xValue) : escapeHTML(xValue);
 		const yStr = escapeHTML(yValue);
 
