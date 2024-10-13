@@ -53,3 +53,21 @@ export function finalizeChartRendering(props: FinalizeChartRenderingProps): {
 		chartGroup
 	};
 }
+
+/**
+ * This phase is responsible for binding the prepared data to the visual elements of the chart and rendering them
+ * within the defined SVG container. By using the scales computed in the previous phases, this step ensures that
+ * chart elements like bars, lines, and points are appropriately placed according to their data values.
+ *
+ * The purpose of this step is to visually represent the data points by creating and positioning SVG elements
+ * based on the calculated domains and scaling. It ensures that the data becomes visible on the chart and
+ * follows the correct layout and dimensions.
+ *
+ * In addition to rendering the chart elements, this phase also integrates optional features like tooltips,
+ * which provide additional interactivity and data insights to the user. The system checks whether the tooltip
+ * feature is enabled and sets it up accordingly, making the chart more interactive when users hover over data points.
+ *
+ * The result of this step is the creation of a visual chart, with all elements rendered and bound to the data.
+ * It produces the necessary parameters to be used in subsequent phases, such as interaction handling and
+ * feature enrichment.
+ */
