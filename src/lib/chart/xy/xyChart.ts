@@ -65,11 +65,10 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): ApplyChartFea
 		height,
 		data,
 		syncX,
-		syncY,
-		xType
+		syncY
 	} = props;
 
-	const { width, margin } = config;
+	const { width, margin, xType } = config;
 
 	// Adjust chart height based on whether charts are squashed or not
 	const adjustedChartHeight = squash ? height / data.length : height;
@@ -118,7 +117,7 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): ApplyChartFea
 		domains,
 		config,
 		merge,
-		xType: props.xType,
+		xType,
 		chartWidth: availableWidth,
 		chartHeight: availableHeight,
 		chartAndScales

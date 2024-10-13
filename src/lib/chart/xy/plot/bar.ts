@@ -117,15 +117,32 @@ function createErrorBars(props: {
 	const yScale = scales['y'];
 
 	try {
-		// Only define seriesScale if xScale has a bandwidth function (scaleBand)
-		const seriesScale = xScale.bandwidth
-			? d3
-					.scaleBand<string>()
-					.domain(seriesData.map((d) => d[dataKeys.name]))
-					.range([0, xScale.bandwidth()])
-					.padding(0.05)
-			: null;
+		// Define seriesScale if xScale is not scaleBand
+		let seriesScale = null;
 
+		if (!xScale.bandwidth) {
+			// For numeric or date x-axis, calculate the group width
+			const uniqueXValues = [
+				...new Set(seriesData.flatMap((series) => series[dataKeys.data].map((d) => d[xKey])))
+			];
+			const groupWidth = Math.min(xScale(uniqueXValues[1]) - xScale(uniqueXValues[0]), 50); // Cap width for clarity
+
+			// Create seriesScale to distribute space among series within each x value
+			seriesScale = d3
+				.scaleBand<string>()
+				.domain(seriesData.map((d) => d[dataKeys.name]))
+				.range([0, groupWidth])
+				.padding(0.2);
+		} else {
+			// For categorical x-axis (e.g., strings)
+			seriesScale = d3
+				.scaleBand<string>()
+				.domain(seriesData.map((d) => d[dataKeys.name]))
+				.range([0, xScale.bandwidth()])
+				.padding(0.05);
+		}
+
+		// Magnitude key for error
 		const magnitudeKey = dataKeys.magnitude;
 
 		const magnitudeScale = d3
@@ -145,34 +162,39 @@ function createErrorBars(props: {
 
 			bars.each((d, i, nodes) => {
 				const bar = d3.select(nodes[i]);
+				const xValue = d[xKey];
 				const xPos =
-					getXPosition({ xScale, xValue: d[xKey] }) +
-					(seriesScale ? seriesScale(series[dataKeys.name]) : 0);
+					getXPosition({ xScale, xValue }) + (seriesScale ? seriesScale(series[dataKeys.name]) : 0);
 				const yPos = yScale(d[yKey]);
 				const height = chartHeight - yScale(d[yKey]);
-				const width = seriesScale ? seriesScale.bandwidth() : 10; // Fallback width if not scaleBand
-				const fillColor = colorScale(series[dataKeys.name]);
+				const width = seriesScale ? seriesScale.bandwidth() : 10; // Fallback width
 
-				createBar({
-					selection: bar,
-					d,
-					x: xPos,
-					y: yPos,
-					height,
-					width,
-					fillColor,
-					fillOpacity,
-					chartTooltip: params.chartTooltip,
-					dataKeys
-				});
+				// Only create bar if width and height are valid
+				if (width > 0 && height > 0) {
+					const fillColor = colorScale(series[dataKeys.name]);
 
-				addErrorBars({
-					barsGroup,
-					xPos,
-					width,
-					yPos,
-					errorMagnitude: magnitudeScale(d[magnitudeKey])
-				});
+					createBar({
+						selection: bar,
+						d,
+						x: xPos,
+						y: yPos,
+						height,
+						width,
+						fillColor,
+						fillOpacity,
+						chartTooltip: params.chartTooltip,
+						dataKeys
+					});
+
+					// Adding error bars at the same x position, with consideration of the series scale
+					addErrorBars({
+						barsGroup,
+						xPos,
+						width,
+						yPos,
+						errorMagnitude: magnitudeScale(d[magnitudeKey])
+					});
+				}
 			});
 		});
 	} catch (error) {
@@ -275,8 +297,6 @@ function createStackedBars(props: {
 		console.error('Error generating stacked bars:', error);
 	}
 }
-
-// Function to create grouped or overlapped bars
 function createNonStackedBars(props: {
 	type: string;
 	seriesData: Series[];
@@ -295,13 +315,40 @@ function createNonStackedBars(props: {
 	const yScale = scales['y'];
 
 	try {
-		const seriesScale = xScale.bandwidth
-			? d3
+		// Define a series scale for numeric or date x-values
+		let seriesScale = null;
+
+		if (xScale.bandwidth) {
+			// For categorical x-axis (e.g., strings)
+			seriesScale = d3
+				.scaleBand<string>()
+				.domain(seriesData.map((d) => d[dataKeys.name]))
+				.range([0, xScale.bandwidth()])
+				.padding(0.05);
+		} else {
+			// For numeric or date x-axis, calculate appropriate width for each bar group
+			const uniqueXValues = [
+				...new Set(seriesData.flatMap((series) => series[dataKeys.data].map((d) => d[xKey])))
+			];
+
+			if (uniqueXValues.length > 1) {
+				const groupWidth = Math.min(xScale(uniqueXValues[1]) - xScale(uniqueXValues[0]), 50); // Ensure there's enough space between groups
+
+				// Calculate series scale to distribute space among multiple series
+				seriesScale = d3
 					.scaleBand<string>()
 					.domain(seriesData.map((d) => d[dataKeys.name]))
-					.range([0, xScale.bandwidth()])
-					.padding(0.05)
-			: null;
+					.range([0, groupWidth])
+					.padding(0.2); // Add some padding to avoid overlap
+			} else {
+				// If there is only one unique x value, fallback to default reasonable width
+				seriesScale = d3
+					.scaleBand<string>()
+					.domain(seriesData.map((d) => d[dataKeys.name]))
+					.range([0, 20]) // Fallback range
+					.padding(0.2);
+			}
+		}
 
 		seriesData.forEach((series) => {
 			const bars = barsGroup
@@ -312,30 +359,35 @@ function createNonStackedBars(props: {
 
 			bars.each((d, i, nodes) => {
 				const bar = d3.select(nodes[i]);
+				const xValue = d[xKey];
 				const xPos =
-					getXPosition({ xScale, xValue: d[xKey] }) +
-					(type === 'grouped' && seriesScale ? seriesScale(series[dataKeys.name]) : 0);
+					getXPosition({ xScale, xValue }) + (seriesScale ? seriesScale(series[dataKeys.name]) : 0);
 				const yPos = yScale(d[yKey]);
-				const height = chartHeight - yScale(d[yKey]);
-				const width = seriesScale
-					? seriesScale.bandwidth()
-					: xScale.bandwidth
-						? xScale.bandwidth()
-						: 10; // Fallback width
-				const fillColor = colorScale(series[dataKeys.name]);
+				const height = chartHeight - yPos;
 
-				createBar({
-					selection: bar,
-					d,
-					x: xPos,
-					y: yPos,
-					height,
-					width,
-					fillColor,
-					fillOpacity,
-					chartTooltip: params.chartTooltip,
-					dataKeys
-				});
+				// Set width based on series scale bandwidth, ensure it fits the allocated space
+				const width = seriesScale ? seriesScale.bandwidth() : 10; // Fallback width
+
+				// Logging to verify positions and dimensions
+				console.log(`xPos: ${xPos}, yPos: ${yPos}, height: ${height}, width: ${width}`);
+
+				// Check if width and height are valid
+				if (width > 0 && height > 0) {
+					const fillColor = colorScale(series[dataKeys.name]);
+
+					createBar({
+						selection: bar,
+						d,
+						x: xPos,
+						y: yPos,
+						height,
+						width,
+						fillColor,
+						fillOpacity,
+						chartTooltip: params.chartTooltip,
+						dataKeys
+					});
+				}
 			});
 		});
 	} catch (error) {
