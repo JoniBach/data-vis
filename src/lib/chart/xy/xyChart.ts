@@ -59,6 +59,7 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): ApplyChartFea
 		features,
 		config,
 		mergedDomains,
+		separatedDomains,
 		container,
 		merge,
 		squash,
@@ -74,11 +75,11 @@ function createDataSeriesChart(props: CreateDataSeriesChartProps): ApplyChartFea
 	const adjustedChartHeight = squash ? height / data.length : height;
 	const availableWidth = width - margin.left - margin.right;
 	const availableHeight = adjustedChartHeight - margin.top - margin.bottom;
-
 	// Determine the domain for x and y axes
+	console.log({ mergedDomains, separatedDomains });
 	const domains = {
-		x: syncX ? mergedDomains.x : mergedDomains.x[i],
-		y: syncY ? mergedDomains.y : mergedDomains.y[i]
+		x: syncX ? mergedDomains.x : separatedDomains[i].x,
+		y: syncY ? mergedDomains.y : separatedDomains[i].y
 	};
 
 	const chartFeatures = features[i];
@@ -150,15 +151,16 @@ function createMultiSeriesChart(props: CreateMultiSeriesChartProps): ApplyChartF
 export function initializeChart(props: InitializeChartProps): void {
 	const { container, data, dataKeysArray, features, config } = props;
 	const { height, squash, syncX, syncY, merge } = config;
+	const coordinateSystemType = 'cartesian';
 
-	const { mergedXDomain, mergedYDomain } = calculateDomains({
+	const { mergedDomains, separatedDomains } = calculateDomains({
 		syncX: !!syncX,
 		syncY: !!syncY,
 		data,
 		dataKeysArray,
-		features
+		features,
+		coordinateSystemType
 	});
-
 	if (!merge) {
 		d3.select(container).selectAll('*').remove();
 	}
@@ -169,7 +171,8 @@ export function initializeChart(props: InitializeChartProps): void {
 		dataKeysArray,
 		features,
 		config,
-		mergedDomains: { x: mergedXDomain, y: mergedYDomain },
+		mergedDomains,
+		separatedDomains,
 		merge: !!merge,
 		squash: !!squash,
 		height,
